@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer } from '../../utils/helpers';
-import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame } from 'lucide-react';
+import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -281,19 +281,26 @@ const PredictiveAnalytics: React.FC = () => {
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#004182] via-[#0056b3] to-[#0284c7] rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 opacity-15 pointer-events-none">
-          <TrendingUp size={260} />
-        </div>
-
-        <div className="relative z-10">
-          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-sky-200 text-xs font-bold mb-3 border border-white/20">
-            <Zap size={14} className="text-amber-300" /> Thuật Toán Phân Tích & Dự Báo Dòng Tiền Đáo Hạn
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-[#004182] border border-blue-200/70 shadow-2xs mb-1.5">
+              <Zap size={13} className="text-amber-500 fill-amber-400" />
+              <span>Thuật Toán Phân Tích & Dự Báo Dòng Tiền Đáo Hạn</span>
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <BarChart3 className="w-6 h-6 text-[#004182] flex-shrink-0" />
+              <span>Bản Đồ Nhiệt & Dự Báo Dòng Tiền Tái Tục</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-3xl leading-relaxed">
+              Phân tích tự động 12 tháng tới dựa trên kỳ hết hạn đóng phí. Cảnh báo các mức độ rủi ro chậm đóng để chủ động chăm sóc giữ chân người tham gia.
+            </p>
           </div>
-          <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight">📊 Bản Đồ Nhiệt & Dự Báo Dòng Tiền Tái Tục</h1>
-          <p className="text-blue-100 mt-2 text-sm md:text-base max-w-3xl">
-            Phân tích tự động 12 tháng tới dựa trên kỳ hết hạn đóng phí. Cảnh báo các mức độ rủi ro chậm đóng để chủ động chăm sóc giữ chân người tham gia.
-          </p>
+
+          <div className="hidden sm:inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 text-xs text-slate-600 font-medium flex-shrink-0">
+            <Calendar size={15} className="text-[#004182]" />
+            <span>Chu kỳ phân tích: <strong className="text-slate-800">12 tháng tới</strong></span>
+          </div>
         </div>
       </div>
 

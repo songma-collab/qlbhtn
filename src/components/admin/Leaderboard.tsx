@@ -196,47 +196,50 @@ const Leaderboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-[#004182] via-[#0056b3] to-[#0ea5e9] rounded-3xl p-6 md:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 opacity-15 pointer-events-none">
-          <Trophy size={280} />
-        </div>
-        
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+      {/* Header & Filter Card */}
+      <div className="bg-white rounded-2xl p-5 sm:p-6 border border-slate-200/80 shadow-xs space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-amber-300 text-xs font-bold mb-3 border border-white/20">
-              <Sparkles size={14} /> Bảng Vàng Thi Đua Doanh Số & KPI
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200/70 shadow-2xs mb-1.5">
+              <Sparkles size={13} className="text-amber-500 fill-amber-400" />
+              <span>Bảng Vàng Thi Đua Doanh Số & KPI</span>
             </div>
-            <h1 className="text-2xl md:text-4xl font-extrabold tracking-tight">🏆 Bảng Xếp Hạng & Vượt Chỉ Tiêu</h1>
-            <p className="text-blue-100 mt-2 text-sm md:text-base max-w-2xl">
+            <h1 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Trophy className="w-6 h-6 text-amber-500 flex-shrink-0" />
+              <span>Bảng Xếp Hạng & Vượt Chỉ Tiêu</span>
+            </h1>
+            <p className="text-xs sm:text-sm text-slate-500 mt-1 max-w-2xl leading-relaxed">
               Vinh danh các Chuyên viên & Đại lý thu BHXH/BHYT xuất sắc nhất. Theo dõi tiến độ hoàn thành chỉ tiêu KPI thời gian thực.
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5 flex-shrink-0">
             {currentUser?.role === 'Admin' && (
               <button
                 onClick={handleOpenKpiModal}
-                className="px-5 py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-gray-900 font-extrabold shadow-lg transition-all flex items-center gap-2 hover:scale-105"
+                className="inline-flex items-center gap-2 px-3.5 py-2 bg-[#004182] hover:bg-[#003166] text-white rounded-xl text-xs font-semibold shadow-xs transition-colors active:scale-98 cursor-pointer"
               >
-                <Settings size={18} /> Thiết Lập KPI Nhân Viên
+                <Settings size={15} className="text-white/80" />
+                <span>Thiết Lập KPI Nhân Viên</span>
               </button>
             )}
           </div>
         </div>
 
-        {/* Filter Controls */}
-        <div className="mt-8 pt-6 border-t border-white/20 grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Filter Controls Toolbar */}
+        <div className="pt-3.5 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div>
-            <label className="block text-xs font-bold text-blue-200 mb-1">Chọn Tháng Lương</label>
+            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Chọn Tháng Lương
+            </label>
             <select
               value={selectedMonth || 'all'}
               onChange={e => setSelectedMonth(e.target.value)}
-              className="w-full bg-white/10 backdrop-blur-md text-white border border-white/30 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:bg-white/20 transition"
+              className="w-full bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-800 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-[#004182] focus:ring-2 focus:ring-[#004182]/10 transition cursor-pointer"
             >
-              <option value="all" className="text-gray-900 font-medium">-- Tất cả thời gian --</option>
+              <option value="all">-- Tất cả thời gian --</option>
               {availableMonths.map(m => (
-                <option key={m} value={m} className="text-gray-900 font-medium">
+                <option key={m} value={m}>
                   Tháng {formatMonthVN(m)}
                 </option>
               ))}
@@ -244,30 +247,34 @@ const Leaderboard: React.FC = () => {
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-blue-200 mb-1">Khu Vực</label>
+            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Khu Vực
+            </label>
             <select
               value={selectedArea || 'all'}
               onChange={e => setSelectedArea(e.target.value)}
-              className="w-full bg-white/10 backdrop-blur-md text-white border border-white/30 rounded-xl px-4 py-2.5 text-sm font-semibold outline-none focus:bg-white/20 transition"
+              className="w-full bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-800 border border-slate-200 rounded-xl px-3 py-2 text-xs font-medium outline-none focus:border-[#004182] focus:ring-2 focus:ring-[#004182]/10 transition cursor-pointer"
             >
-              <option value="all" className="text-gray-900 font-medium">-- Tất cả khu vực --</option>
+              <option value="all">-- Tất cả khu vực --</option>
               {areasList.map(a => (
-                <option key={a} value={a} className="text-gray-900 font-medium">{a}</option>
+                <option key={a} value={a}>{a}</option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-bold text-blue-200 mb-1">Tìm kiếm nhân viên</label>
+            <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">
+              Tìm Kiếm Nhân Viên
+            </label>
             <div className="relative">
               <input
                 type="text"
                 placeholder="Nhập tên nhân viên..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-white/10 backdrop-blur-md text-white placeholder-blue-200 border border-white/30 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none focus:bg-white/20 transition"
+                className="w-full bg-slate-50 hover:bg-slate-100/80 focus:bg-white text-slate-800 placeholder-slate-400 border border-slate-200 rounded-xl pl-8.5 pr-3 py-2 text-xs font-medium outline-none focus:border-[#004182] focus:ring-2 focus:ring-[#004182]/10 transition"
               />
-              <Search size={16} className="absolute left-3 top-3 text-blue-200" />
+              <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
             </div>
           </div>
         </div>

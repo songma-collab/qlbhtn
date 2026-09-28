@@ -10,7 +10,8 @@ import {
   isDateLocked, 
   formatTitleCase, 
   dateISOToVN, 
-  getOldBhxh10 
+  getOldBhxh10,
+  formatPeriodKeyToLabel 
 } from '../../utils/helpers';
 import { parseMonthAndYear, toDbDate } from '../../utils/dateStandardHelper';
 import { getCommissionRateForRecord } from '../../utils/calculations';
@@ -179,25 +180,13 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const formattedLockedList = useMemo(() => {
     if (!lockedKeys || lockedKeys.length === 0) return [];
     const list = lockedKeys.map(key => {
-      let label = key;
+      const label = formatPeriodKeyToLabel(key) || key;
       let sortVal = 0;
-      if (key.startsWith('month:')) {
-        const parts = key.replace('month:', '').split('-');
-        if (parts.length === 2) {
-          label = `Tháng ${parts[1]}/${parts[0]}`;
-          sortVal = parseInt(parts[0]) * 100 + parseInt(parts[1]);
-        }
-      } else if (key.startsWith('quarter:')) {
-        const parts = key.replace('quarter:', '').split('-');
-        if (parts.length === 2) {
-          label = `Quý ${parts[1]}/${parts[0]}`;
-          sortVal = parseInt(parts[0]) * 100 + parseInt(parts[1]) * 25;
-        }
-      } else if (key.startsWith('year:')) {
-        const yr = key.replace('year:', '');
-        label = `Năm ${yr}`;
-        sortVal = parseInt(yr) * 100;
-      }
+      const yrMatch = key.match(/20\d{2}/);
+      const mMatch = key.match(/(?:month[:_]|thang[_\s]?)(\d{1,2})/i) || key.match(/[-/](\d{1,2})/);
+      const yr = yrMatch ? parseInt(yrMatch[0], 10) : 2026;
+      const mo = mMatch ? parseInt(mMatch[1], 10) : 1;
+      sortVal = yr * 100 + mo;
       return { key, label, sortVal };
     });
     return list.sort((a, b) => b.sortVal - a.sortVal);
@@ -213,19 +202,43 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     let cKey = '';
     let isLocked = false;
     let periodLbl = dateRange.periodLabel;
+    let equivalentKeys: string[] = [];
 
     if (filterState.periodType === 'MONTH' && filterState.selectedMonth) {
       cKey = `month:${filterState.selectedMonth}`;
+      const parts = filterState.selectedMonth.split('-');
+      if (parts.length === 2) {
+        const [yr, mo] = parts;
+        equivalentKeys = [
+          cKey,
+          `month_${mo}/${yr}`,
+          `month_${mo}_${yr}`,
+          `month:${mo}/${yr}`,
+          `month:${yr}-${mo}`
+        ];
+      }
     } else if (filterState.periodType === 'QUARTER') {
       const q = Math.floor(new Date().getMonth() / 3) + 1;
       const yr = new Date().getFullYear();
       cKey = `quarter:${yr}-${q}`;
+      equivalentKeys = [
+        cKey,
+        `quarter_${q}_${yr}`,
+        `quarter_${q}/${yr}`,
+        `quarter:${yr}-${q}`
+      ];
     } else if (filterState.periodType === 'YEAR') {
       const yr = new Date().getFullYear();
       cKey = `year:${yr}`;
+      equivalentKeys = [
+        cKey,
+        `year_${yr}`
+      ];
     }
 
-    if (cKey && lockedKeys.includes(cKey)) {
+    if (equivalentKeys.length > 0 && lockedKeys.some(k => equivalentKeys.includes(k))) {
+      isLocked = true;
+    } else if (cKey && lockedKeys.includes(cKey)) {
       isLocked = true;
     }
 
@@ -723,7 +736,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
       if (activePolicy) {
         await supabase
-          .from('system_policies')
+          .from('policies')
           .update({
             value: { lockedKeys: currentArr },
             updated_at: new Date().toISOString()
@@ -731,9 +744,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           .eq('id', activePolicy.id);
       } else {
         await supabase
-          .from('system_policies')
+          .from('policies')
           .insert({
             parameter_type: 'locked_periods',
+            name: 'Khóa kỳ tài chính',
             is_active: true,
             value: { lockedKeys: currentArr },
             description: 'Danh sách các kỳ tài chính đã chốt khóa'

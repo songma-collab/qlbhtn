@@ -93,13 +93,88 @@ export const isDateLocked = (dateStr: string | undefined | null, lockedKeys: str
   const mFormatted = String(mNum).padStart(2, '0');
   const monthKey1 = `month_${mFormatted}/${yNum}`;
   const monthKey2 = `month_${mFormatted}_${yNum}`;
+  const monthKey3 = `month:${yNum}-${mFormatted}`;
+  const monthKey4 = `month:${mFormatted}/${yNum}`;
   
   const qNum = Math.ceil(mNum / 3);
-  const quarterKey = `quarter_${qNum}_${yNum}`;
+  const quarterKey1 = `quarter_${qNum}_${yNum}`;
+  const quarterKey2 = `quarter:${yNum}-${qNum}`;
+  const quarterKey3 = `quarter_${qNum}/${yNum}`;
   
-  const yearKey = `year_${yNum}`;
+  const yearKey1 = `year_${yNum}`;
+  const yearKey2 = `year:${yNum}`;
 
-  return lockedKeys.includes(monthKey1) || lockedKeys.includes(monthKey2) || lockedKeys.includes(quarterKey) || lockedKeys.includes(yearKey);
+  return lockedKeys.includes(monthKey1) || lockedKeys.includes(monthKey2) || lockedKeys.includes(monthKey3) || lockedKeys.includes(monthKey4) ||
+         lockedKeys.includes(quarterKey1) || lockedKeys.includes(quarterKey2) || lockedKeys.includes(quarterKey3) ||
+         lockedKeys.includes(yearKey1) || lockedKeys.includes(yearKey2);
+};
+
+/**
+ * Chuyển đổi mã khóa kỳ tài chính (currentPeriodKey) thành nhãn hiển thị tiếng Việt chuẩn hóa
+ * Ví dụ:
+ * - "month_09/2026", "month_09_2026", "month:2026-09" -> "Tháng 09/2026"
+ * - "quarter_3_2026", "quarter:2026-3" -> "Quý 3/2026"
+ * - "year_2026", "year:2026" -> "Năm 2026"
+ */
+export const formatPeriodKeyToLabel = (key: string | undefined | null): string => {
+  if (!key) return '';
+  const s = String(key).trim();
+  
+  // Xử lý kỳ tháng: month_09/2026, month_09_2026, month:2026-09, month:09/2026
+  if (s.startsWith('month_') || s.startsWith('month:')) {
+    const raw = s.replace(/^(month_|month:)/, '');
+    if (raw.includes('/')) {
+      const parts = raw.split('/');
+      if (parts.length === 2) {
+        return `Tháng ${parts[0].padStart(2, '0')}/${parts[1]}`;
+      }
+    } else if (raw.includes('-')) {
+      const parts = raw.split('-');
+      if (parts.length === 2) {
+        if (parts[0].length === 4) {
+          return `Tháng ${parts[1].padStart(2, '0')}/${parts[0]}`;
+        }
+        return `Tháng ${parts[0].padStart(2, '0')}/${parts[1]}`;
+      }
+    } else if (raw.includes('_')) {
+      const parts = raw.split('_');
+      if (parts.length === 2) {
+        return `Tháng ${parts[0].padStart(2, '0')}/${parts[1]}`;
+      }
+    }
+  }
+
+  // Xử lý kỳ quý: quarter_3_2026, quarter:2026-3, quarter_3/2026
+  if (s.startsWith('quarter_') || s.startsWith('quarter:')) {
+    const raw = s.replace(/^(quarter_|quarter:)/, '');
+    if (raw.includes('-')) {
+      const parts = raw.split('-');
+      if (parts.length === 2) {
+        if (parts[0].length === 4) {
+          return `Quý ${parts[1]}/${parts[0]}`;
+        }
+        return `Quý ${parts[0]}/${parts[1]}`;
+      }
+    } else if (raw.includes('_')) {
+      const parts = raw.split('_');
+      if (parts.length === 2) {
+        return `Quý ${parts[0]}/${parts[1]}`;
+      }
+    } else if (raw.includes('/')) {
+      const parts = raw.split('/');
+      if (parts.length === 2) {
+        return `Quý ${parts[0]}/${parts[1]}`;
+      }
+    }
+  }
+
+  // Xử lý kỳ năm: year_2026, year:2026
+  if (s.startsWith('year_') || s.startsWith('year:')) {
+    const yr = s.replace(/^(year_|year:)/, '');
+    return `Năm ${yr}`;
+  }
+
+  return s;
 };
 
 export const FINANCIAL_FIELDS: (keyof RecordType)[] = [

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatMonthVN } from '../../utils/helpers';
+import { formatMoney, formatMonthVN, formatPeriodKeyToLabel } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import { calculateClawbackRatio } from '../../utils/clawbackSettlement';
 import type { RecordType } from '../../context/types';
@@ -25,7 +25,8 @@ import {
   BarChart3,
   PieChart,
   ArrowUpRight,
-  Sparkles
+  Sparkles,
+  Calendar
 } from 'lucide-react';
 import { RefundClawbackModal } from './finance/RefundClawbackModal';
 import { ViewClawbackModal } from './finance/ViewClawbackModal';
@@ -106,8 +107,13 @@ const FinancialSettlement: React.FC = () => {
   // Determine current active lock key based on selected period
   const currentPeriodKey = useMemo(() => {
     const mStr = String(selectedMonth).padStart(2, '0');
-    if (period === 'month' || period === 'last_month') {
+    if (period === 'month') {
       return `month_${mStr}/${selectedYear}`;
+    } else if (period === 'last_month') {
+      const targetMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+      const targetYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+      const lmStr = String(targetMonth).padStart(2, '0');
+      return `month_${lmStr}/${targetYear}`;
     } else if (period === 'quarter') {
       const qNum = Math.ceil(selectedMonth / 3);
       return `quarter_${qNum}_${selectedYear}`;
@@ -117,9 +123,32 @@ const FinancialSettlement: React.FC = () => {
     return `month_${mStr}/${selectedYear}`;
   }, [period, selectedMonth, selectedYear]);
 
+  // Danh sách các biến thể khóa tương đương để kiểm tra khóa đa chiều
+  const currentEquivalentLockKeys = useMemo(() => {
+    const mStr = String(selectedMonth).padStart(2, '0');
+    const yStr = String(selectedYear);
+    const qNum = Math.ceil(selectedMonth / 3);
+
+    const keys = [currentPeriodKey];
+    if (period === 'month') {
+      keys.push(`month_${mStr}/${yStr}`, `month_${mStr}_${yStr}`, `month:${yStr}-${mStr}`, `month:${mStr}/${yStr}`);
+    } else if (period === 'last_month') {
+      const targetMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+      const targetYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+      const lmStr = String(targetMonth).padStart(2, '0');
+      const lyStr = String(targetYear);
+      keys.push(`month_${lmStr}/${lyStr}`, `month_${lmStr}_${lyStr}`, `month:${lyStr}-${lmStr}`, `month:${lmStr}/${lyStr}`);
+    } else if (period === 'quarter') {
+      keys.push(`quarter_${qNum}_${yStr}`, `quarter:${yStr}-${qNum}`, `quarter_${qNum}/${yStr}`);
+    } else if (period === 'year') {
+      keys.push(`year_${yStr}`, `year:${yStr}`);
+    }
+    return Array.from(new Set(keys));
+  }, [currentPeriodKey, period, selectedMonth, selectedYear]);
+
   const isCurrentPeriodLocked = useMemo(() => {
-    return lockedKeysList.includes(currentPeriodKey);
-  }, [lockedKeysList, currentPeriodKey]);
+    return lockedKeysList.some(k => currentEquivalentLockKeys.includes(k));
+  }, [lockedKeysList, currentEquivalentLockKeys]);
 
   // Calculate Date Boundaries
   const dateRange = useMemo(() => {
@@ -163,6 +192,40 @@ const FinancialSettlement: React.FC = () => {
 
     return { start, end };
   }, [period, selectedMonth, selectedYear, customStartDate, customEndDate]);
+
+  // Nhãn hiển thị kỳ báo cáo chuẩn nghiệp vụ tiếng Việt (thay vì hiện mã kỹ thuật month_09/2026)
+  const currentPeriodLabel = useMemo(() => {
+    if (period === 'today') {
+      return `Hôm nay (${new Date().toLocaleDateString('vi-VN')})`;
+    }
+    if (period === 'week') {
+      return `Tuần này (${dateRange.start.toLocaleDateString('vi-VN')} – ${dateRange.end.toLocaleDateString('vi-VN')})`;
+    }
+    if (period === 'month') {
+      const mStr = String(selectedMonth).padStart(2, '0');
+      return `Tháng ${mStr}/${selectedYear}`;
+    }
+    if (period === 'last_month') {
+      const targetMonth = selectedMonth === 1 ? 12 : selectedMonth - 1;
+      const targetYear = selectedMonth === 1 ? selectedYear - 1 : selectedYear;
+      const mStr = String(targetMonth).padStart(2, '0');
+      return `Tháng ${mStr}/${targetYear} (Tháng trước)`;
+    }
+    if (period === 'quarter') {
+      const qNum = Math.ceil(selectedMonth / 3);
+      return `Quý ${qNum}/${selectedYear}`;
+    }
+    if (period === 'year') {
+      return `Năm ${selectedYear}`;
+    }
+    if (period === 'custom') {
+      if (customStartDate && customEndDate) {
+        return `${new Date(customStartDate).toLocaleDateString('vi-VN')} – ${new Date(customEndDate).toLocaleDateString('vi-VN')}`;
+      }
+      return 'Khoảng ngày tùy chọn';
+    }
+    return formatPeriodKeyToLabel(currentPeriodKey);
+  }, [period, selectedMonth, selectedYear, dateRange, customStartDate, customEndDate, currentPeriodKey]);
 
   // Filtered Records
   const { periodRecords, paidRecords, cancelledRecords, clawbackRecords } = useMemo(() => {
@@ -419,9 +482,9 @@ const FinancialSettlement: React.FC = () => {
         if (error) throw error;
       }
 
-      await addAuditLog('Lock Financial Period', `Đã chốt sổ kỳ ${currentPeriodKey}`);
+      await addAuditLog('Lock Financial Period', `Đã chốt sổ kỳ ${currentPeriodLabel}`);
 
-      showToast(`Đã chốt sổ & kích hoạt khóa dữ liệu kỳ ${currentPeriodKey} thành công!`, 'success');
+      showToast(`Đã chốt sổ & kích hoạt khóa dữ liệu kỳ ${currentPeriodLabel} thành công!`, 'success');
       await refreshData();
     } catch (err: any) {
       console.error('Error locking period:', err);
@@ -446,7 +509,7 @@ const FinancialSettlement: React.FC = () => {
 
     setIsLocking(true);
     try {
-      const newLockedKeys = lockedKeysList.filter(k => k !== currentPeriodKey);
+      const newLockedKeys = lockedKeysList.filter(k => !currentEquivalentLockKeys.includes(k));
       const existingPolicy = policies?.find(p => p.parameter_type === 'locked_periods');
 
       if (existingPolicy) {
@@ -461,9 +524,9 @@ const FinancialSettlement: React.FC = () => {
         if (error) throw error;
       }
 
-      await addAuditLog('Unlock Financial Period', `Đã mở khóa kỳ ${currentPeriodKey}: ${trimmedReason}`);
+      await addAuditLog('Unlock Financial Period', `Đã mở khóa kỳ ${currentPeriodLabel}: ${trimmedReason}`);
 
-      showToast(`Đã mở khóa kỳ tài chính ${currentPeriodKey} thành công!`, 'success');
+      showToast(`Đã mở khóa kỳ tài chính ${currentPeriodLabel} thành công!`, 'success');
       setIsUnlockModalOpen(false);
       setUnlockReason('');
       await refreshData();
@@ -517,7 +580,7 @@ const FinancialSettlement: React.FC = () => {
       // Sheet 1: Tổng hợp tài chính
       const summaryData = [
         ['BÁO CÁO TÀI CHÍNH & QUYẾT TOÁN CHỐT SỔ ĐẠI LÝ BHXH'],
-        [`Kỳ báo cáo: ${currentPeriodKey} (${dateRange.start.toLocaleDateString('vi-VN')} - ${dateRange.end.toLocaleDateString('vi-VN')})`],
+        [`Kỳ báo cáo: ${currentPeriodLabel} (${dateRange.start.toLocaleDateString('vi-VN')} – ${dateRange.end.toLocaleDateString('vi-VN')})`],
         [`Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`],
         [`Người lập: ${currentUser?.name || 'Admin'}`],
         [''],
@@ -603,7 +666,13 @@ const FinancialSettlement: React.FC = () => {
       const wsRecords = XLSX.utils.aoa_to_sheet([recordHeader, ...recordRows]);
       XLSX.utils.book_append_sheet(wb, wsRecords, 'Danh_Sach_Giao_Dich');
 
-      XLSX.writeFile(wb, `Bao_Cao_Tai_Chinh_${currentPeriodKey.replace(/[^a-zA-Z0-9]/g, '_')}.xlsx`);
+      const safePeriodFileName = currentPeriodLabel
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[đĐ]/g, 'd')
+        .replace(/[\s/–—-]+/g, '_')
+        .replace(/[^a-zA-Z0-9_]/g, '');
+      XLSX.writeFile(wb, `Bao_Cao_Tai_Chinh_${safePeriodFileName}.xlsx`);
       showToast('Đã xuất file Excel Báo Cáo Tài Chính thành công!', 'success');
     } catch (err) {
       console.error('Error exporting Excel:', err);
@@ -621,12 +690,13 @@ const FinancialSettlement: React.FC = () => {
       {/* 1. Thanh tiêu đề & Tác vụ chính */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2.5 flex-wrap">
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               Báo Cáo & Chốt Sổ Kỳ Tài Chính
             </h2>
-            <span className="text-xs text-slate-500 font-normal">
-              · Kỳ: <span className="font-mono font-semibold text-slate-700">{currentPeriodKey}</span>
+            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-[#004182] border border-blue-200/80 shadow-2xs">
+              <Calendar className="w-3.5 h-3.5 text-[#004182]" />
+              <span>Kỳ: <strong>{currentPeriodLabel}</strong></span>
             </span>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 mt-1">
@@ -817,7 +887,7 @@ const FinancialSettlement: React.FC = () => {
             <div>
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-bold text-sm tracking-wide text-slate-900">
-                  Trạng Thái Kỳ: <span className="font-mono text-slate-800">{currentPeriodKey}</span>
+                  Trạng Thái Kỳ: <span className="font-semibold text-slate-800">{currentPeriodLabel}</span>
                 </span>
                 <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-[11px] font-semibold ${
                   isCurrentPeriodLocked 
@@ -1162,8 +1232,8 @@ const FinancialSettlement: React.FC = () => {
           </button>
         </div>
 
-        <div className="text-xs text-slate-500 font-mono">
-          Hiển thị dữ liệu kỳ: <span className="font-semibold text-slate-800">{currentPeriodKey}</span>
+        <div className="text-xs text-slate-500">
+          Hiển thị dữ liệu kỳ: <span className="font-semibold text-slate-800">{currentPeriodLabel}</span>
         </div>
       </div>
 
@@ -1452,7 +1522,7 @@ const FinancialSettlement: React.FC = () => {
               </div>
               <div>
                 <h3 className="font-bold text-slate-900 text-base">Mở Khóa Kỳ Tài Chính</h3>
-                <p className="text-xs text-rose-600 font-mono font-semibold uppercase">{currentPeriodKey}</p>
+                <p className="text-xs text-rose-600 font-semibold">{currentPeriodLabel}</p>
               </div>
             </div>
 
