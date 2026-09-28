@@ -1,0 +1,25 @@
+{
+  "id": "/",
+  "name": "Quản Lý BHXH Sông Mã",
+  "short_name": "QL BHXH",
+  "description": "Hệ thống Quản lý và Tra cứu BHXH tự nguyện, BHYT hộ gia đình Đại lý thu BHXH Sông Mã.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f0f4f8",
+  "theme_color": "#004182",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

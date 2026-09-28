@@ -1,0 +1,34 @@
+name: Regression Guard & Quality Baseline
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  verify-baseline:
+    name: Verify Baseline (TypeScript, Vitest, Build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run TypeScript Static Check
+        run: npx tsc --noEmit
+
+      - name: Run Golden Test Suite (59 Tests)
+        run: npx vitest run
+
+      - name: Run Production Bundle Build
+        run: npm run build

@@ -1,0 +1,8 @@
+{
+  "name": "Hệ thống quản lý thu BHXH tự nguyện, BHYT hộ gia đình",
+  "description": "Ứng dụng quản lý hồ sơ, giao dịch và tin tức về Bảo hiểm xã hội và Bảo hiểm y tế cho nhân viên và quản lý.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

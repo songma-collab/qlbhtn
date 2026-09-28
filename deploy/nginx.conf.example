@@ -1,0 +1,109 @@
+# ==============================================================================
+# NGINX PRODUCTION CONFIGURATION CHO CỔNG THÔNG TIN ĐẠI LÝ THU BHXH SÔNG MÃ
+# ==============================================================================
+# Hướng dẫn sử dụng:
+# 1. Sao chép tệp này vào thư mục Nginx trên máy chủ VPS:
+#    sudo cp nginx.conf.example /etc/nginx/sites-available/bhxhsongma.conf
+# 2. Tạo liên kết kích hoạt:
+#    sudo ln -s /etc/nginx/sites-available/bhxhsongma.conf /etc/nginx/sites-enabled/
+# 3. Thay đổi 'your-domain.vn' thành tên miền thực tế của bạn.
+# 4. Kiểm tra cú pháp và khởi động lại Nginx:
+#    sudo nginx -t && sudo systemctl reload nginx
+# 5. Cài đặt chứng chỉ SSL HTTPS miễn phí tự động bằng Certbot:
+#    sudo certbot --nginx -d your-domain.vn -d www.your-domain.vn
+# ==============================================================================
+
+server {
+    listen 80;
+    listen [::]:80;
+    
+    # THAY ĐỔI: Thay 'your-domain.vn' bằng tên miền thật đã đăng ký của bạn
+    server_name your-domain.vn www.your-domain.vn;
+
+    # THAY ĐỔI: Đường dẫn tuyệt đối đến thư mục dist sau khi build (npm run build)
+    root /var/www/newBHXH/dist;
+    index index.html;
+
+    # --------------------------------------------------------------------------
+    # 1. KHỐI SERVICE WORKER: TUYỆT ĐỐI KHÔNG ĐƯỢC ĐỂ BỊ CACHE
+    # (Tránh lỗi trình duyệt lưu giữ phiên bản PWA / Service Worker cũ vĩnh viễn)
+    # --------------------------------------------------------------------------
+    location = /sw.js {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        expires off;
+    }
+
+    # --------------------------------------------------------------------------
+    # 2. KHỐI INDEX.HTML: BẮT BUỘC NO-CACHE & ĐẦY ĐỦ HEADERS BẢO MẬT CHỐNG XSS
+    # Lưu ý quan trọng: Trong Nginx, nếu location có 'add_header' thì nó sẽ BỎ QUA
+    # toàn bộ header ở server block cấp cha. Vì vậy các header bảo mật phải đặt ở đây!
+    # --------------------------------------------------------------------------
+    location = /index.html {
+        # Kiểm soát bộ nhớ đệm: Luôn fetch bản mới nhất để cập nhật hash JS/CSS
+        add_header Cache-Control "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0" always;
+        add_header Pragma "no-cache" always;
+        add_header Expires "0" always;
+
+        # Bộ Header Bảo Mật Cấp Cao (Phù hợp tiêu chuẩn Dịch vụ Tài chính / An sinh xã hội)
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        add_header Permissions-Policy "camera=(), microphone=(), geolocation=()" always;
+
+        # Content Security Policy (CSP):
+        # - Đã gỡ bỏ 'unsafe-inline' ở script-src nhằm ngăn chặn triệt để XSS
+        # - Đã bổ sung wss://*.supabase.co phục vụ cơ chế realtime dữ liệu
+        # - Đã bổ sung https://api.vietqr.io phục vụ tạo mã QR thanh toán ngân hàng
+        add_header Content-Security-Policy "default-src 'self'; script-src 'self' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://challenges.cloudflare.com https://api.vietqr.io; frame-src https://challenges.cloudflare.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';" always;
+
+        expires off;
+    }
+
+    # --------------------------------------------------------------------------
+    # 3. KHỐI ASSETS TĨNH (JS, CSS, HÌNH ẢNH, FONTS CÓ GẮN HASH BUILD)
+    # Cho phép cache 1 năm trên trình duyệt để tăng tốc tối đa tốc độ tải trang
+    # --------------------------------------------------------------------------
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|otf)$ {
+        expires 1y;
+        add_header Cache-Control "public, no-transform, immutable" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        access_log off;
+    }
+
+    # --------------------------------------------------------------------------
+    # 4. KHỐI ĐỊNH TUYẾN SPA DỰ PHÒNG (REACT ROUTER FALLBACK)
+    # Hỗ trợ người dùng F5 hoặc truy cập trực tiếp các đường dẫn con không bị lỗi 404
+    # --------------------------------------------------------------------------
+    location / {
+        try_files $uri $uri/ /index.html;
+        add_header Cache-Control "no-cache" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    }
+
+    # --------------------------------------------------------------------------
+    # 5. TỐI ƯU HÓA NÉN GZIP ĐA TẦNG
+    # Giảm 60-70% dung lượng truyền tải qua mạng
+    # --------------------------------------------------------------------------
+    gzip on;
+    gzip_vary on;
+    gzip_proxied any;
+    gzip_comp_level 6;
+    gzip_types
+        text/plain
+        text/css
+        text/xml
+        text/javascript
+        application/json
+        application/javascript
+        application/xml
+        application/xml+rss
+        image/svg+xml;
+
+    # Ẩn phiên bản Nginx để tăng cường bảo mật
+    server_tokens off;
+}
