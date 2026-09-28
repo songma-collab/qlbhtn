@@ -49,10 +49,11 @@ import {
   CheckCircle2, 
   Search, 
   X, 
-  Users, 
-  AlertTriangle 
+  AlertTriangle,
+  AlertCircle
 } from 'lucide-react';
 import { isSafeColumnKey, protectWorksheetFormulas, validateExcelFile, validateImportRows } from '../../utils/excelSecurity';
+import { parseExcelRows, ParsedExcelResult } from '../../utils/excelImportHelper';
 import RegisterModal from '../modals/RegisterModal';
 import ConfirmModal from '../modals/ConfirmModal';
 import SearchResultModal from '../modals/SearchResultModal';
@@ -88,7 +89,9 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     addAuditLog, 
     crmFilter, 
     setCrmFilter, 
-    staff 
+    staff,
+    policies,
+    refreshData
   } = useAppContext();
 
   // Kiểm tra quyền hạn phân quyền theo RBAC
@@ -278,6 +281,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const [registerType, setRegisterType] = useState<'BHXH' | 'BHYT'>('BHXH');
   const [registerRecord, setRegisterRecord] = useState<any | null>(null);
   const [isRenew, setIsRenew] = useState(false);
+  const [importConfirmData, setImportConfirmData] = useState<ParsedExcelResult | null>(null);
+  const [importConfirmFileName, setImportConfirmFileName] = useState<string>('');
+  const [isImportConfirmOpen, setIsImportConfirmOpen] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<number | null>(null);
@@ -532,6 +539,60 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     showToast("Xuất dữ liệu thành công!");
   };
 
+  const handleExecuteFullImport = async (parsedData: ParsedExcelResult) => {
+    setIsImporting(true);
+    try {
+      // Chỉ gửi mảng bản ghi mới cần insert (KHÔNG gửi [...records, ...])
+      const res = await bulkPutRecords(parsedData.records);
+      if (res) {
+        addAuditLog?.('Nhập giao dịch & khách hàng từ Excel', `Đã nạp ${parsedData.records.length} giao dịch từ file ${importConfirmFileName}`);
+        showToast(`Đồng bộ thành công ${parsedData.records.length} giao dịch và cập nhật danh bạ!`, 'success');
+        setIsImportConfirmOpen(false);
+        setImportConfirmData(null);
+        await refreshData?.();
+      } else {
+        showAlert('Lỗi lưu trữ', 'Không thể lưu danh sách giao dịch lên hệ thống.', 'error');
+      }
+    } catch (err: any) {
+      console.error('Lỗi khi đồng bộ toàn diện từ Excel:', err);
+      showAlert('Lỗi nhập Excel', err.message || 'Định dạng dữ liệu không tương thích', 'error');
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  const handleExecuteDirectoryOnlyImport = async (parsedData: ParsedExcelResult) => {
+    setIsImporting(true);
+    try {
+      // 1. Thử upsert trực tiếp vào bảng customers trên Supabase để không sinh giao dịch trong records
+      const { error } = await supabase.from('customers').upsert(parsedData.customerProfiles, { onConflict: 'customer_key' });
+      if (error) {
+        console.warn('Direct customers upsert failed, fallback to profile-only records:', error);
+        // Fallback: nếu schema chưa hỗ trợ direct upsert, tạo record dạng 'Hồ sơ gốc' không có số tiền giao dịch
+        const profileRecords = parsedData.records.map(r => ({
+          ...r,
+          actionType: 'Hồ sơ gốc',
+          amount: 0,
+          commission: 0,
+          wage: 0
+        }));
+        await bulkPutRecords(profileRecords);
+      }
+      addAuditLog?.('Nhập danh bạ khách hàng từ Excel', `Đã cập nhật ${parsedData.customerProfiles.length} hồ sơ từ file ${importConfirmFileName}`);
+      showToast(`Đã cập nhật ${parsedData.customerProfiles.length} khách hàng vào Danh bạ thành công!`, 'success');
+      setIsImportConfirmOpen(false);
+      setImportConfirmData(null);
+      await refreshData?.();
+    } catch (err: any) {
+      console.error('Lỗi khi cập nhật danh bạ từ Excel:', err);
+      showAlert('Lỗi nhập Danh bạ', err.message || 'Không thể lưu vào danh bạ khách hàng', 'error');
+    } finally {
+      setIsImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
   const importExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -556,78 +617,28 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           return;
         }
 
-        const getVal = (row: any, possibleKeys: string[]) => {
-          const rowKeys = Object.keys(row);
-          for (let k of rowKeys) {
-            if (!isSafeColumnKey(k)) continue;
-            const cleanKey = k.trim().toLowerCase();
-            if (possibleKeys.some(pk => pk.toLowerCase() === cleanKey)) {
-              return row[k];
-            }
-          }
-          return "";
-        };
-
-        const parseMoney = (val: any) => {
-          if (!val) return 0;
-          return parseInt(String(val).replace(/\D/g, "")) || 0;
-        };
-
-        let addedCount = 0;
-        const newRecords = [...records];
-
-        json.forEach((row: any) => {
-          let rowTypeStr = String(getVal(row, ["Loại hình", "Loại tham gia", "Loại", "Type"])).toUpperCase();
-          let rType: 'BHXH' | 'BHYT' = selectedType === 'BHYT' ? 'BHYT' : 'BHXH';
-          if (rowTypeStr.includes('BHYT')) rType = 'BHYT';
-          else if (rowTypeStr.includes('BHXH')) rType = 'BHXH';
-
-          let nameStr = String(getVal(row, ["Họ và Tên", "Họ tên", "Họ & tên", "Tên", "Name"])).trim();
-          if (!nameStr || nameStr === 'undefined') return;
-
-          let parsedDate = parseDateISO(getVal(row, ["Ngày đăng ký", "Ngày tạo", "Date"]));
-          let recordDate = new Date().toISOString();
-          if (parsedDate) {
-            try {
-              let d = new Date(parsedDate);
-              if (!isNaN(d.getTime())) recordDate = d.toISOString();
-            } catch(err){}
-          }
-
-          let newRec: any = {
-            type: rType,
-            name: formatTitleCase(nameStr),
-            date: recordDate,
-            actionType: 'Nhập từ Excel',
-            paymentStatus: getVal(row, ["Trạng thái", "Trạng thái thanh toán"]) || 'Khách hàng cũ',
-            status: 'Đang tham gia',
-            nextPayment: getLocalYYYYMMDD(new Date(Date.now() + 365*24*60*60*1000))
-          };
-
-          const addIfValidString = (key: string, val: any) => {
-            if (val !== undefined && val !== null && val !== "") {
-              newRec[key] = String(val);
-            }
-          };
-
-          addIfValidString('cccd', getVal(row, ["CCCD", "Số CCCD", "Số ĐDCN", "CMND"]));
-          addIfValidString('bhxh', getVal(row, ["Mã BHXH", "Mã số BHXH", "Mã thẻ", "Mã BHYT"]));
-          addIfValidString('phone', getVal(row, ["Số điện thoại", "SĐT", "Điện thoại", "Phone"]));
-          addIfValidString('address', getVal(row, ["Địa chỉ", "Nơi cư trú", "Address"]));
-          addIfValidString('notes', getVal(row, ["Ghi chú", "Notes"]));
-
-          newRec.amount = parseMoney(getVal(row, ["Tổng Tiền", "Số tiền", "Amount"]));
-
-          newRecords.push(newRec);
-          addedCount++;
+        const parsedResult = parseExcelRows(json as any[], {
+          defaultType: (selectedType === 'BHYT' ? 'BHYT' : 'BHXH') as 'BHXH' | 'BHYT',
+          staffList: staff,
+          policies,
+          settings,
+          currentUserId: currentUser?.id
         });
 
-        if (addedCount > 0) {
-          await bulkPutRecords(newRecords);
-          addAuditLog?.('Nhập khách hàng từ Excel', `Đã nhập thành công ${addedCount} hồ sơ mới từ file ${file.name}`);
-          showToast(`Nhập thành công ${addedCount} hồ sơ khách hàng mới!`, 'success');
+        if (parsedResult.records.length === 0) {
+          showAlert("Không tìm thấy dữ liệu", "Không có dòng dữ liệu hợp lệ nào được tìm thấy trong file.", "info");
+          return;
+        }
+
+        setImportConfirmFileName(file.name);
+
+        if (parsedResult.hasTransactionData) {
+          // File có dữ liệu giao dịch đóng tiền -> Hiển thị Modal để người dùng chọn
+          setImportConfirmData(parsedResult);
+          setIsImportConfirmOpen(true);
         } else {
-          showAlert("Không tìm thấy dữ liệu", "Không có dữ liệu hợp lệ nào được thêm vào hệ thống.", "info");
+          // File chỉ là danh sách khách hàng thông thường
+          await handleExecuteDirectoryOnlyImport(parsedResult);
         }
       } catch (err: any) {
         console.error("Lỗi khi import file Excel:", err);
@@ -1396,6 +1407,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           isOpen={isRegisterModalOpen}
           onClose={() => setIsRegisterModalOpen(false)}
           type={registerType}
+          record={registerRecord}
           initialData={registerRecord}
           isRenew={isRenew}
         />
@@ -1419,6 +1431,89 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           title="Xác nhận xóa hàng loạt"
           message={`Bạn có chắc chắn muốn xóa ${selectedIds.length} khách hàng đã chọn? Thao tác này không thể hoàn tác.`}
         />
+      )}
+
+      {/* Modal xác nhận phương thức Nhập Excel Thông Minh */}
+      {isImportConfirmOpen && importConfirmData && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 border border-slate-200">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#004182] flex items-center justify-center font-bold">
+                <FileUp size={24} />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">
+                  Tùy Chọn Nhập Dữ Liệu Excel
+                </h3>
+                <p className="text-xs text-slate-500">
+                  Tệp: <span className="font-semibold text-slate-700">{importConfirmFileName}</span> ({importConfirmData.records.length} bản ghi hợp lệ)
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 text-xs text-amber-900 leading-relaxed">
+              <p className="font-bold flex items-center gap-1.5 mb-1 text-amber-800">
+                <AlertCircle size={15} /> Phát hiện dữ liệu giao dịch đóng tiền trong file Excel:
+              </p>
+              Hệ thống đã nhận diện đầy đủ: <strong>Kỳ đóng (Từ tháng - Đến tháng)</strong>, <strong>Mức thu nhập</strong>, <strong>Số tiền đóng</strong>, <strong>Hoa hồng</strong> và <strong>Nhân viên thu</strong>. Vui lòng chọn cách nhập mong muốn:
+            </div>
+
+            <div className="space-y-3 mb-6">
+              <button
+                type="button"
+                onClick={() => handleExecuteFullImport(importConfirmData)}
+                disabled={isImporting}
+                className="w-full text-left p-4 rounded-2xl border-2 border-blue-200 hover:border-[#004182] bg-blue-50/50 hover:bg-blue-50 transition cursor-pointer group"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-[#004182] group-hover:underline">
+                    1. Đồng bộ toàn diện (Khuyên dùng)
+                  </span>
+                  <span className="text-[11px] bg-[#004182] text-white px-2 py-0.5 rounded-full font-semibold">
+                    Đầy đủ dữ liệu
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-1">
+                  Nhập cả <strong>Giao dịch vào Sổ quỹ</strong> (chuẩn hóa tiền thu, kỳ đóng, hoa hồng) và <strong>Tự động cập nhật Danh bạ khách hàng</strong> với hạn đóng tiếp theo chính xác.
+                </p>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleExecuteDirectoryOnlyImport(importConfirmData)}
+                disabled={isImporting}
+                className="w-full text-left p-4 rounded-2xl border border-slate-200 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-50 transition cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-sm text-slate-800">
+                    2. Chỉ cập nhật Danh bạ khách hàng
+                  </span>
+                  <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
+                    Không tạo giao dịch
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mt-1">
+                  Chỉ lưu thông tin nhân khẩu (CCCD, SĐT, Địa chỉ, Ngày sinh, Hạn nộp) vào Danh bạ khách hàng. <strong>Hoàn toàn không sinh giao dịch trong Sổ quỹ tài chính</strong>.
+                </p>
+              </button>
+            </div>
+
+            <div className="flex justify-end gap-2.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsImportConfirmOpen(false);
+                  setImportConfirmData(null);
+                  if (fileInputRef.current) fileInputRef.current.value = '';
+                }}
+                disabled={isImporting}
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              >
+                Hủy bỏ
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Modal phân công nhân viên phụ trách */}

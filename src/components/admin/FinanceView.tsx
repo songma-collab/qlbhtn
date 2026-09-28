@@ -53,6 +53,7 @@ import { VietQRModal } from '../modals/VietQRModal';
 import { exportD03TSStandardExcel, exportD05TSStandardExcel } from '../../utils/exportNationalStandardForms';
 import { generateBatchCode, getNextBatchSequence } from '../../utils/batchSubmission';
 import { isSafeColumnKey, protectWorksheetFormulas, validateExcelFile, validateImportRows } from '../../utils/excelSecurity';
+import { parseExcelRows } from '../../utils/excelImportHelper';
 import {
   TransactionFilterState,
   getDefaultTransactionFilterState,
@@ -769,6 +770,66 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     }
   };
 
+  const [isFinanceImporting, setIsFinanceImporting] = useState(false);
+
+  // Nhập file Excel giao dịch vào Sổ quỹ
+  const importFinanceExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const fileError = validateExcelFile(file);
+    if (fileError) {
+      showAlert("File không hợp lệ", fileError, "error");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
+    const reader = new FileReader();
+    
+    reader.onload = async (evt) => {
+      try {
+        setIsFinanceImporting(true);
+        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheetName = workbook.SheetNames[0];
+        const json = XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false, dateNF: 'dd/mm/yyyy' });
+        const rowsError = validateImportRows(json);
+        if (rowsError) {
+          showAlert("Dữ liệu không hợp lệ", rowsError, "error");
+          return;
+        }
+
+        const parsedResult = parseExcelRows(json as any[], {
+          defaultType: currentType,
+          staffList: staff,
+          policies,
+          settings,
+          currentUserId: currentUser?.id
+        });
+
+        if (parsedResult.records.length === 0) {
+          showAlert("Không tìm thấy dữ liệu", "Không có dòng dữ liệu giao dịch hợp lệ nào trong file.", "info");
+          return;
+        }
+
+        const res = await bulkPutRecords(parsedResult.records);
+        if (res) {
+          addAuditLog?.('Nhập Excel Giao dịch Tài chính', `Đã nạp thành công ${parsedResult.records.length} giao dịch ${currentType} từ file ${file.name}`);
+          showToast(`Nhập thành công ${parsedResult.records.length} giao dịch vào Sổ quỹ!`, 'success');
+          await refreshData?.();
+        } else {
+          showAlert("Lỗi lưu trữ", "Không thể lưu danh sách giao dịch lên máy chủ.", "error");
+        }
+      } catch (err: any) {
+        console.error("Lỗi khi import file Excel tài chính:", err);
+        showAlert("Lỗi nhập file Excel", err.message || "Định dạng file không hợp lệ.", "error");
+      } finally {
+        setIsFinanceImporting(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
   // Xuất file Excel
   const exportFinanceExcel = async () => {
     if (filteredRecords.length === 0) {
@@ -935,6 +996,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
                 </button>
               )
             )
+          )}
+
+          {/* Nhập Excel Giao dịch */}
+          {hasPermission(currentUser, 'records.create', settings) && (
+            <label className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-xs flex items-center cursor-pointer">
+              <FileUp size={15} className="mr-1 text-slate-500" />
+              <span>{isFinanceImporting ? 'Đang nạp...' : 'Nhập Excel'}</span>
+              <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={importFinanceExcel} disabled={isFinanceImporting} />
+            </label>
           )}
 
           {/* Xuất Excel */}

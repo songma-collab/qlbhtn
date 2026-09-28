@@ -198,15 +198,16 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
 
   useEffect(() => {
     if (isOpen) {
-      const rec = record ? {
-        ...record,
-        name: record.name || '',
-        method: record.method || '',
-        fromMonth: record.fromMonth || record.frommonth || record.from_month || '',
-        toMonth: record.toMonth || record.tomonth || record.to_month || '',
-        recvName: record.recvName || record.recvname || record.recv_name || '',
-        recvPhone: record.recvPhone || record.recvphone || record.recv_phone || '',
-        recvAddress: record.recvAddress || record.recvaddress || record.recv_address || '',
+      const effectiveRec = record || initialData;
+      const rec = effectiveRec ? {
+        ...effectiveRec,
+        name: effectiveRec.name || effectiveRec.fullName || '',
+        method: effectiveRec.method || '',
+        fromMonth: effectiveRec.fromMonth || effectiveRec.frommonth || effectiveRec.from_month || '',
+        toMonth: effectiveRec.toMonth || effectiveRec.tomonth || effectiveRec.to_month || '',
+        recvName: effectiveRec.recvName || effectiveRec.recvname || effectiveRec.recv_name || '',
+        recvPhone: effectiveRec.recvPhone || effectiveRec.recvphone || effectiveRec.recv_phone || '',
+        recvAddress: effectiveRec.recvAddress || effectiveRec.recvaddress || effectiveRec.recv_address || '',
       } : null;
       
       if (type === 'BHXH') {

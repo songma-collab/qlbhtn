@@ -122,9 +122,10 @@ npm run verify-baseline
 
 ## 📖 Tài liệu Tham khảo Bổ sung
 
+- [**Sổ tay Triển khai & Vận hành Chuẩn (Deployment Guide)**](DEPLOYMENT_GUIDE.md) *(Khuyên dùng - Chi tiết Supabase + GitHub + Cloudflare Pages)*
 - [Kiến trúc Hệ thống (Architecture Specification)](docs/architecture.md)
 - [Hướng dẫn Vận hành & Khắc phục Sự cố (Runbook)](docs/runbook.md)
-- [Hướng dẫn Triển khai Go-Live VPS / Cloudflare Pages](docs/deployment.md)
+- [Hướng dẫn Triển khai Chi tiết](docs/deployment.md)
 - [Đánh giá An toàn Thông tin & RLS Policy](docs/security-audit.md)
 
 ---
