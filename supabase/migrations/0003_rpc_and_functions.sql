@@ -10,6 +10,7 @@
 -- 1. HÀM TIỆN ÍCH CHE DẤU THÔNG TIN PII (NGHỊ ĐỊNH 13/2023/NĐ-CP)
 -- ======================================================================
 
+DROP FUNCTION IF EXISTS public.mask_cccd_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_cccd_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -21,6 +22,7 @@ AS $$
   END;
 $$;
 
+DROP FUNCTION IF EXISTS public.mask_phone_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_phone_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -32,6 +34,7 @@ AS $$
   END;
 $$;
 
+DROP FUNCTION IF EXISTS public.mask_bhxh_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_bhxh_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -48,6 +51,7 @@ $$;
 -- ======================================================================
 
 -- 2.1. Ép kiểu an toàn chuỗi sang DATE
+DROP FUNCTION IF EXISTS public.safe_cast_date(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.safe_cast_date(p_date TEXT)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -61,6 +65,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.safe_cast_date(TIMESTAMPTZ) CASCADE;
 CREATE OR REPLACE FUNCTION public.safe_cast_date(p_date TIMESTAMPTZ)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -72,6 +77,7 @@ END;
 $$;
 
 -- 2.2. Chuyển đổi chuỗi kỳ đóng (MM/YYYY hoặc YYYY-MM) sang DATE (ngày mùng 1 đầu tháng)
+DROP FUNCTION IF EXISTS public.parse_month_str_to_date(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.parse_month_str_to_date(val TEXT)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -121,6 +127,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.parse_month_str_to_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.parse_month_str_to_date(val DATE)
 RETURNS DATE
 LANGUAGE sql
@@ -130,6 +137,7 @@ AS $$
 $$;
 
 -- 2.3. Tra cứu tỷ lệ hoa hồng theo ngày hiệu lực của hồ sơ
+DROP FUNCTION IF EXISTS public.get_commission_rates_for_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_commission_rates_for_date(p_date DATE)
 RETURNS TABLE (
   comm_bhxh_new NUMERIC,
@@ -175,6 +183,8 @@ END;
 $$;
 
 -- 2.4. Sinh mã khóa định danh duy nhất của công dân (Customer Master Key)
+DROP FUNCTION IF EXISTS public.generate_customer_key(TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.generate_customer_key(TEXT, TEXT, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.generate_customer_key(
     p_type TEXT,
     p_bhxh TEXT,
@@ -215,6 +225,8 @@ END;
 $$;
 
 -- 2.5. Kiểm tra trạng thái khóa kỳ tài chính (is_financial_period_locked)
+DROP FUNCTION IF EXISTS public.is_financial_period_locked(TIMESTAMP WITH TIME ZONE) CASCADE;
+DROP FUNCTION IF EXISTS public.is_financial_period_locked(TIMESTAMPTZ) CASCADE;
 CREATE OR REPLACE FUNCTION public.is_financial_period_locked(p_date TIMESTAMP WITH TIME ZONE)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -271,6 +283,7 @@ END;
 $$;
 
 -- 2.6. Hàm lấy IP Client và kiểm soát Rate-limit
+DROP FUNCTION IF EXISTS public.purge_old_public_rpc_logs() CASCADE;
 CREATE OR REPLACE FUNCTION public.purge_old_public_rpc_logs()
 RETURNS void
 LANGUAGE sql
@@ -280,6 +293,7 @@ AS $$
   WHERE called_at < NOW() - INTERVAL '48 hours';
 $$;
 
+DROP FUNCTION IF EXISTS public.get_public_client_ip() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_public_client_ip()
 RETURNS text
 LANGUAGE plpgsql
@@ -293,7 +307,7 @@ BEGIN
     headers := current_setting('request.headers', true)::jsonb;
   EXCEPTION WHEN OTHERS THEN
     headers := null;
-  END IF;
+  END;
 
   IF headers IS NOT NULL THEN
     ip := headers->>'cf-connecting-ip';
@@ -316,6 +330,8 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.enforce_public_rpc_rate_limit(text, integer, interval) CASCADE;
+DROP FUNCTION IF EXISTS public.enforce_public_rpc_rate_limit(text, int, interval) CASCADE;
 CREATE OR REPLACE FUNCTION public.enforce_public_rpc_rate_limit(
   p_action text,
   p_max_requests int,
@@ -606,7 +622,7 @@ BEGIN
       (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
       (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
     )
-  ORDER BY r.date DESC
+  ORDER BY r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -1264,7 +1280,16 @@ RETURNS TABLE (
   method TEXT,
   nn_support_pct NUMERIC,
   dp_support_pct NUMERIC,
-  notes TEXT
+  notes TEXT,
+  from_month TEXT,
+  to_month TEXT,
+  next_payment TEXT,
+  months INTEGER,
+  wage NUMERIC,
+  recv_name TEXT,
+  recv_phone TEXT,
+  recv_address TEXT,
+  members JSONB
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1283,7 +1308,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Ưu tiên 1: Tra cứu từ bảng Master Customers
+  -- Ưu tiên 1: Tra cứu từ bảng Master Customers kết hợp record gần nhất
   RETURN QUERY
   SELECT 
     c.name,
@@ -1300,7 +1325,16 @@ BEGIN
     r.method,
     r.nn_support_pct,
     r.dp_support_pct,
-    COALESCE(c.notes, r.notes) AS notes
+    COALESCE(c.notes, r.notes) AS notes,
+    r.from_month,
+    r.to_month,
+    r.next_payment,
+    r.months,
+    r.wage,
+    COALESCE(c.recv_name, r.recv_name) AS recv_name,
+    COALESCE(c.recv_phone, r.recv_phone) AS recv_phone,
+    COALESCE(c.recv_address, r.recv_address) AS recv_address,
+    COALESCE(c.members, CASE WHEN r.members IS NOT NULL THEN to_jsonb(r.members) ELSE NULL END) AS members
   FROM public.customers c
   LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (
@@ -1332,7 +1366,16 @@ BEGIN
     r.method,
     r.nn_support_pct,
     r.dp_support_pct,
-    r.notes
+    r.notes,
+    r.from_month,
+    r.to_month,
+    r.next_payment,
+    r.months,
+    r.wage,
+    r.recv_name,
+    r.recv_phone,
+    r.recv_address,
+    CASE WHEN r.members IS NOT NULL THEN to_jsonb(r.members) ELSE NULL END AS members
   FROM public.records r
   WHERE r.payment_status != 'Đã hủy'
     AND (
@@ -1340,7 +1383,7 @@ BEGIN
       (r.cccd = v_clean AND r.cccd IS NOT NULL AND r.cccd != '') OR
       (r.old_bhxh = v_clean AND r.old_bhxh IS NOT NULL AND r.old_bhxh != '')
     )
-  ORDER BY r.date DESC
+  ORDER BY r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -1547,10 +1590,20 @@ DECLARE
   v_user_id TEXT;
   v_user_name TEXT;
   v_effective_staff_id TEXT;
+  v_effective_date DATE;
 BEGIN
   IF NOT public.is_manager_or_admin() THEN
     RAISE EXCEPTION 'Quyền truy cập bị từ chối: Chỉ Quản lý hoặc Quản trị viên mới có quyền lập bút toán thoái thu hoàn tiền.'
       USING ERRCODE = '42501';
+  END IF;
+
+  v_effective_date := COALESCE(p_decision_date, CURRENT_DATE);
+
+  -- KIỂM TRA KHÓA KỲ TÀI CHÍNH THEO NGÀY QUYẾT ĐỊNH THOÁI THU
+  IF public.is_financial_period_locked(v_effective_date::timestamptz) THEN
+    RAISE EXCEPTION 'KỲ TÀI CHÍNH ĐÃ KHÓA: Kỳ tài chính ứng với ngày quyết định thoái thu (%) đã bị khóa sổ. Vui lòng mở khóa kỳ tài chính trước khi lập bút toán.',
+      to_char(v_effective_date, 'DD/MM/YYYY')
+      USING ERRCODE = '23514';
   END IF;
 
   SELECT * INTO v_orig
@@ -1623,7 +1676,7 @@ BEGIN
     'Hoàn tất thoái thu',
     'Đã thu tiền',
     NOW(),
-    COALESCE(p_decision_date, CURRENT_DATE),
+    v_effective_date,
     v_orig.target_date,
     v_orig.next_payment,
     v_orig.from_month,
@@ -2171,6 +2224,7 @@ $$;
 
 -- 3.22. RPC Đồng bộ chính sách hệ thống (sync_system_policies)
 DROP FUNCTION IF EXISTS public.sync_system_policies(JSONB) CASCADE;
+DROP FUNCTION IF EXISTS public.sync_system_policies() CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_system_policies(p_policies JSONB DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql

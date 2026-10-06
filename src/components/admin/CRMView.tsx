@@ -316,7 +316,54 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const openRegisterModal = (regType: 'BHXH' | 'BHYT', record: any | null = null, renew: boolean = false) => {
     setRegisterType(regType);
-    setRegisterRecord(record);
+    let fullRecord = record;
+    if (record && records && records.length > 0) {
+      const cleanCccd = (record.cccd || record.citizenId || '').replace(/\D/g, '');
+      const cleanBhxh = (record.bhxh || record.bhxhCode || (record.type === 'BHXH' ? record.code : '') || '').replace(/\D/g, '');
+      const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+      const matched = activeRecords.filter(r => {
+        if (record.latest_record_id && r.id === record.latest_record_id) return true;
+        const rCccd = (r.cccd || '').replace(/\D/g, '');
+        const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+        const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+        return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
+      });
+      if (matched.length > 0) {
+        matched.sort((a, b) => {
+          const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+          const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+          if (nextB !== nextA) return nextB - nextA;
+          const toMA = a.to_month || (a as any).toMonth || '';
+          const toMB = b.to_month || (b as any).toMonth || '';
+          if (toMB !== toMA) return toMB.localeCompare(toMA);
+          const dateA = new Date(a.date || a.created_at || 0).getTime();
+          const dateB = new Date(b.date || b.created_at || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+        const newest = matched[0];
+        if (newest) {
+          fullRecord = {
+            ...newest,
+            ...record,
+            income: record.income ?? newest.income,
+            method: record.method || newest.method,
+            fromMonth: record.fromMonth || (record as any).frommonth || record.from_month || newest.from_month || (newest as any).fromMonth,
+            toMonth: record.toMonth || (record as any).tomonth || record.to_month || newest.to_month || (newest as any).toMonth,
+            nextPayment: record.nextPayment || (record as any).next_payment || newest.next_payment || (newest as any).nextPayment,
+            months: record.months ?? newest.months,
+            wage: record.wage ?? newest.wage,
+            nnSupportPct: record.nnSupportPct ?? record.nn_support_pct ?? newest.nn_support_pct ?? (newest as any).nnSupportPct,
+            dpSupportPct: record.dpSupportPct ?? record.dp_support_pct ?? newest.dp_support_pct ?? (newest as any).dpSupportPct,
+            recvName: record.recvName || (record as any).recvname || record.recv_name || newest.recv_name || (newest as any).recvName,
+            recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newest.recv_phone || (newest as any).recvPhone,
+            recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newest.recv_address || (newest as any).recvAddress,
+            members: (record.members && record.members.length > 0) ? record.members : newest.members
+          };
+        }
+      }
+    }
+    setRegisterRecord(fullRecord);
     setIsRenew(renew);
     setIsRegisterModalOpen(true);
   };

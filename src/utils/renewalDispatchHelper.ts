@@ -30,8 +30,10 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   today.setHours(0, 0, 0, 0);
 
   const validRecords = records.filter(r => {
-    if (!r.nextPayment) return false;
-    if (r.paymentStatus === 'Đã hủy') return false;
+    const nextPay = r.next_payment || r.nextPayment;
+    const payStatus = r.payment_status || r.paymentStatus;
+    if (!nextPay) return false;
+    if (payStatus === 'Đã hủy') return false;
     if (r.status === 'Đã dừng đóng') return false;
     return true;
   });
@@ -39,13 +41,13 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   // Lọc lấy bản ghi mới nhất của từng người tham gia (dựa trên CCCD hoặc Mã định danh/Mã BHXH)
   const latestByPerson = new Map<string, any>();
   validRecords.forEach(r => {
-    const key = `${r.type || 'BHXH'}_${r.citizenId || r.cccd || r.bhxhCode || r.bhytCode || r.id}`;
+    const key = `${r.type || 'BHXH'}_${r.citizenId || r.cccd || r.bhxhCode || r.bhxh || r.bhytCode || r.id}`;
     const existing = latestByPerson.get(key);
     if (!existing) {
       latestByPerson.set(key, r);
     } else {
-      const existingDate = new Date(existing.nextPayment || existing.date || 0).getTime();
-      const currentDate = new Date(r.nextPayment || r.date || 0).getTime();
+      const existingDate = new Date(existing.next_payment || existing.nextPayment || existing.date || 0).getTime();
+      const currentDate = new Date(r.next_payment || r.nextPayment || r.date || 0).getTime();
       if (currentDate > existingDate) {
         latestByPerson.set(key, r);
       }
@@ -55,7 +57,8 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   const classifiedList: RenewalRecordItem[] = [];
 
   latestByPerson.forEach(record => {
-    const nextPayDate = new Date(record.nextPayment);
+    const nextPayStr = record.next_payment || record.nextPayment;
+    const nextPayDate = new Date(nextPayStr);
     if (isNaN(nextPayDate.getTime())) return;
     nextPayDate.setHours(0, 0, 0, 0);
 

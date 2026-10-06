@@ -199,22 +199,75 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
   useEffect(() => {
     if (isOpen) {
       const effectiveRec = record || initialData;
-      const rec = effectiveRec ? {
-        ...effectiveRec,
-        name: effectiveRec.name || effectiveRec.fullName || '',
-        method: effectiveRec.method || '',
-        fromMonth: effectiveRec.fromMonth || effectiveRec.frommonth || effectiveRec.from_month || '',
-        toMonth: effectiveRec.toMonth || effectiveRec.tomonth || effectiveRec.to_month || '',
-        recvName: effectiveRec.recvName || effectiveRec.recvname || effectiveRec.recv_name || '',
-        recvPhone: effectiveRec.recvPhone || effectiveRec.recvphone || effectiveRec.recv_phone || '',
-        recvAddress: effectiveRec.recvAddress || effectiveRec.recvaddress || effectiveRec.recv_address || '',
+      let resolvedRec = effectiveRec;
+
+      // Tự động phục hồi thông tin kỳ đóng gần nhất nếu record truyền vào thiếu trường tài chính/kỳ hạn
+      if (effectiveRec && records && records.length > 0) {
+        const cleanCccd = (effectiveRec.cccd || effectiveRec.citizenId || '').replace(/\D/g, '');
+        const cleanBhxh = (effectiveRec.bhxh || effectiveRec.bhxhCode || (effectiveRec.type === 'BHXH' ? effectiveRec.code : '') || '').replace(/\D/g, '');
+        
+        const activeRecs = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+        const matched = activeRecs.filter(r => {
+          if (effectiveRec.latest_record_id && r.id === effectiveRec.latest_record_id) return true;
+          const rCccd = (r.cccd || '').replace(/\D/g, '');
+          const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+          const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+          return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
+        });
+
+        if (matched.length > 0) {
+          matched.sort((a, b) => {
+            const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+            const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+            if (nextB !== nextA) return nextB - nextA;
+            const toMA = a.to_month || (a as any).toMonth || '';
+            const toMB = b.to_month || (b as any).toMonth || '';
+            if (toMB !== toMA) return toMB.localeCompare(toMA);
+            const dateA = new Date(a.date || a.created_at || 0).getTime();
+            const dateB = new Date(b.date || b.created_at || 0).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+          });
+          const newest = matched[0];
+          if (newest) {
+            resolvedRec = {
+              ...newest,
+              ...effectiveRec,
+              income: effectiveRec.income ?? newest.income,
+              method: effectiveRec.method || newest.method,
+              fromMonth: effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month || newest.from_month || (newest as any).fromMonth,
+              toMonth: effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month || newest.to_month || (newest as any).toMonth,
+              nextPayment: effectiveRec.nextPayment || (effectiveRec as any).next_payment || newest.next_payment || (newest as any).nextPayment,
+              months: effectiveRec.months ?? newest.months,
+              wage: effectiveRec.wage ?? newest.wage,
+              nnSupportPct: effectiveRec.nnSupportPct ?? effectiveRec.nn_support_pct ?? newest.nn_support_pct ?? (newest as any).nnSupportPct,
+              dpSupportPct: effectiveRec.dpSupportPct ?? effectiveRec.dp_support_pct ?? newest.dp_support_pct ?? (newest as any).dpSupportPct,
+              recvName: effectiveRec.recvName || (effectiveRec as any).recvname || effectiveRec.recv_name || newest.recv_name || (newest as any).recvName,
+              recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || newest.recv_phone || (newest as any).recvPhone,
+              recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || newest.recv_address || (newest as any).recvAddress,
+              members: (effectiveRec.members && effectiveRec.members.length > 0) ? effectiveRec.members : newest.members
+            };
+          }
+        }
+      }
+
+      const rec = resolvedRec ? {
+        ...resolvedRec,
+        name: resolvedRec.name || (resolvedRec as any).fullName || '',
+        method: resolvedRec.method || '',
+        fromMonth: resolvedRec.fromMonth || (resolvedRec as any).frommonth || resolvedRec.from_month || '',
+        toMonth: resolvedRec.toMonth || (resolvedRec as any).tomonth || resolvedRec.to_month || '',
+        nextPayment: resolvedRec.nextPayment || (resolvedRec as any).next_payment || '',
+        recvName: resolvedRec.recvName || (resolvedRec as any).recvname || resolvedRec.recv_name || '',
+        recvPhone: resolvedRec.recvPhone || (resolvedRec as any).recvphone || resolvedRec.recv_phone || '',
+        recvAddress: resolvedRec.recvAddress || (resolvedRec as any).recvaddress || resolvedRec.recv_address || '',
       } : null;
       
       if (type === 'BHXH') {
         if (rec) {
-          const cccdVal = rec.cccd || rec.citizenId || '';
-          const bhxhVal = rec.bhxh || rec.bhxhCode || (rec.type === 'BHXH' ? rec.code : '') || '';
-          const nationVal = rec.nation || (rec.nnSupportPct === 30 || rec.nnSupport === 30 ? 'Thiểu_số' : 'Kinh');
+          const cccdVal = rec.cccd || (rec as any).citizenId || '';
+          const bhxhVal = rec.bhxh || (rec as any).bhxhCode || (rec.type === 'BHXH' ? (rec as any).code : '') || '';
+          const nationVal = rec.nation || (rec.nnSupportPct === 30 || (rec as any).nnSupport === 30 ? 'Thiểu_số' : 'Kinh');
           
           let fromM = toUIMonth(rec.fromMonth) || '';
           if (isRenew) {
@@ -224,11 +277,11 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           let initialNotes = isRenew ? '' : (rec.notes || '');
 
           setFormData({
-            name: rec.name || rec.fullName || '', 
+            name: rec.name || (rec as any).fullName || '', 
             cccd: cccdVal, 
             phone: rec.phone || '', 
             bhxh: bhxhVal,
-            oldBhxh: rec.oldBhxh || rec.bhxhCu || (bhxhVal.length === 10 ? bhxhVal : '') || '',
+            oldBhxh: rec.oldBhxh || (rec as any).bhxhCu || (bhxhVal.length === 10 ? bhxhVal : '') || '',
             dob: toUIDate(rec.dob) || '', 
             gender: rec.gender || 'Nam', 
             nation: nationVal,
@@ -247,15 +300,15 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
 
           const nnSupportVal = rec.nnSupportPct != null 
             ? Number(rec.nnSupportPct) 
-            : (rec.nnSupport != null 
-                ? Number(rec.nnSupport) 
+            : ((rec as any).nnSupport != null 
+                ? Number((rec as any).nnSupport) 
                 : (nationVal === 'Thiểu_số' ? 30 : 20));
 
           setBhxhCalc(prev => ({
             ...prev,
             income: Number(rec.income) || settings?.povertyStandard || 1500000,
             nnSupport: nnSupportVal,
-            dpSupport: rec.dpSupportPct != null ? Number(rec.dpSupportPct) : (rec.dpSupport != null ? Number(rec.dpSupport) : 0),
+            dpSupport: rec.dpSupportPct != null ? Number(rec.dpSupportPct) : ((rec as any).dpSupport != null ? Number((rec as any).dpSupport) : 0),
             method: methodVal,
             customMonths: Number(rec.months) || 1,
             fromMonth: fromM,
@@ -750,13 +803,71 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       // 0. ƯU TIÊN GỌI TỪ CONTEXT (Tra cứu trực tiếp từ bảng Master Customers)
       if (fetchCustomerFromContext) {
         const fromCtx = await fetchCustomerFromContext(cleanCode);
-        if (fromCtx) return fromCtx;
+        if (fromCtx) {
+          if (!fromCtx.income || !fromCtx.method || (!fromCtx.toMonth && !fromCtx.to_month)) {
+            const activeRecords = (records || [])
+              .filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy')
+              .sort((a, b) => {
+                const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+                const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+                if (nextB !== nextA) return nextB - nextA;
+                const toMA = a.to_month || (a as any).toMonth || '';
+                const toMB = b.to_month || (b as any).toMonth || '';
+                if (toMB !== toMA) return toMB.localeCompare(toMA);
+                const dateA = new Date(a.date || a.created_at || 0).getTime();
+                const dateB = new Date(b.date || b.created_at || 0).getTime();
+                if (dateB !== dateA) return dateB - dateA;
+                return (Number(b.id) || 0) - (Number(a.id) || 0);
+              });
+
+            const foundRec = activeRecords.find(r => {
+              const rCccd = (r.cccd || '').replace(/\D/g, '');
+              const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+              const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+              return rCccd === cleanCode || rBhxh === cleanCode || rOld === cleanCode;
+            });
+
+            if (foundRec) {
+              return {
+                ...foundRec,
+                ...fromCtx,
+                income: foundRec.income,
+                method: foundRec.method,
+                fromMonth: foundRec.from_month || (foundRec as any).fromMonth,
+                toMonth: foundRec.to_month || (foundRec as any).toMonth,
+                nextPayment: foundRec.next_payment || (foundRec as any).nextPayment,
+                months: foundRec.months,
+                wage: foundRec.wage,
+                nnSupportPct: foundRec.nn_support_pct || (foundRec as any).nnSupportPct,
+                dpSupportPct: foundRec.dp_support_pct || (foundRec as any).dpSupportPct,
+                recvName: foundRec.recv_name || (foundRec as any).recvName,
+                recvPhone: foundRec.recv_phone || (foundRec as any).recvPhone,
+                recvAddress: foundRec.recv_address || (foundRec as any).recvAddress,
+                members: foundRec.members,
+                source: 'Danh bạ Khách hàng & Hợp đồng gần nhất'
+              };
+            }
+          }
+          return fromCtx;
+        }
       }
 
-      // 1. TÌM KIẾM TRONG BỘ NHỚ CỤC BỘ (records từ AppContext) - Tốc độ tức thì (0ms)
+      // 1. TÌM KIẾM TRONG BỘ NHỚ CỤC BỘ (records từ AppContext) - Sắp xếp lấy bản ghi mới nhất
       if (records && records.length > 0) {
-        // Ưu tiên các bản ghi không bị hủy, sắp xếp mới nhất
-        const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+        const activeRecords = records
+          .filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy')
+          .sort((a, b) => {
+            const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+            const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+            if (nextB !== nextA) return nextB - nextA;
+            const toMA = a.to_month || (a as any).toMonth || '';
+            const toMB = b.to_month || (b as any).toMonth || '';
+            if (toMB !== toMA) return toMB.localeCompare(toMA);
+            const dateA = new Date(a.date || a.created_at || 0).getTime();
+            const dateB = new Date(b.date || b.created_at || 0).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+          });
         
         // 1a. Khớp trên hồ sơ chính
         const found = activeRecords.find(r => {
@@ -782,9 +893,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             old_bhxh: found.old_bhxh || ((found as any).oldBhxh) || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
             income: found.income,
             method: found.method,
+            fromMonth: found.from_month || (found as any).fromMonth,
+            toMonth: found.to_month || (found as any).toMonth,
+            nextPayment: found.next_payment || (found as any).nextPayment,
+            months: found.months,
+            wage: found.wage,
             nnSupportPct: found.nn_support_pct || (found as any).nnSupportPct,
             dpSupportPct: found.dp_support_pct || (found as any).dpSupportPct,
-            source: 'Bộ nhớ CSDL cục bộ'
+            recvName: found.recv_name || (found as any).recvName,
+            recvPhone: found.recv_phone || (found as any).recvPhone,
+            recvAddress: found.recv_address || (found as any).recvAddress,
+            members: found.members,
+            source: 'Hồ sơ giao dịch gần nhất'
           };
         }
 
@@ -835,8 +955,17 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             oldBhxh: r.old_bhxh || (r.bhxh && r.bhxh.length === 10 ? r.bhxh : ''),
             income: r.income,
             method: r.method,
+            fromMonth: r.from_month || (r as any).fromMonth,
+            toMonth: r.to_month || (r as any).toMonth,
+            nextPayment: r.next_payment || (r as any).nextPayment,
+            months: r.months,
+            wage: r.wage,
             nnSupportPct: r.nn_support_pct || (r as any).nnSupportPct,
             dpSupportPct: r.dp_support_pct || (r as any).dpSupportPct,
+            recvName: r.recv_name || (r as any).recvName,
+            recvPhone: r.recv_phone || (r as any).recvPhone,
+            recvAddress: r.recv_address || (r as any).recvAddress,
+            members: r.members,
             source: 'Máy chủ CSDL'
           };
         }
@@ -901,6 +1030,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           oldBhxh: customer.oldBhxh || customer.bhxhCu || customer.old_bhxh || (customer.bhxh && customer.bhxh.length === 10 ? customer.bhxh : prev.oldBhxh)
         }));
 
+        // Tự động tính kỳ tiếp theo nếu là gia hạn hoặc có toMonth
+        let nextStartMonth = '';
+        if (isRenew || customer.toMonth || customer.nextPayment) {
+          nextStartMonth = calculateNextRenewalMonth(customer.toMonth || customer.to_month, customer.nextPayment || customer.next_payment);
+        }
+
         // Khôi phục mức thu nhập đóng và hình thức đóng cũ nếu có
         if (customer.income) {
           const methodMap: Record<string, string> = {
@@ -911,9 +1046,15 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           setBhxhCalc(prev => ({
             ...prev,
             income: Number(customer.income) || prev.income,
-            nnSupport: customer.nnSupportPct != null ? Number(customer.nnSupportPct) : prev.nnSupport,
-            dpSupport: customer.dpSupportPct != null ? Number(customer.dpSupportPct) : prev.dpSupport,
-            method: customer.method ? (methodMap[customer.method] || customer.method) : prev.method
+            nnSupport: customer.nnSupportPct != null ? Number(customer.nnSupportPct) : (customer.nn_support_pct != null ? Number(customer.nn_support_pct) : prev.nnSupport),
+            dpSupport: customer.dpSupportPct != null ? Number(customer.dpSupportPct) : (customer.dp_support_pct != null ? Number(customer.dp_support_pct) : prev.dpSupport),
+            method: customer.method ? (methodMap[customer.method] || customer.method) : prev.method,
+            fromMonth: nextStartMonth || prev.fromMonth
+          }));
+        } else if (nextStartMonth) {
+          setBhxhCalc(prev => ({
+            ...prev,
+            fromMonth: nextStartMonth
           }));
         }
 
@@ -947,12 +1088,23 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           return newMembers;
         });
 
+        if (customer.months) {
+          setBhytCalc(prev => ({ ...prev, duration: Number(customer.months) || prev.duration }));
+        }
+
         if (index === 0 && !isRenew && !record) {
           setFormData((prev: any) => ({
             ...prev,
             recvName: cleanName || prev.recvName,
             recvPhone: customer.phone || prev.recvPhone,
             recvAddress: customer.address || prev.recvAddress
+          }));
+        } else if (isRenew) {
+          setFormData((prev: any) => ({
+            ...prev,
+            recvName: customer.recvName || cleanName || prev.recvName,
+            recvPhone: customer.recvPhone || customer.phone || prev.recvPhone,
+            recvAddress: customer.recvAddress || customer.address || prev.recvAddress
           }));
         }
 

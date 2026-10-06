@@ -464,11 +464,14 @@ export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterT
       });
     }
 
-    // Sort customer records to find the newest active transaction (latest nextPayment)
+    // Sort customer records to find the newest active transaction (latest nextPayment / toMonth)
     customerRecords.sort((a, b) => {
-      const nextA = new Date(a.nextPayment || 0).getTime();
-      const nextB = new Date(b.nextPayment || 0).getTime();
+      const nextA = new Date(a.next_payment || a.nextPayment || 0).getTime();
+      const nextB = new Date(b.next_payment || b.nextPayment || 0).getTime();
       if (nextB !== nextA) return nextB - nextA;
+      const toMA = a.to_month || a.toMonth || '';
+      const toMB = b.to_month || b.toMonth || '';
+      if (toMB !== toMA) return toMB.localeCompare(toMA);
       const dateA = new Date(a.date || a.created_at || 0).getTime();
       const dateB = new Date(b.date || b.created_at || 0).getTime();
       if (dateB !== dateA) return dateB - dateA;

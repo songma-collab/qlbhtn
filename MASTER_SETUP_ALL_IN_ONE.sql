@@ -225,9 +225,256 @@ CREATE TABLE IF NOT EXISTS public.records (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ======================================================================
+-- ĐỒNG BỘ TOÀN DIỆN CẤU TRÚC 10 BẢNG (COMPREHENSIVE SCHEMA RESILIENCE)
+-- Đảm bảo 100% cột tồn tại đầy đủ ngay cả khi chạy trên CSDL hiện hữu
+-- ======================================================================
+
+-- 1. Bảng nhân sự cán bộ thu: staff
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Nhân viên';
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Đang hoạt động';
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS area TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS staff_code TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS auth_user_id UUID;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS custom_permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS revoked_permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2. Bảng đợt nộp hồ sơ cơ quan BHXH: submission_batches
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS batch_code TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS insurance_type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS total_records INT DEFAULT 0;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS total_amount NUMERIC DEFAULT 0;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS submission_date DATE;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS approval_date DATE;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS receipt_number TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 3. Bảng thiết lập hệ thống: settings
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh_new NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh_renew NUMERIC DEFAULT 3;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt_new NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt_renew NUMERIC DEFAULT 3;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS investment_rate NUMERIC DEFAULT 0.31;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS base_salary NUMERIC DEFAULT 2340000;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS poverty_standard NUMERIC DEFAULT 1500000;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS cpi_index JSONB;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS agency_name TEXT DEFAULT 'Đại lý thu BHXH Sông Mã';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS agency_code TEXT DEFAULT 'VSS-SM-001';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_bin TEXT DEFAULT '970422';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_id TEXT DEFAULT 'MB';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_name TEXT DEFAULT 'MB (Ngân hàng Quân Đội)';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS account_number TEXT DEFAULT '0868123456';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS account_holder TEXT DEFAULT 'DAI LY THU BHXH SONG MA';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS qr_template TEXT DEFAULT 'compact2';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS role_permissions JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS user_overrides JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 4. Bảng quản lý chính sách & cấu hình động: policies
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS parameter_type TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS value JSONB;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 5. Bảng khách hàng danh bạ tổng hợp Master Data: customers
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS old_bhxh TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS nation TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS has_bhxh BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS has_bhyt BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_record_id BIGINT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_date DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment_bhxh DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment_bhyt DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_amount NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Đang tham gia';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Đã thu tiền';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS staff_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS total_contributions INT DEFAULT 1;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS total_amount_paid NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS household_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS members JSONB;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_phone TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_address TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_periods JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_voluntary_months INT DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_compulsory_months INT DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_participation_notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 6. Bảng hồ sơ giao dịch tham gia BHXH / BHYT: records
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS action_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Chờ thu tiền';
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS staff_id TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS old_bhxh TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nation TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS sub_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS wage NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS commission NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS support NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS household_id TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS target_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS income NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nn_support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dp_support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS method TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS months INTEGER DEFAULT 1;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS from_month TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS to_month TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS from_month_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS to_month_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submitted_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS decision_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submission_batch_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submission_batch TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS base_premium NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nn_support_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dp_support_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS discount_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS penalty_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS next_payment DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS members JSONB;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_phone TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS is_submitted_bhxh BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS base_salary_snapshot NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS poverty_standard_snapshot NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS policy_version_id BIGINT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS applied_rates JSONB;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS is_adjustment BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS original_record_id BIGINT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS adjustment_reason TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS decision_number TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_method TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_account TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_bank TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS hospital_code TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS hospital_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 7. Bảng chi tiết từng giai đoạn tham gia trước đây: customer_participations
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'batbuoc';
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS workplace TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_month INT DEFAULT 1;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_year INT DEFAULT 2020;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_month INT DEFAULT 12;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_year INT DEFAULT 2020;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS months INT DEFAULT 0;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS salary NUMERIC;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_month_date DATE;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_month_date DATE;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 8. Bảng bút toán tài chính quyết toán đợt nộp / thoái thu: financial_settlements
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS settlement_code TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS record_id BIGINT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS settlement_type TEXT DEFAULT 'clawback';
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS reason TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS approved_by TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 9. Bảng nhật ký kiểm toán hệ thống bất biến: auditlogs
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS user_name TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS action TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 10. Bảng ghi nhận lượt gọi RPC công khai để Rate-limit: public_rpc_call_log
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS action TEXT;
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ DEFAULT NOW();
+
 -- Khóa ngoại ngược từ customers sang records (latest_record_id)
 DO $$
 BEGIN
+    -- 1. Đảm bảo cột latest_record_id tồn tại trên bảng customers
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'latest_record_id'
+    ) THEN
+        ALTER TABLE public.customers ADD COLUMN latest_record_id BIGINT;
+    END IF;
+
+    -- 2. Tự động dọn dẹp các mã latest_record_id mồ côi (không tồn tại trong bảng records)
+    UPDATE public.customers c
+    SET latest_record_id = NULL
+    WHERE c.latest_record_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM public.records r WHERE r.id = c.latest_record_id);
+
+    -- 3. Tạo khóa ngoại an toàn nếu chưa có
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_customers_latest_record'
     ) THEN
@@ -896,6 +1143,7 @@ END;
 $$;
 
 -- 1.8. Hàm liên kết staff_id với auth_user_id (link_staff_auth_user)
+DROP FUNCTION IF EXISTS public.link_staff_auth_user(TEXT, UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.link_staff_auth_user(
   p_staff_id TEXT,
   p_auth_user_id UUID
@@ -1148,6 +1396,7 @@ GRANT SELECT, INSERT ON public.auditlogs TO authenticated;
 -- 1. HÀM TIỆN ÍCH CHE DẤU THÔNG TIN PII (NGHỊ ĐỊNH 13/2023/NĐ-CP)
 -- ======================================================================
 
+DROP FUNCTION IF EXISTS public.mask_cccd_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_cccd_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -1159,6 +1408,7 @@ AS $$
   END;
 $$;
 
+DROP FUNCTION IF EXISTS public.mask_phone_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_phone_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -1170,6 +1420,7 @@ AS $$
   END;
 $$;
 
+DROP FUNCTION IF EXISTS public.mask_bhxh_pii(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.mask_bhxh_pii(val TEXT)
 RETURNS TEXT
 LANGUAGE sql
@@ -1186,6 +1437,7 @@ $$;
 -- ======================================================================
 
 -- 2.1. Ép kiểu an toàn chuỗi sang DATE
+DROP FUNCTION IF EXISTS public.safe_cast_date(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.safe_cast_date(p_date TEXT)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -1199,6 +1451,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.safe_cast_date(TIMESTAMPTZ) CASCADE;
 CREATE OR REPLACE FUNCTION public.safe_cast_date(p_date TIMESTAMPTZ)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -1210,6 +1463,7 @@ END;
 $$;
 
 -- 2.2. Chuyển đổi chuỗi kỳ đóng (MM/YYYY hoặc YYYY-MM) sang DATE (ngày mùng 1 đầu tháng)
+DROP FUNCTION IF EXISTS public.parse_month_str_to_date(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.parse_month_str_to_date(val TEXT)
 RETURNS DATE
 LANGUAGE plpgsql
@@ -1259,6 +1513,7 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.parse_month_str_to_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.parse_month_str_to_date(val DATE)
 RETURNS DATE
 LANGUAGE sql
@@ -1268,6 +1523,7 @@ AS $$
 $$;
 
 -- 2.3. Tra cứu tỷ lệ hoa hồng theo ngày hiệu lực của hồ sơ
+DROP FUNCTION IF EXISTS public.get_commission_rates_for_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_commission_rates_for_date(p_date DATE)
 RETURNS TABLE (
   comm_bhxh_new NUMERIC,
@@ -1313,6 +1569,8 @@ END;
 $$;
 
 -- 2.4. Sinh mã khóa định danh duy nhất của công dân (Customer Master Key)
+DROP FUNCTION IF EXISTS public.generate_customer_key(TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.generate_customer_key(TEXT, TEXT, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.generate_customer_key(
     p_type TEXT,
     p_bhxh TEXT,
@@ -1353,6 +1611,8 @@ END;
 $$;
 
 -- 2.5. Kiểm tra trạng thái khóa kỳ tài chính (is_financial_period_locked)
+DROP FUNCTION IF EXISTS public.is_financial_period_locked(TIMESTAMP WITH TIME ZONE) CASCADE;
+DROP FUNCTION IF EXISTS public.is_financial_period_locked(TIMESTAMPTZ) CASCADE;
 CREATE OR REPLACE FUNCTION public.is_financial_period_locked(p_date TIMESTAMP WITH TIME ZONE)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
@@ -1409,6 +1669,7 @@ END;
 $$;
 
 -- 2.6. Hàm lấy IP Client và kiểm soát Rate-limit
+DROP FUNCTION IF EXISTS public.purge_old_public_rpc_logs() CASCADE;
 CREATE OR REPLACE FUNCTION public.purge_old_public_rpc_logs()
 RETURNS void
 LANGUAGE sql
@@ -1418,6 +1679,7 @@ AS $$
   WHERE called_at < NOW() - INTERVAL '48 hours';
 $$;
 
+DROP FUNCTION IF EXISTS public.get_public_client_ip() CASCADE;
 CREATE OR REPLACE FUNCTION public.get_public_client_ip()
 RETURNS text
 LANGUAGE plpgsql
@@ -1431,7 +1693,7 @@ BEGIN
     headers := current_setting('request.headers', true)::jsonb;
   EXCEPTION WHEN OTHERS THEN
     headers := null;
-  END IF;
+  END;
 
   IF headers IS NOT NULL THEN
     ip := headers->>'cf-connecting-ip';
@@ -1454,6 +1716,8 @@ BEGIN
 END;
 $$;
 
+DROP FUNCTION IF EXISTS public.enforce_public_rpc_rate_limit(text, integer, interval) CASCADE;
+DROP FUNCTION IF EXISTS public.enforce_public_rpc_rate_limit(text, int, interval) CASCADE;
 CREATE OR REPLACE FUNCTION public.enforce_public_rpc_rate_limit(
   p_action text,
   p_max_requests int,
@@ -1744,7 +2008,7 @@ BEGIN
       (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
       (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
     )
-  ORDER BY r.date DESC
+  ORDER BY r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -2402,7 +2666,16 @@ RETURNS TABLE (
   method TEXT,
   nn_support_pct NUMERIC,
   dp_support_pct NUMERIC,
-  notes TEXT
+  notes TEXT,
+  from_month TEXT,
+  to_month TEXT,
+  next_payment TEXT,
+  months INTEGER,
+  wage NUMERIC,
+  recv_name TEXT,
+  recv_phone TEXT,
+  recv_address TEXT,
+  members JSONB
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -2421,7 +2694,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Ưu tiên 1: Tra cứu từ bảng Master Customers
+  -- Ưu tiên 1: Tra cứu từ bảng Master Customers kết hợp record gần nhất
   RETURN QUERY
   SELECT 
     c.name,
@@ -2438,7 +2711,16 @@ BEGIN
     r.method,
     r.nn_support_pct,
     r.dp_support_pct,
-    COALESCE(c.notes, r.notes) AS notes
+    COALESCE(c.notes, r.notes) AS notes,
+    r.from_month,
+    r.to_month,
+    r.next_payment,
+    r.months,
+    r.wage,
+    COALESCE(c.recv_name, r.recv_name) AS recv_name,
+    COALESCE(c.recv_phone, r.recv_phone) AS recv_phone,
+    COALESCE(c.recv_address, r.recv_address) AS recv_address,
+    COALESCE(c.members, CASE WHEN r.members IS NOT NULL THEN to_jsonb(r.members) ELSE NULL END) AS members
   FROM public.customers c
   LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (
@@ -2470,7 +2752,16 @@ BEGIN
     r.method,
     r.nn_support_pct,
     r.dp_support_pct,
-    r.notes
+    r.notes,
+    r.from_month,
+    r.to_month,
+    r.next_payment,
+    r.months,
+    r.wage,
+    r.recv_name,
+    r.recv_phone,
+    r.recv_address,
+    CASE WHEN r.members IS NOT NULL THEN to_jsonb(r.members) ELSE NULL END AS members
   FROM public.records r
   WHERE r.payment_status != 'Đã hủy'
     AND (
@@ -2478,7 +2769,7 @@ BEGIN
       (r.cccd = v_clean AND r.cccd IS NOT NULL AND r.cccd != '') OR
       (r.old_bhxh = v_clean AND r.old_bhxh IS NOT NULL AND r.old_bhxh != '')
     )
-  ORDER BY r.date DESC
+  ORDER BY r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -2685,10 +2976,20 @@ DECLARE
   v_user_id TEXT;
   v_user_name TEXT;
   v_effective_staff_id TEXT;
+  v_effective_date DATE;
 BEGIN
   IF NOT public.is_manager_or_admin() THEN
     RAISE EXCEPTION 'Quyền truy cập bị từ chối: Chỉ Quản lý hoặc Quản trị viên mới có quyền lập bút toán thoái thu hoàn tiền.'
       USING ERRCODE = '42501';
+  END IF;
+
+  v_effective_date := COALESCE(p_decision_date, CURRENT_DATE);
+
+  -- KIỂM TRA KHÓA KỲ TÀI CHÍNH THEO NGÀY QUYẾT ĐỊNH THOÁI THU
+  IF public.is_financial_period_locked(v_effective_date::timestamptz) THEN
+    RAISE EXCEPTION 'KỲ TÀI CHÍNH ĐÃ KHÓA: Kỳ tài chính ứng với ngày quyết định thoái thu (%) đã bị khóa sổ. Vui lòng mở khóa kỳ tài chính trước khi lập bút toán.',
+      to_char(v_effective_date, 'DD/MM/YYYY')
+      USING ERRCODE = '23514';
   END IF;
 
   SELECT * INTO v_orig
@@ -2761,7 +3062,7 @@ BEGIN
     'Hoàn tất thoái thu',
     'Đã thu tiền',
     NOW(),
-    COALESCE(p_decision_date, CURRENT_DATE),
+    v_effective_date,
     v_orig.target_date,
     v_orig.next_payment,
     v_orig.from_month,
@@ -3309,6 +3610,7 @@ $$;
 
 -- 3.22. RPC Đồng bộ chính sách hệ thống (sync_system_policies)
 DROP FUNCTION IF EXISTS public.sync_system_policies(JSONB) CASCADE;
+DROP FUNCTION IF EXISTS public.sync_system_policies() CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_system_policies(p_policies JSONB DEFAULT NULL)
 RETURNS JSONB
 LANGUAGE plpgsql
@@ -3819,6 +4121,19 @@ BEGIN
            OLD.cccd IS NOT DISTINCT FROM NEW.cccd AND
            OLD.bhxh IS NOT DISTINCT FROM NEW.bhxh AND
            OLD.old_bhxh IS NOT DISTINCT FROM NEW.old_bhxh AND
+           OLD.dob IS NOT DISTINCT FROM NEW.dob AND
+           OLD.gender IS NOT DISTINCT FROM NEW.gender AND
+           OLD.nation IS NOT DISTINCT FROM NEW.nation AND
+           OLD.email IS NOT DISTINCT FROM NEW.email AND
+           OLD.address IS NOT DISTINCT FROM NEW.address AND
+           OLD.notes IS NOT DISTINCT FROM NEW.notes AND
+           OLD.income IS NOT DISTINCT FROM NEW.income AND
+           OLD.method IS NOT DISTINCT FROM NEW.method AND
+           OLD.from_month IS NOT DISTINCT FROM NEW.from_month AND
+           OLD.to_month IS NOT DISTINCT FROM NEW.to_month AND
+           OLD.recv_name IS NOT DISTINCT FROM NEW.recv_name AND
+           OLD.recv_phone IS NOT DISTINCT FROM NEW.recv_phone AND
+           OLD.recv_address IS NOT DISTINCT FROM NEW.recv_address AND
            OLD.type IS NOT DISTINCT FROM NEW.type AND
            OLD.is_adjustment IS NOT DISTINCT FROM NEW.is_adjustment AND
            OLD.household_id IS NOT DISTINCT FROM NEW.household_id AND
@@ -4436,193 +4751,10 @@ CREATE TRIGGER after_record_payment_update_ledger
 -- 8. CẬP NHẬT VÀ BỔ SUNG STORED PROCEDURES (RPCs)
 -- ======================================================================
 
--- 8.1. Cập nhật create_refund_clawback_entry để tăng cường bảo vệ khóa kỳ
-CREATE OR REPLACE FUNCTION public.create_refund_clawback_entry(
-  p_original_record_id BIGINT,
-  p_refund_amount NUMERIC,
-  p_refund_type TEXT,
-  p_decision_number TEXT,
-  p_decision_date DATE,
-  p_refund_method TEXT,
-  p_beneficiary_name TEXT,
-  p_beneficiary_account TEXT,
-  p_beneficiary_bank TEXT,
-  p_reason TEXT,
-  p_staff_id TEXT DEFAULT NULL
-)
-RETURNS JSONB
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = public, pg_temp
-AS $$
-DECLARE
-  v_orig RECORD;
-  v_negative_amount NUMERIC;
-  v_negative_comm NUMERIC;
-  v_comm_rate NUMERIC;
-  v_new_record_id BIGINT;
-  v_user_id TEXT;
-  v_user_name TEXT;
-  v_effective_staff_id TEXT;
-  v_effective_date DATE;
-BEGIN
-  IF NOT public.is_manager_or_admin() THEN
-    RAISE EXCEPTION 'Quyền truy cập bị từ chối: Chỉ Quản lý hoặc Quản trị viên mới có quyền lập bút toán thoái thu hoàn tiền.'
-      USING ERRCODE = '42501';
-  END IF;
-
-  v_effective_date := COALESCE(p_decision_date, CURRENT_DATE);
-
-  -- KIỂM TRA KHÓA KỲ TÀI CHÍNH THEO NGÀY QUYẾT ĐỊNH THOÁI THU
-  IF public.is_financial_period_locked(v_effective_date::timestamptz) THEN
-    RAISE EXCEPTION 'KỲ TÀI CHÍNH ĐÃ KHÓA: Kỳ tài chính ứng với ngày quyết định thoái thu (%) đã bị khóa sổ. Vui lòng mở khóa kỳ tài chính trước khi lập bút toán.',
-      to_char(v_effective_date, 'DD/MM/YYYY')
-      USING ERRCODE = '23514';
-  END IF;
-
-  SELECT * INTO v_orig
-  FROM public.records
-  WHERE id = p_original_record_id;
-
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'Không tìm thấy hồ sơ gốc có ID %', p_original_record_id
-      USING ERRCODE = 'P0002';
-  END IF;
-
-  IF v_orig.payment_status != 'Đã thu tiền' THEN
-    RAISE EXCEPTION 'Hồ sơ gốc chưa thu tiền hoặc đã bị hủy, không thể lập bút toán thoái thu.'
-      USING ERRCODE = '23514';
-  END IF;
-
-  IF p_refund_amount <= 0 THEN
-    RAISE EXCEPTION 'Số tiền thoái thu phải lớn hơn 0'
-      USING ERRCODE = '23514';
-  END IF;
-
-  IF p_refund_amount > v_orig.amount THEN
-    RAISE EXCEPTION 'Số tiền thoái thu (% VNĐ) không được vượt quá số tiền của hồ sơ gốc (% VNĐ)', p_refund_amount, v_orig.amount
-      USING ERRCODE = '23514';
-  END IF;
-
-  v_negative_amount := -1 * ABS(p_refund_amount);
-
-  IF COALESCE(v_orig.amount, 0) > 0 AND COALESCE(v_orig.commission, 0) > 0 THEN
-    v_comm_rate := v_orig.commission / v_orig.amount;
-    v_negative_comm := -1 * ROUND(ABS(p_refund_amount) * v_comm_rate);
-  ELSE
-    v_negative_comm := 0;
-  END IF;
-
-  v_user_id := COALESCE(auth.uid()::text, 'system');
-  SELECT name INTO v_user_name FROM public.staff WHERE id = v_user_id OR email = (auth.jwt() ->> 'email') LIMIT 1;
-  IF v_user_name IS NULL THEN
-    v_user_name := COALESCE(auth.jwt() ->> 'email', 'Quản trị viên');
-  END IF;
-
-  v_effective_staff_id := COALESCE(p_staff_id, v_orig.staff_id, v_user_id);
-
-  -- Thao tác INSERT này sẽ tự động kích hoạt trigger sau:
-  -- 1. sync_records_to_customers (cập nhật Master Data)
-  -- 2. after_record_payment_update_ledger (ghi bút toán HOAN_TIEN vào financial_ledger)
-  INSERT INTO public.records (
-    name, cccd, phone, address, bhxh, old_bhxh, dob, gender, nation, email,
-    type, sub_type, action_type, status, payment_status, date,
-    effective_date, target_date, next_payment, from_month, to_month,
-    wage, income, months, method, base_premium, support_pct,
-    nn_support_pct, nn_support_amount, dp_support_pct, dp_support_amount,
-    amount, discount_amount, penalty_amount, commission, support, notes,
-    staff_id, household_id, members, recv_name, recv_phone, recv_address,
-    is_submitted_bhxh, submission_batch, submitted_date, refund_type,
-    decision_number, decision_date, refund_method, refund_beneficiary_name,
-    refund_beneficiary_account, refund_beneficiary_bank, is_adjustment,
-    original_record_id, adjustment_reason, customer_key, customer_id
-  ) VALUES (
-    v_orig.name,
-    v_orig.cccd,
-    v_orig.phone,
-    v_orig.address,
-    v_orig.bhxh,
-    v_orig.old_bhxh,
-    v_orig.dob,
-    v_orig.gender,
-    v_orig.nation,
-    v_orig.email,
-    v_orig.type,
-    v_orig.sub_type,
-    'Thoái thu',
-    'Hoàn tất thoái thu',
-    'Đã thu tiền',
-    NOW(),
-    v_effective_date,
-    v_orig.target_date,
-    v_orig.next_payment,
-    v_orig.from_month,
-    v_orig.to_month,
-    v_orig.wage,
-    v_orig.income,
-    0,
-    v_orig.method,
-    -1 * ABS(COALESCE(v_orig.base_premium, 0)),
-    v_orig.support_pct,
-    v_orig.nn_support_pct,
-    -1 * ABS(COALESCE(v_orig.nn_support_amount, 0)),
-    v_orig.dp_support_pct,
-    -1 * ABS(COALESCE(v_orig.dp_support_amount, 0)),
-    v_negative_amount,
-    0,
-    0,
-    v_negative_comm,
-    0,
-    format('Bút toán thoái thu theo QĐ %s ngày %s. Lý do: %s (Hồ sơ gốc ID: #%s)', 
-      COALESCE(p_decision_number, 'N/A'), 
-      COALESCE(to_char(v_effective_date, 'DD/MM/YYYY'), 'N/A'), 
-      COALESCE(p_reason, 'Không có'), 
-      p_original_record_id
-    ),
-    v_effective_staff_id,
-    v_orig.household_id,
-    v_orig.members,
-    v_orig.recv_name,
-    v_orig.recv_phone,
-    v_orig.recv_address,
-    FALSE,
-    NULL,
-    NULL,
-    p_refund_type,
-    p_decision_number,
-    p_decision_date,
-    p_refund_method,
-    p_beneficiary_name,
-    p_beneficiary_account,
-    p_beneficiary_bank,
-    TRUE,
-    p_original_record_id,
-    p_reason,
-    v_orig.customer_key,
-    v_orig.customer_id
-  ) RETURNING id INTO v_new_record_id;
-
-  INSERT INTO public.auditlogs (user_id, user_name, action, details, timestamp)
-  VALUES (
-    v_user_id,
-    v_user_name,
-    'Lập bút toán thoái thu',
-    format('Lập bút toán thoái thu #%s giảm trừ %s VNĐ (hoa hồng giảm %s VNĐ) cho hồ sơ gốc #%s của khách hàng %s. QĐ: %s',
-      v_new_record_id, ABS(v_negative_amount), ABS(v_negative_comm), p_original_record_id, v_orig.name, COALESCE(p_decision_number, 'N/A')),
-    NOW()
-  );
-
-  RETURN jsonb_build_object(
-    'success', true,
-    'new_record_id', v_new_record_id,
-    'negative_amount', v_negative_amount,
-    'negative_commission', v_negative_comm,
-    'original_record_id', p_original_record_id
-  );
-END;
-$$;
+-- 8.1. create_refund_clawback_entry (Đã được định nghĩa hoàn chỉnh có kiểm tra khóa kỳ tài chính tại Mục 3.15 bên trên)
 
 -- 8.2. RPC Tra cứu lịch sử sổ cái tài chính của Khách hàng (Single Source of Truth)
+DROP FUNCTION IF EXISTS public.get_customer_financial_ledger(UUID, INT, INT) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_customer_financial_ledger(
     p_customer_id UUID,
     p_limit INT DEFAULT 50,
@@ -4673,6 +4805,7 @@ END;
 $$;
 
 -- 8.3. Thủ tục Khởi tạo Số dư Ban đầu (Backfill) từ các hồ sơ 'Đã thu tiền' hiện có
+DROP FUNCTION IF EXISTS public.backfill_financial_ledger_from_existing_records() CASCADE;
 CREATE OR REPLACE FUNCTION public.backfill_financial_ledger_from_existing_records()
 RETURNS JSONB
 LANGUAGE plpgsql

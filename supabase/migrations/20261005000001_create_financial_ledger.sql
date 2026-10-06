@@ -378,6 +378,7 @@ CREATE TRIGGER after_record_payment_update_ledger
 -- ======================================================================
 
 -- 8.1. Cập nhật create_refund_clawback_entry để tăng cường bảo vệ khóa kỳ
+DROP FUNCTION IF EXISTS public.create_refund_clawback_entry(BIGINT, NUMERIC, TEXT, TEXT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.create_refund_clawback_entry(
   p_original_record_id BIGINT,
   p_refund_amount NUMERIC,
@@ -564,6 +565,7 @@ END;
 $$;
 
 -- 8.2. RPC Tra cứu lịch sử sổ cái tài chính của Khách hàng (Single Source of Truth)
+DROP FUNCTION IF EXISTS public.get_customer_financial_ledger(UUID, INT, INT) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_customer_financial_ledger(
     p_customer_id UUID,
     p_limit INT DEFAULT 50,
@@ -614,6 +616,7 @@ END;
 $$;
 
 -- 8.3. Thủ tục Khởi tạo Số dư Ban đầu (Backfill) từ các hồ sơ 'Đã thu tiền' hiện có
+DROP FUNCTION IF EXISTS public.backfill_financial_ledger_from_existing_records() CASCADE;
 CREATE OR REPLACE FUNCTION public.backfill_financial_ledger_from_existing_records()
 RETURNS JSONB
 LANGUAGE plpgsql

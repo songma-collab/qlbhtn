@@ -210,6 +210,7 @@ END;
 $$;
 
 -- 1.8. Hàm liên kết staff_id với auth_user_id (link_staff_auth_user)
+DROP FUNCTION IF EXISTS public.link_staff_auth_user(TEXT, UUID) CASCADE;
 CREATE OR REPLACE FUNCTION public.link_staff_auth_user(
   p_staff_id TEXT,
   p_auth_user_id UUID

@@ -182,6 +182,38 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
     });
 
     if (matchedCustomer) {
+      let contractInfo: any = {};
+      try {
+        const latestRec = await recordService.findLatestRecordByCode(clean);
+        if (latestRec) {
+          contractInfo = {
+            income: latestRec.income,
+            method: latestRec.method,
+            from_month: latestRec.from_month,
+            fromMonth: latestRec.from_month,
+            to_month: latestRec.to_month,
+            toMonth: latestRec.to_month,
+            next_payment: latestRec.next_payment,
+            nextPayment: latestRec.next_payment,
+            months: latestRec.months,
+            wage: latestRec.wage,
+            nn_support_pct: latestRec.nn_support_pct,
+            nnSupportPct: latestRec.nn_support_pct,
+            dp_support_pct: latestRec.dp_support_pct,
+            dpSupportPct: latestRec.dp_support_pct,
+            recv_name: latestRec.recv_name,
+            recvName: latestRec.recv_name,
+            recv_phone: latestRec.recv_phone,
+            recvPhone: latestRec.recv_phone,
+            recv_address: latestRec.recv_address,
+            recvAddress: latestRec.recv_address,
+            members: latestRec.members
+          };
+        }
+      } catch (errRec) {
+        console.warn('[useCustomersState] Failed to fetch latest contract info:', errRec);
+      }
+
       return {
         name: matchedCustomer.name,
         dob: matchedCustomer.dob,
@@ -195,6 +227,8 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
         old_bhxh: matchedCustomer.old_bhxh || (matchedCustomer.bhxh && matchedCustomer.bhxh.length === 10 ? matchedCustomer.bhxh : ''),
         customer_id: matchedCustomer.id,
         customer_key: matchedCustomer.customer_key,
+        latest_record_id: matchedCustomer.latest_record_id,
+        ...contractInfo,
         source: 'Danh bạ Khách hàng (Customers Master)'
       };
     }
@@ -202,6 +236,38 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
     try {
       const custData = await customerService.findCustomerByCode(clean);
       if (custData) {
+        let contractInfo: any = {};
+        try {
+          const latestRec = await recordService.findLatestRecordByCode(clean);
+          if (latestRec) {
+            contractInfo = {
+              income: latestRec.income,
+              method: latestRec.method,
+              from_month: latestRec.from_month,
+              fromMonth: latestRec.from_month,
+              to_month: latestRec.to_month,
+              toMonth: latestRec.to_month,
+              next_payment: latestRec.next_payment,
+              nextPayment: latestRec.next_payment,
+              months: latestRec.months,
+              wage: latestRec.wage,
+              nn_support_pct: latestRec.nn_support_pct,
+              nnSupportPct: latestRec.nn_support_pct,
+              dp_support_pct: latestRec.dp_support_pct,
+              dpSupportPct: latestRec.dp_support_pct,
+              recv_name: latestRec.recv_name,
+              recvName: latestRec.recv_name,
+              recv_phone: latestRec.recv_phone,
+              recvPhone: latestRec.recv_phone,
+              recv_address: latestRec.recv_address,
+              recvAddress: latestRec.recv_address,
+              members: latestRec.members
+            };
+          }
+        } catch (errRec) {
+          console.warn('[useCustomersState] Failed to fetch latest contract info for custData:', errRec);
+        }
+
         return {
           name: custData.name,
           dob: custData.dob,
@@ -215,6 +281,8 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
           old_bhxh: custData.old_bhxh || (custData.bhxh && custData.bhxh.length === 10 ? custData.bhxh : ''),
           customer_id: custData.id,
           customer_key: custData.customer_key,
+          latest_record_id: custData.latest_record_id,
+          ...contractInfo,
           source: 'CSDL Khách hàng Supabase'
         };
       }

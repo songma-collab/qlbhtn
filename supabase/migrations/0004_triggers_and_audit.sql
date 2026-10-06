@@ -422,6 +422,19 @@ BEGIN
            OLD.cccd IS NOT DISTINCT FROM NEW.cccd AND
            OLD.bhxh IS NOT DISTINCT FROM NEW.bhxh AND
            OLD.old_bhxh IS NOT DISTINCT FROM NEW.old_bhxh AND
+           OLD.dob IS NOT DISTINCT FROM NEW.dob AND
+           OLD.gender IS NOT DISTINCT FROM NEW.gender AND
+           OLD.nation IS NOT DISTINCT FROM NEW.nation AND
+           OLD.email IS NOT DISTINCT FROM NEW.email AND
+           OLD.address IS NOT DISTINCT FROM NEW.address AND
+           OLD.notes IS NOT DISTINCT FROM NEW.notes AND
+           OLD.income IS NOT DISTINCT FROM NEW.income AND
+           OLD.method IS NOT DISTINCT FROM NEW.method AND
+           OLD.from_month IS NOT DISTINCT FROM NEW.from_month AND
+           OLD.to_month IS NOT DISTINCT FROM NEW.to_month AND
+           OLD.recv_name IS NOT DISTINCT FROM NEW.recv_name AND
+           OLD.recv_phone IS NOT DISTINCT FROM NEW.recv_phone AND
+           OLD.recv_address IS NOT DISTINCT FROM NEW.recv_address AND
            OLD.type IS NOT DISTINCT FROM NEW.type AND
            OLD.is_adjustment IS NOT DISTINCT FROM NEW.is_adjustment AND
            OLD.household_id IS NOT DISTINCT FROM NEW.household_id AND

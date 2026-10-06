@@ -467,12 +467,16 @@ export const recordService = {
    */
   async findLatestRecordByCode(code: string): Promise<RecordType | null> {
     if (!code) return null;
+    const clean = code.trim().replace(/\D/g, '');
+    if (!clean) return null;
     try {
       const { data, error } = await supabase
         .from('records')
         .select('*')
-        .or(`cccd.eq.${code},bhxh.eq.${code},old_bhxh.eq.${code}`)
+        .or(`cccd.eq.${clean},bhxh.eq.${clean},old_bhxh.eq.${clean}`)
+        .neq('payment_status', 'Đã hủy')
         .order('date', { ascending: false })
+        .order('id', { ascending: false })
         .limit(1);
 
       if (error) throw error;

@@ -97,11 +97,38 @@ const DispatchOperations: React.FC = () => {
   const [isRenew, setIsRenew] = useState(false);
 
   const handleQuickRenew = (customer: CustomerItem) => {
-    const fullRecord = records.find(r => r.id === Number(customer.id)) || {
+    const cleanCccd = (customer.cccd || '').replace(/\D/g, '');
+    const cleanBhxh = (customer.bhxh || '').replace(/\D/g, '');
+    const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+    const matching = activeRecords.filter(r => {
+      if (customer.id && (r.id === customer.id || r.id === Number(customer.id))) return true;
+      const rCccd = (r.cccd || '').replace(/\D/g, '');
+      const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+      const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+      return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
+    });
+
+    if (matching.length > 0) {
+      matching.sort((a, b) => {
+        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+        if (nextB !== nextA) return nextB - nextA;
+        const toMA = a.to_month || (a as any).toMonth || '';
+        const toMB = b.to_month || (b as any).toMonth || '';
+        if (toMB !== toMA) return toMB.localeCompare(toMA);
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+    }
+
+    const fullRecord = matching[0] || {
       ...customer,
       id: Number(customer.id) || undefined
     };
-    setRegisterType(customer.type);
+
+    setRegisterType(customer.type || (fullRecord as any).type || 'BHXH');
     setRegisterRecord(fullRecord);
     setIsRenew(true);
     setIsRegisterModalOpen(true);

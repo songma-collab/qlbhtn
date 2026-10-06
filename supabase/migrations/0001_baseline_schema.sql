@@ -214,9 +214,256 @@ CREATE TABLE IF NOT EXISTS public.records (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ======================================================================
+-- ĐỒNG BỘ TOÀN DIỆN CẤU TRÚC 10 BẢNG (COMPREHENSIVE SCHEMA RESILIENCE)
+-- Đảm bảo 100% cột tồn tại đầy đủ ngay cả khi chạy trên CSDL hiện hữu
+-- ======================================================================
+
+-- 1. Bảng nhân sự cán bộ thu: staff
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Nhân viên';
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Đang hoạt động';
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS area TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS staff_code TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS auth_user_id UUID;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS username TEXT;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS custom_permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS revoked_permissions JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.staff ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 2. Bảng đợt nộp hồ sơ cơ quan BHXH: submission_batches
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS batch_code TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS insurance_type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'draft';
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS total_records INT DEFAULT 0;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS total_amount NUMERIC DEFAULT 0;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS submission_date DATE;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS approval_date DATE;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS receipt_number TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.submission_batches ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 3. Bảng thiết lập hệ thống: settings
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh_new NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh_renew NUMERIC DEFAULT 3;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt_new NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt_renew NUMERIC DEFAULT 3;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhxh NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS comm_bhyt NUMERIC DEFAULT 5;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS investment_rate NUMERIC DEFAULT 0.31;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS base_salary NUMERIC DEFAULT 2340000;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS poverty_standard NUMERIC DEFAULT 1500000;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS cpi_index JSONB;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS agency_name TEXT DEFAULT 'Đại lý thu BHXH Sông Mã';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS agency_code TEXT DEFAULT 'VSS-SM-001';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_bin TEXT DEFAULT '970422';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_id TEXT DEFAULT 'MB';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS bank_name TEXT DEFAULT 'MB (Ngân hàng Quân Đội)';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS account_number TEXT DEFAULT '0868123456';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS account_holder TEXT DEFAULT 'DAI LY THU BHXH SONG MA';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS qr_template TEXT DEFAULT 'compact2';
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS role_permissions JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS user_overrides JSONB DEFAULT '{}'::jsonb;
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 4. Bảng quản lý chính sách & cấu hình động: policies
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS parameter_type TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS value JSONB;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS created_by TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.policies ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 5. Bảng khách hàng danh bạ tổng hợp Master Data: customers
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS old_bhxh TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS nation TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS has_bhxh BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS has_bhyt BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_record_id BIGINT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_date DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment_bhxh DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS next_payment_bhyt DATE;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS latest_amount NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Đang tham gia';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Đã thu tiền';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS staff_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS total_contributions INT DEFAULT 1;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS total_amount_paid NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS household_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS members JSONB;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_phone TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS recv_address TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_periods JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_voluntary_months INT DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_compulsory_months INT DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_participation_notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 6. Bảng hồ sơ giao dịch tham gia BHXH / BHYT: records
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS action_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'Chờ thu tiền';
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS status TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS staff_id TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS old_bhxh TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dob DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS gender TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nation TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'BHXH';
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS sub_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS wage NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS commission NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS support NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS household_id TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS effective_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS target_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS income NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nn_support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dp_support_pct NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS method TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS months INTEGER DEFAULT 1;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS from_month TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS to_month TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS from_month_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS to_month_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submitted_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS decision_date DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submission_batch_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS submission_batch TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS base_premium NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS nn_support_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS dp_support_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS discount_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS penalty_amount NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS next_payment DATE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS members JSONB;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_phone TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS recv_address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS is_submitted_bhxh BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS base_salary_snapshot NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS poverty_standard_snapshot NUMERIC;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS policy_version_id BIGINT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS applied_rates JSONB;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS is_adjustment BOOLEAN DEFAULT FALSE;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS original_record_id BIGINT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS adjustment_reason TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS idempotency_key TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_type TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS decision_number TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_method TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_account TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS refund_beneficiary_bank TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS hospital_code TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS hospital_name TEXT;
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.records ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 7. Bảng chi tiết từng giai đoạn tham gia trước đây: customer_participations
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS customer_id UUID;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS customer_key TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS cccd TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS bhxh TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'batbuoc';
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS position TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS workplace TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_month INT DEFAULT 1;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_year INT DEFAULT 2020;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_month INT DEFAULT 12;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_year INT DEFAULT 2020;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS months INT DEFAULT 0;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS salary NUMERIC;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS from_month_date DATE;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS to_month_date DATE;
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.customer_participations ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 8. Bảng bút toán tài chính quyết toán đợt nộp / thoái thu: financial_settlements
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS settlement_code TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS record_id BIGINT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS batch_id UUID;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS settlement_type TEXT DEFAULT 'clawback';
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS amount NUMERIC DEFAULT 0;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS reason TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS approved_by TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending';
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS notes TEXT;
+ALTER TABLE public.financial_settlements ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 9. Bảng nhật ký kiểm toán hệ thống bất biến: auditlogs
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS timestamp TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS user_id TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS user_name TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS action TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS details TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.auditlogs ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
+
+-- 10. Bảng ghi nhận lượt gọi RPC công khai để Rate-limit: public_rpc_call_log
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS action TEXT;
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS ip_address TEXT;
+ALTER TABLE public.public_rpc_call_log ADD COLUMN IF NOT EXISTS called_at TIMESTAMPTZ DEFAULT NOW();
+
 -- Khóa ngoại ngược từ customers sang records (latest_record_id)
 DO $$
 BEGIN
+    -- 1. Đảm bảo cột latest_record_id tồn tại trên bảng customers
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_schema = 'public' AND table_name = 'customers' AND column_name = 'latest_record_id'
+    ) THEN
+        ALTER TABLE public.customers ADD COLUMN latest_record_id BIGINT;
+    END IF;
+
+    -- 2. Tự động dọn dẹp các mã latest_record_id mồ côi (không tồn tại trong bảng records)
+    UPDATE public.customers c
+    SET latest_record_id = NULL
+    WHERE c.latest_record_id IS NOT NULL
+      AND NOT EXISTS (SELECT 1 FROM public.records r WHERE r.id = c.latest_record_id);
+
+    -- 3. Tạo khóa ngoại an toàn nếu chưa có
     IF NOT EXISTS (
         SELECT 1 FROM pg_constraint WHERE conname = 'fk_customers_latest_record'
     ) THEN
