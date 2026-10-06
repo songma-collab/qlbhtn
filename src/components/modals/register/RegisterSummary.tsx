@@ -13,6 +13,9 @@ import { getStoredVietQRConfig } from '../../../utils/settingsHelper';
 interface RegisterSummaryProps {
   type: 'BHXH' | 'BHYT';
   isRenew?: boolean;
+  bhxhActionType?: 'Tăng mới' | 'Gia hạn';
+  commBHXHNewPct?: number;
+  commBHXHRenewPct?: number;
   bhxhCalc: any;
   bhytCalc: any;
   bhytMembers: any[];
@@ -29,6 +32,9 @@ interface RegisterSummaryProps {
 const RegisterSummary: React.FC<RegisterSummaryProps> = ({
   type,
   isRenew = false,
+  bhxhActionType,
+  commBHXHNewPct,
+  commBHXHRenewPct,
   bhxhCalc,
   bhytCalc,
   bhytMembers,
@@ -117,6 +123,18 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
           </span>
         </div>
         {type === 'BHXH' && (
+          <div className="flex justify-between items-center">
+            <span className="font-medium text-gray-500">Phân loại hồ sơ:</span>
+            <span className={`px-2 py-0.5 rounded-full font-bold text-[11px] ${
+              (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới'
+                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                : 'bg-amber-100 text-amber-900 border border-amber-200'
+            }`}>
+              {(bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới' ? 'Hồ sơ Tăng mới' : 'Hồ sơ Gia hạn'}
+            </span>
+          </div>
+        )}
+        {type === 'BHXH' && (
           <>
             <div className="flex justify-between items-center">
                <span className="font-medium text-gray-500">Mức thu nhập chọn:</span>
@@ -199,6 +217,29 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
             {formatMoney(totalAmount)}
           </span>
         </div>
+        {type === 'BHXH' && appContext?.currentUser && (() => {
+          const effectiveRate = (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới' 
+            ? (commBHXHNewPct ?? 5) 
+            : (commBHXHRenewPct ?? 3);
+          const estimatedComm = Math.round(totalAmount * (effectiveRate / 100));
+          return (
+            <div className="flex justify-between items-center text-xs text-blue-900 bg-blue-50/90 px-3 py-2 rounded-xl border border-blue-200 shadow-2xs">
+              <span className="font-semibold flex items-center gap-1.5">
+                <span>Hoa hồng đại lý</span>
+                <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                  (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới'
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-amber-100 text-amber-900'
+                }`}>
+                  {effectiveRate}%
+                </span>
+              </span>
+              <span className="font-black text-[#004182] text-sm">
+                {formatMoney(estimatedComm)}
+              </span>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Phân kỳ & Mốc thu tiền theo Luật BHXH 2024 */}

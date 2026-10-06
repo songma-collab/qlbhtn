@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { groupRecordsByCustomer } from '../utils/helpers';
-import type { RecordType } from '../types';
+import type { RecordType } from '../context/types';
 
 describe('Kiểm thử sắp xếp mặc định: Khách hàng có giao dịch đóng mới nhất lên đầu', () => {
   it('groupRecordsByCustomer sắp xếp danh sách khách hàng theo giao dịch đóng mới nhất (date DESC, id DESC)', () => {
@@ -55,12 +55,12 @@ describe('Kiểm thử sắp xếp mặc định: Khách hàng có giao dịch �
 
     expect(result).toHaveLength(4);
     // Ngày 2026-10-05 mới nhất: id 4 (Phạm Thị D) và id 2 (Trần Thị B). id 4 > id 2 nên id 4 xếp trước.
-    expect(result[0].name).toBe('Phạm Thị D');
-    expect(result[1].name).toBe('Trần Thị B');
+    expect(result[0]?.name).toBe('Phạm Thị D');
+    expect(result[1]?.name).toBe('Trần Thị B');
     // Ngày 2026-10-01: Lê Văn C
-    expect(result[2].name).toBe('Lê Văn C');
+    expect(result[2]?.name).toBe('Lê Văn C');
     // Ngày 2026-09-10: Nguyễn Văn A
-    expect(result[3].name).toBe('Nguyễn Văn A');
+    expect(result[3]?.name).toBe('Nguyễn Văn A');
   });
 
   it('Khách hàng có nhiều lần đóng: hiển thị theo giao dịch đóng gần nhất của họ', () => {
@@ -101,7 +101,7 @@ describe('Kiểm thử sắp xếp mặc định: Khách hàng có giao dịch �
 
     expect(result).toHaveLength(2);
     // Nguyễn Văn Đóng Cũ có giao dịch mới nhất là 2026-10-06 -> phải lên vị trí đầu tiên
-    expect(result[0].cccd).toBe('001099000010');
-    expect(result[1].cccd).toBe('001099000020');
+    expect(result[0]?.cccd).toBe('001099000010');
+    expect(result[1]?.cccd).toBe('001099000020');
   });
 });

@@ -145,11 +145,16 @@ const Reports = () => {
           const sBhxhRecords = sRecords.filter((r: RecordType) => r.type === 'BHXH');
           const sBhytRecords = sRecords.filter((r: RecordType) => r.type === 'BHYT');
 
-          const revBHXHNew = sBhxhRecords.filter((r: RecordType) => r.action_type === 'Đăng ký mới').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
-          const revBHXHRenew = sBhxhRecords.filter((r: RecordType) => r.action_type === 'Gia hạn' || (r.action_type && r.action_type.toLowerCase().includes('gia hạn'))).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const isRenewAction = (act?: string | null) => {
+            const s = String(act || '').toLowerCase();
+            return s.includes('gia hạn') || s.includes('tái tục') || s.includes('đóng tiếp') || s.includes('renew');
+          };
 
-          const revBHYTNew = sBhytRecords.filter((r: RecordType) => r.action_type === 'Đăng ký mới').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
-          const revBHYTRenew = sBhytRecords.filter((r: RecordType) => r.action_type === 'Gia hạn' || (r.action_type && r.action_type.toLowerCase().includes('gia hạn'))).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const revBHXHNew = sBhxhRecords.filter((r: RecordType) => !isRenewAction(r.action_type)).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const revBHXHRenew = sBhxhRecords.filter((r: RecordType) => isRenewAction(r.action_type)).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+
+          const revBHYTNew = sBhytRecords.filter((r: RecordType) => !isRenewAction(r.action_type)).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const revBHYTRenew = sBhytRecords.filter((r: RecordType) => isRenewAction(r.action_type)).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
 
           const bhxhRev = revBHXHNew + revBHXHRenew;
           const bhytRev = revBHYTNew + revBHYTRenew;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 import { CONSTANTS } from '../../utils/constants';
@@ -24,6 +24,7 @@ import { generateIdempotencyKey, dbToRecord } from '../../utils/sanitize';
 import { maskCCCD, maskName, maskPhone, maskBHXH } from '../../utils/security';
 
 import BHXHForm from './register/BHXHForm';
+import BHXHActionTypeSelector from './register/BHXHActionTypeSelector';
 import BHXHCalcSettings from './register/BHXHCalcSettings';
 import BHYTForm from './register/BHYTForm';
 import BHYTCalcSettings from './register/BHYTCalcSettings';
@@ -85,6 +86,29 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
   const [captchaToken, setCaptchaToken] = useState('');
   const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [bhxhActionType, setBhxhActionType] = useState<'Tăng mới' | 'Gia hạn'>('Gia hạn');
+
+  const commRates = useMemo(() => {
+    const defaultObj = {
+      commBHXHNew: settings?.commBHXHNew || 5,
+      commBHXHRenew: settings?.commBHXHRenew || 3,
+      commBHYTNew: settings?.commBHYTNew || 5,
+      commBHYTRenew: settings?.commBHYTRenew || 3
+    };
+    const dateStr = getLocalYYYYMMDD();
+    const commObjRaw = getPolicyValueForDate(policies, 'commission', dateStr, defaultObj);
+    let commObj = defaultObj;
+    if (commObjRaw) {
+      if (typeof commObjRaw === 'object') commObj = commObjRaw;
+      else if (typeof commObjRaw === 'string') {
+        try { commObj = JSON.parse(commObjRaw); } catch { commObj = defaultObj; }
+      }
+    }
+    return {
+      commBHXHNewPct: Number(commObj.commBHXHNew) || 5,
+      commBHXHRenewPct: Number(commObj.commBHXHRenew) || 3
+    };
+  }, [policies, settings]);
 
   useEffect(() => {
     if (!isOpen || isRenew || record) return;
@@ -316,7 +340,31 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             toMonth: '',
             basePremium: 0, nnSupportAmount: 0, dpSupportAmount: 0, amount: 0, discountAmount: 0, penaltyAmount: 0
           }));
+
+          // Xác định phân loại hồ sơ BHXH thông minh:
+          if (isRenew) {
+            const prevM = getCustomerPreviousBHXHMonths(
+              records,
+              { cccd: cccdVal, bhxh: bhxhVal },
+              null,
+              fromM,
+              customers
+            );
+            if (prevM < 12) {
+              setBhxhActionType('Tăng mới');
+            } else {
+              setBhxhActionType('Gia hạn');
+            }
+          } else {
+            const actStr = String(rec.actionType || (rec as any).action_type || '').toLowerCase();
+            if (actStr.includes('gia hạn') || actStr.includes('tái tục') || actStr.includes('đóng tiếp')) {
+              setBhxhActionType('Gia hạn');
+            } else {
+              setBhxhActionType('Tăng mới');
+            }
+          }
         } else {
+          setBhxhActionType('Tăng mới');
           setFormData({
             gender: initialData?.gender ? (initialData.gender === 'female' ? 'Nữ' : 'Nam') : 'Nam',
             nation: initialData?.nnSupport === 30 ? 'Thiểu_số' : 'Kinh',
@@ -495,11 +543,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       }
     }
 
-    const actionType = isRenew ? 'Gia hạn' : (record ? (record.actionType || 'Đăng ký mới') : 'Đăng ký mới');
+    const actionType = type === 'BHXH'
+      ? bhxhActionType
+      : (isRenew ? 'Gia hạn' : (record ? (record.actionType || 'Đăng ký mới') : 'Đăng ký mới'));
+
+    const effectiveIsRenew = type === 'BHXH'
+      ? (bhxhActionType === 'Gia hạn')
+      : (isRenew || Boolean(actionType.toLowerCase().includes('gia hạn')));
     
     let baseRecordData: any = {
       type,
       actionType,
+      isRenew: effectiveIsRenew,
       paymentStatus: 'Chờ thanh toán'
     };
 
@@ -776,7 +831,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             await addRecord(recordWithoutId);
           }
 
-          showToast(isRenew ? 'Đã ghi nhận giao dịch gia hạn!' : 'Lưu hồ sơ và ghi nhận thu tiền thành công!');
+          showToast(actionType === 'Gia hạn' ? 'Đã ghi nhận giao dịch gia hạn!' : 'Lưu hồ sơ và ghi nhận thu tiền thành công!');
           onClose();
         } catch (error: any) {
           console.error("Lỗi khi thêm hồ sơ:", error);
@@ -1131,8 +1186,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
     recvAddress: record.recvAddress || record.recvaddress || record.recv_address || '',
   } : null;
   const title = isRenew ? `Gia Hạn ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}` : (record ? 'Cập Nhật Thông Tin Hồ Sơ' : `Đăng Ký ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}`);
-  const subtitleText = isRenew ? 'Hồ sơ Gia hạn' : (record ? 'Cập nhật' : 'Đăng ký mới');
-  const subtitleClass = isRenew ? 'bg-tertiary-fixed-dim/90 text-primary-dark font-bold' : 'bg-white/20 text-white';
+  const subtitleText = type === 'BHXH'
+    ? (bhxhActionType === 'Tăng mới' ? 'Hồ sơ Tăng mới' : 'Hồ sơ Gia hạn')
+    : (isRenew ? 'Hồ sơ Gia hạn' : (record ? 'Cập nhật' : 'Đăng ký mới'));
+  const subtitleClass = (type === 'BHXH' ? bhxhActionType === 'Tăng mới' : !isRenew)
+    ? 'bg-emerald-500 text-white font-bold'
+    : 'bg-tertiary-fixed-dim/90 text-primary-dark font-bold';
 
   return createPortal(
     <div className="fixed inset-0 bg-primary/70 backdrop-blur-sm z-[100] overflow-y-auto w-full h-full transition-opacity duration-300">
@@ -1256,6 +1315,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                     />
                   )}
 
+                  {/* Phân loại nghiệp vụ hồ sơ BHXH: Nút tích chọn Tăng mới vs Gia hạn */}
+                  {type === 'BHXH' && (
+                    <BHXHActionTypeSelector
+                      actionType={bhxhActionType}
+                      onChange={setBhxhActionType}
+                      previousMonths={bhxhCalc.previousMonths || 0}
+                      commBHXHNewPct={commRates.commBHXHNewPct}
+                      commBHXHRenewPct={commRates.commBHXHRenewPct}
+                      isRenew={isRenew}
+                    />
+                  )}
+
                   {/* Mục 2: Thiết Lập Mức Đóng */}
                   {type === 'BHXH' && (
                     <BHXHCalcSettings
@@ -1283,6 +1354,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                   <RegisterSummary
                     type={type}
                     isRenew={isRenew}
+                    bhxhActionType={bhxhActionType}
+                    commBHXHNewPct={commRates.commBHXHNewPct}
+                    commBHXHRenewPct={commRates.commBHXHRenewPct}
                     bhxhCalc={bhxhCalc}
                     bhytCalc={bhytCalc}
                     bhytMembers={bhytMembers}
@@ -1315,7 +1389,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                       ) : (
                         <>
                           <Check size={20} className="mr-2 stroke-[3px]" /> 
-                          {isRenew ? 'Xác Nhận Gia Hạn' : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
+                          {isRenew 
+                            ? (type === 'BHXH' ? (bhxhActionType === 'Tăng mới' ? 'Xác Nhận Đóng Tăng Mới' : 'Xác Nhận Gia Hạn') : 'Xác Nhận Gia Hạn') 
+                            : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
                         </>
                       )}
                     </button>

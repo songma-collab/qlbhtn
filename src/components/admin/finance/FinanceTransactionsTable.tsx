@@ -121,9 +121,11 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
 
                 const actionTag = isAdj
                   ? <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><RotateCcw size={10} className="mr-1" /> Bù trừ âm</span>
-                  : actType === 'Gia hạn' 
+                  : String(actType || '').toLowerCase().includes('gia hạn') 
                     ? <span className="bg-[#FDB913]/20 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><RotateCw size={10} className="mr-1" /> Gia hạn</span>
-                    : <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><Plus size={10} className="mr-1" /> Mới</span>;
+                    : String(actType || '').toLowerCase().includes('tăng mới')
+                      ? <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><Plus size={10} className="mr-1" /> Tăng mới</span>
+                      : <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><Plus size={10} className="mr-1" /> Mới</span>;
 
                 const statusColors: any = {
                   'Đã thu tiền': 'text-emerald-700 bg-emerald-50 border-emerald-200',
