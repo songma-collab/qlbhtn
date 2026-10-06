@@ -1,6 +1,6 @@
 import React from 'react';
 import { AlertTriangle, Clock, CheckCircle2, PauseCircle, UserCheck } from 'lucide-react';
-import { getLocalYYYYMMDD } from '../../utils/helpers';
+import { getLocalYYYYMMDD, parseToIsoDate } from '../../utils/helpers';
 
 export interface CustomerStatusBadgeProps {
   customerStatus?: string | null | undefined;
@@ -121,7 +121,8 @@ export const CustomerStatusBadge: React.FC<CustomerStatusBadgeProps> = ({
   }
 
   const effectivePaymentStatus = payment_status ?? paymentStatus;
-  const effectiveNextPayment = next_payment ?? nextPayment;
+  const rawNextPayment = next_payment ?? nextPayment;
+  const effectiveNextPayment = rawNextPayment ? parseToIsoDate(rawNextPayment) : '';
 
   // Mode Payment only
   if (mode === 'payment') {

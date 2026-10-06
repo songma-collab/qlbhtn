@@ -34,6 +34,7 @@ export {
   calculateToMonthVN,
   calculateMonthsBetween,
   calculateNextRenewalMonth,
+  calculateNextPaymentFromToMonth,
   isValidVNDate,
   isValidVNMonth,
   toUIDate,

@@ -3,7 +3,7 @@ import {
   Phone, Eye, EyeOff, UserCheck, History, QrCode, 
   UserPlus, Copy, Zap, Edit, Trash2 
 } from 'lucide-react';
-import { formatDateVN } from '../../../utils/helpers';
+import { formatDateVN, formatMonthVN, calculateNextPaymentFromToMonth } from '../../../utils/helpers';
 import { CustomerStatusBadge, CustomerParticipationBadge } from '../../common/CustomerStatusBadge';
 
 interface CustomerTableViewProps {
@@ -71,7 +71,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               <th className="p-4">Họ & Tên Khách Hàng</th>
               <th className="p-4">Số ĐDCN / CCCD</th>
               <th className="p-4">Mã số BHXH</th>
-              <th className="p-4">Loại hình</th>
+              <th className="p-4">Kỳ đóng</th>
               <th className="p-4">Hạn đóng tiếp</th>
               <th className="p-4">Trạng Thái Đóng</th>
               <th className="p-4">Trạng Thái KH</th>
@@ -85,6 +85,18 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const rawPhone = r.phone || '';
               const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
               const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
+
+              const fromM = r.from_month || r.fromMonth || '';
+              const toM = r.to_month || r.toMonth || '';
+              const fromMStr = fromM ? formatMonthVN(fromM) : '';
+              const toMStr = toM ? formatMonthVN(toM) : '';
+              const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
+
+              let nextPay = r.next_payment || r.nextPayment || null;
+              if (!nextPay && (toM || fromM)) {
+                nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1);
+              }
+              const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
               return (
                 <tr 
@@ -103,8 +115,15 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     />
                   </td>
                   <td className="p-4">
-                    <div className="font-semibold text-slate-800 text-sm">
-                      {r.name}
+                    <div className="font-semibold text-slate-800 text-sm flex items-center gap-1.5">
+                      <span>{r.name}</span>
+                      {r.type && (
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold shrink-0 ${
+                          r.type === 'BHXH' ? 'bg-blue-50 text-[#004182] border border-blue-200' : 'bg-sky-50 text-sky-700 border border-sky-200'
+                        }`}>
+                          {r.type}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-500 font-normal flex items-center gap-1.5 mt-0.5">
                       <Phone size={11} className="text-slate-400" />
@@ -137,17 +156,24 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     </span>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                      r.type === 'BHXH' ? 'bg-blue-50 text-[#004182] border border-blue-200' : 'bg-sky-50 text-sky-700 border border-sky-200'
-                    }`}>
-                      {r.type}
+                    <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
+                      {periodStr}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-600 text-xs font-medium">
-                    {r.nextPayment ? formatDateVN(r.nextPayment) : '---'}
+                  <td className="p-4 text-slate-700 text-xs font-medium">
+                    {nextPay ? (
+                      <span className="font-mono tabular-nums">
+                        {formatDateVN(nextPay)}
+                      </span>
+                    ) : '---'}
                   </td>
                   <td className="p-4">
-                    <CustomerStatusBadge paymentStatus={r.paymentStatus} nextPayment={r.nextPayment} />
+                    <CustomerStatusBadge 
+                      payment_status={payStatus} 
+                      paymentStatus={payStatus} 
+                      next_payment={nextPay} 
+                      nextPayment={nextPay} 
+                    />
                   </td>
                   <td className="p-4">
                     <CustomerParticipationBadge 
@@ -274,6 +300,18 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
             const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
 
+            const fromM = r.from_month || r.fromMonth || '';
+            const toM = r.to_month || r.toMonth || '';
+            const fromMStr = fromM ? formatMonthVN(fromM) : '';
+            const toMStr = toM ? formatMonthVN(toM) : '';
+            const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
+
+            let nextPay = r.next_payment || r.nextPayment || null;
+            if (!nextPay && (toM || fromM)) {
+              nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1);
+            }
+            const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
+
             return (
               <div 
                 key={r.id || `mob-${index}`} 
@@ -328,14 +366,25 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Hạn đóng</span>
-                    <span className="text-slate-700 font-medium">
-                      {r.nextPayment ? formatDateVN(r.nextPayment) : '---'}
+                    <span className="text-[10px] text-slate-400 block">Kỳ đóng</span>
+                    <span className="font-mono font-medium text-slate-800">
+                      {periodStr}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Trạng thái</span>
-                    <CustomerStatusBadge paymentStatus={r.paymentStatus} nextPayment={r.nextPayment} />
+                    <span className="text-[10px] text-slate-400 block">Hạn đóng tiếp</span>
+                    <span className="text-slate-700 font-medium font-mono tabular-nums">
+                      {nextPay ? formatDateVN(nextPay) : '---'}
+                    </span>
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between pt-1 border-t border-slate-200/60">
+                    <span className="text-[10px] text-slate-400 block">Trạng thái đóng</span>
+                    <CustomerStatusBadge 
+                      payment_status={payStatus} 
+                      paymentStatus={payStatus} 
+                      next_payment={nextPay} 
+                      nextPayment={nextPay} 
+                    />
                   </div>
                 </div>
 

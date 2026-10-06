@@ -321,6 +321,8 @@ export type CustomerType = {
   next_payment?: string | undefined;
   next_payment_bhxh?: string | undefined;
   next_payment_bhyt?: string | undefined;
+  from_month?: string | undefined;
+  to_month?: string | undefined;
   latest_amount?: number | undefined;
   status: string;
   payment_status: string;
@@ -442,6 +444,7 @@ export function normalizeLegacyPayload<T extends Record<string, any>>(payload: T
   const base_premium = payload.base_premium ?? payload.basePremium;
   const from_month = payload.from_month ?? payload.fromMonth;
   const to_month = payload.to_month ?? payload.toMonth;
+  const next_payment = payload.next_payment ?? payload.nextPayment;
   const is_submitted_bhxh = payload.is_submitted_bhxh ?? payload.isSubmittedBHXH;
   const submission_batch = payload.submission_batch ?? payload.submissionBatch;
 
@@ -464,6 +467,7 @@ export function normalizeLegacyPayload<T extends Record<string, any>>(payload: T
     original_record_id,
     adjustment_reason,
     payment_status,
+    next_payment,
     action_type,
     sub_type,
     base_premium,

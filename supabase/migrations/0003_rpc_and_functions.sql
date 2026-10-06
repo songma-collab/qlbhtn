@@ -1785,6 +1785,8 @@ RETURNS TABLE (
   prior_voluntary_months INT,
   prior_compulsory_months INT,
   prior_participation_notes TEXT,
+  from_month TEXT,
+  to_month TEXT,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 )
@@ -1801,11 +1803,12 @@ BEGIN
 
   SELECT COUNT(*) INTO v_count
   FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
     AND (p_status = 'all' OR c.status = p_status)
     AND (p_staff_id = 'all' OR c.staff_id = p_staff_id)
-    AND (p_from_date IS NULL OR c.next_payment >= p_from_date)
-    AND (p_to_date IS NULL OR c.next_payment <= p_to_date)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
     AND (
       v_clean_search = '' 
       OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
@@ -1831,12 +1834,12 @@ BEGIN
     c.dob,
     c.gender,
     c.status,
-    c.payment_status,
-    c.next_payment,
+    COALESCE(c.payment_status, r.payment_status) AS payment_status,
+    COALESCE(c.next_payment, r.next_payment) AS next_payment,
     c.next_payment_bhxh,
     c.next_payment_bhyt,
-    c.latest_date,
-    c.latest_amount,
+    COALESCE(c.latest_date, r.date::date) AS latest_date,
+    COALESCE(c.latest_amount, r.amount) AS latest_amount,
     c.staff_id,
     c.total_contributions,
     c.total_amount_paid,
@@ -1845,14 +1848,17 @@ BEGIN
     c.prior_voluntary_months,
     c.prior_compulsory_months,
     c.prior_participation_notes,
+    COALESCE(c.from_month, r.from_month) AS from_month,
+    COALESCE(c.to_month, r.to_month) AS to_month,
     c.created_at,
     c.updated_at
   FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
     AND (p_status = 'all' OR c.status = p_status)
     AND (p_staff_id = 'all' OR c.staff_id = p_staff_id)
-    AND (p_from_date IS NULL OR c.next_payment >= p_from_date)
-    AND (p_to_date IS NULL OR c.next_payment <= p_to_date)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
     AND (
       v_clean_search = '' 
       OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
@@ -1862,7 +1868,7 @@ BEGIN
       OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
       OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
     )
-  ORDER BY c.next_payment ASC NULLS LAST, c.latest_date DESC
+  ORDER BY COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST, COALESCE(c.latest_date, r.date::date) DESC
   LIMIT p_limit OFFSET p_offset;
 END;
 $$;

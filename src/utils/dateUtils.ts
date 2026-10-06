@@ -457,6 +457,28 @@ export const calculateNextRenewalMonth = (
   return `${String(now.getMonth() + 1).padStart(2, '0')}/${now.getFullYear()}`;
 };
 
+/**
+ * calculateNextPaymentFromToMonth:
+ * Tính toán ngày gia hạn tiếp theo (nextPayment) từ kỳ đóng đến tháng.
+ * Ví dụ: đóng đến tháng 08/2026 -> Hạn đóng tiếp là 15/09/2026.
+ */
+export const calculateNextPaymentFromToMonth = (
+  toMonthStr?: string | null,
+  fallbackMonths = 1
+): string => {
+  if (toMonthStr && typeof toMonthStr === 'string' && toMonthStr.trim()) {
+    const { month, year } = parseMonthAndYear(toMonthStr);
+    if (month && year) {
+      // 1-indexed month passed to Date constructor creates the subsequent month (0-indexed)
+      const nextDate = new Date(year, month, 15);
+      return getLocalYYYYMMDD(nextDate);
+    }
+  }
+  const fallback = new Date();
+  fallback.setMonth(fallback.getMonth() + fallbackMonths);
+  return getLocalYYYYMMDD(fallback);
+};
+
 // ==========================================
 // 4. INPUT MASK HELPERS (MẶT NẠ NHẬP LIỆU FORM)
 // ==========================================

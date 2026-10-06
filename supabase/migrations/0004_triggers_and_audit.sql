@@ -480,7 +480,9 @@ BEGIN
     INSERT INTO public.customers (
         customer_key, type, name, cccd, bhxh, old_bhxh, phone, address, dob, gender, nation, email,
         latest_record_id, status, payment_status, notes, staff_id, total_contributions, total_amount_paid,
-        household_id, members, recv_name, recv_phone, recv_address, created_at, updated_at
+        household_id, members, recv_name, recv_phone, recv_address,
+        next_payment, next_payment_bhxh, next_payment_bhyt, latest_date, latest_amount, from_month, to_month,
+        created_at, updated_at
     ) VALUES (
         v_key, v_rec.type, v_rec.name, v_rec.cccd, v_rec.bhxh, v_rec.old_bhxh, v_rec.phone, v_rec.address,
         v_rec.dob, v_rec.gender, v_rec.nation, v_rec.email,
@@ -488,7 +490,15 @@ BEGIN
         GREATEST(0, v_delta_contrib), GREATEST(0, v_delta_amount),
         v_rec.household_id,
         CASE WHEN v_rec.members IS NOT NULL THEN to_jsonb(v_rec.members) ELSE NULL END,
-        v_rec.recv_name, v_rec.recv_phone, v_rec.recv_address, NOW(), NOW()
+        v_rec.recv_name, v_rec.recv_phone, v_rec.recv_address,
+        v_rec.next_payment,
+        CASE WHEN v_rec.type = 'BHXH' THEN v_rec.next_payment ELSE NULL END,
+        CASE WHEN v_rec.type = 'BHYT' THEN v_rec.next_payment ELSE NULL END,
+        v_rec.date::date,
+        v_rec.amount,
+        v_rec.from_month,
+        v_rec.to_month,
+        NOW(), NOW()
     )
     ON CONFLICT (customer_key) DO UPDATE SET
         total_amount_paid = GREATEST(0, COALESCE(public.customers.total_amount_paid, 0) + v_delta_amount),
@@ -510,6 +520,13 @@ BEGIN
             ELSE public.customers.status
         END,
         payment_status = COALESCE(EXCLUDED.payment_status, public.customers.payment_status),
+        next_payment = COALESCE(EXCLUDED.next_payment, public.customers.next_payment),
+        next_payment_bhxh = COALESCE(EXCLUDED.next_payment_bhxh, public.customers.next_payment_bhxh),
+        next_payment_bhyt = COALESCE(EXCLUDED.next_payment_bhyt, public.customers.next_payment_bhyt),
+        latest_date = COALESCE(EXCLUDED.latest_date, public.customers.latest_date),
+        latest_amount = COALESCE(EXCLUDED.latest_amount, public.customers.latest_amount),
+        from_month = COALESCE(EXCLUDED.from_month, public.customers.from_month),
+        to_month = COALESCE(EXCLUDED.to_month, public.customers.to_month),
         notes = COALESCE(EXCLUDED.notes, public.customers.notes),
         staff_id = COALESCE(EXCLUDED.staff_id, public.customers.staff_id),
         household_id = COALESCE(EXCLUDED.household_id, public.customers.household_id),

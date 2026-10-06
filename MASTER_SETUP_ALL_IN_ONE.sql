@@ -144,9 +144,14 @@ CREATE TABLE IF NOT EXISTS public.customers (
     prior_voluntary_months INT DEFAULT 0,
     prior_compulsory_months INT DEFAULT 0,
     prior_participation_notes TEXT,
+    from_month TEXT,
+    to_month TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS from_month TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS to_month TEXT;
 
 -- 2.6. Bảng hồ sơ giao dịch tham gia BHXH / BHYT (records)
 CREATE TABLE IF NOT EXISTS public.records (
@@ -3171,6 +3176,8 @@ RETURNS TABLE (
   prior_voluntary_months INT,
   prior_compulsory_months INT,
   prior_participation_notes TEXT,
+  from_month TEXT,
+  to_month TEXT,
   created_at TIMESTAMPTZ,
   updated_at TIMESTAMPTZ
 )
@@ -3187,11 +3194,12 @@ BEGIN
 
   SELECT COUNT(*) INTO v_count
   FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
     AND (p_status = 'all' OR c.status = p_status)
     AND (p_staff_id = 'all' OR c.staff_id = p_staff_id)
-    AND (p_from_date IS NULL OR c.next_payment >= p_from_date)
-    AND (p_to_date IS NULL OR c.next_payment <= p_to_date)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
     AND (
       v_clean_search = '' 
       OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
@@ -3217,12 +3225,12 @@ BEGIN
     c.dob,
     c.gender,
     c.status,
-    c.payment_status,
-    c.next_payment,
+    COALESCE(c.payment_status, r.payment_status) AS payment_status,
+    COALESCE(c.next_payment, r.next_payment) AS next_payment,
     c.next_payment_bhxh,
     c.next_payment_bhyt,
-    c.latest_date,
-    c.latest_amount,
+    COALESCE(c.latest_date, r.date::date) AS latest_date,
+    COALESCE(c.latest_amount, r.amount) AS latest_amount,
     c.staff_id,
     c.total_contributions,
     c.total_amount_paid,
@@ -3231,14 +3239,17 @@ BEGIN
     c.prior_voluntary_months,
     c.prior_compulsory_months,
     c.prior_participation_notes,
+    COALESCE(c.from_month, r.from_month) AS from_month,
+    COALESCE(c.to_month, r.to_month) AS to_month,
     c.created_at,
     c.updated_at
   FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
   WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
     AND (p_status = 'all' OR c.status = p_status)
     AND (p_staff_id = 'all' OR c.staff_id = p_staff_id)
-    AND (p_from_date IS NULL OR c.next_payment >= p_from_date)
-    AND (p_to_date IS NULL OR c.next_payment <= p_to_date)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
     AND (
       v_clean_search = '' 
       OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
@@ -3248,7 +3259,7 @@ BEGIN
       OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
       OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
     )
-  ORDER BY c.next_payment ASC NULLS LAST, c.latest_date DESC
+  ORDER BY COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST, COALESCE(c.latest_date, r.date::date) DESC
   LIMIT p_limit OFFSET p_offset;
 END;
 $$;
@@ -4179,7 +4190,9 @@ BEGIN
     INSERT INTO public.customers (
         customer_key, type, name, cccd, bhxh, old_bhxh, phone, address, dob, gender, nation, email,
         latest_record_id, status, payment_status, notes, staff_id, total_contributions, total_amount_paid,
-        household_id, members, recv_name, recv_phone, recv_address, created_at, updated_at
+        household_id, members, recv_name, recv_phone, recv_address,
+        next_payment, next_payment_bhxh, next_payment_bhyt, latest_date, latest_amount, from_month, to_month,
+        created_at, updated_at
     ) VALUES (
         v_key, v_rec.type, v_rec.name, v_rec.cccd, v_rec.bhxh, v_rec.old_bhxh, v_rec.phone, v_rec.address,
         v_rec.dob, v_rec.gender, v_rec.nation, v_rec.email,
@@ -4187,7 +4200,15 @@ BEGIN
         GREATEST(0, v_delta_contrib), GREATEST(0, v_delta_amount),
         v_rec.household_id,
         CASE WHEN v_rec.members IS NOT NULL THEN to_jsonb(v_rec.members) ELSE NULL END,
-        v_rec.recv_name, v_rec.recv_phone, v_rec.recv_address, NOW(), NOW()
+        v_rec.recv_name, v_rec.recv_phone, v_rec.recv_address,
+        v_rec.next_payment,
+        CASE WHEN v_rec.type = 'BHXH' THEN v_rec.next_payment ELSE NULL END,
+        CASE WHEN v_rec.type = 'BHYT' THEN v_rec.next_payment ELSE NULL END,
+        v_rec.date::date,
+        v_rec.amount,
+        v_rec.from_month,
+        v_rec.to_month,
+        NOW(), NOW()
     )
     ON CONFLICT (customer_key) DO UPDATE SET
         total_amount_paid = GREATEST(0, COALESCE(public.customers.total_amount_paid, 0) + v_delta_amount),
@@ -4209,6 +4230,13 @@ BEGIN
             ELSE public.customers.status
         END,
         payment_status = COALESCE(EXCLUDED.payment_status, public.customers.payment_status),
+        next_payment = COALESCE(EXCLUDED.next_payment, public.customers.next_payment),
+        next_payment_bhxh = COALESCE(EXCLUDED.next_payment_bhxh, public.customers.next_payment_bhxh),
+        next_payment_bhyt = COALESCE(EXCLUDED.next_payment_bhyt, public.customers.next_payment_bhyt),
+        latest_date = COALESCE(EXCLUDED.latest_date, public.customers.latest_date),
+        latest_amount = COALESCE(EXCLUDED.latest_amount, public.customers.latest_amount),
+        from_month = COALESCE(EXCLUDED.from_month, public.customers.from_month),
+        to_month = COALESCE(EXCLUDED.to_month, public.customers.to_month),
         notes = COALESCE(EXCLUDED.notes, public.customers.notes),
         staff_id = COALESCE(EXCLUDED.staff_id, public.customers.staff_id),
         household_id = COALESCE(EXCLUDED.household_id, public.customers.household_id),
@@ -4890,6 +4918,34 @@ GRANT EXECUTE ON FUNCTION public.get_customer_financial_ledger(UUID, INT, INT) T
 GRANT EXECUTE ON FUNCTION public.backfill_financial_ledger_from_existing_records() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.create_refund_clawback_entry(BIGINT, NUMERIC, TEXT, TEXT, DATE, TEXT, TEXT, TEXT, TEXT, TEXT, TEXT) TO authenticated, service_role;
 
+
+-- ======================================================================
+-- ĐỒNG BỘ DỮ LIỆU TOÀN VẸN: CẬP NHẬT KỲ ĐÓNG VÀ HẠN ĐÓNG CHO KHÁCH HÀNG HIỆN HỮU
+-- ======================================================================
+DO $$
+BEGIN
+    -- 1. Bổ sung hạn đóng tiếp nếu hồ sơ có to_month nhưng chưa có next_payment
+    UPDATE public.records
+    SET next_payment = (to_date(to_month || '-15', 'YYYY-MM-DD') + interval '1 month')::date
+    WHERE next_payment IS NULL AND to_month ~ '^\d{4}-\d{2}$';
+
+    UPDATE public.records
+    SET next_payment = (to_date('15/' || to_month, 'DD/MM/YYYY') + interval '1 month')::date
+    WHERE next_payment IS NULL AND to_month ~ '^\d{2}/\d{4}$';
+
+    -- 2. Đồng bộ các thông tin kỳ đóng, hạn đóng, ngày giao dịch sang bảng customers từ record mới nhất
+    UPDATE public.customers c
+    SET 
+        next_payment = COALESCE(c.next_payment, r.next_payment),
+        from_month = COALESCE(c.from_month, r.from_month),
+        to_month = COALESCE(c.to_month, r.to_month),
+        latest_date = COALESCE(c.latest_date, r.date::date),
+        latest_amount = COALESCE(c.latest_amount, r.amount),
+        payment_status = COALESCE(c.payment_status, r.payment_status)
+    FROM public.records r
+    WHERE c.latest_record_id = r.id;
+END;
+$$;
 
 -- ======================================================================
 -- THÔNG BÁO SUPABASE POSTGREST NẠP LẠI TOÀN BỘ SCHEMA MỚI

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Phone, Eye, EyeOff, History, QrCode, Copy, RefreshCw, Edit, Trash2 } from 'lucide-react';
 import { CustomerParticipationBadge, CustomerStatusBadge } from '../../common/CustomerStatusBadge';
-import { formatDateVN } from '../../../utils/helpers';
+import { formatDateVN, formatMonthVN, calculateNextPaymentFromToMonth } from '../../../utils/helpers';
 
 export interface CustomerDirectoryCardProps {
   customer: any;
@@ -41,6 +41,18 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   const rawCccd = c.cccd || '';
   const rawPhone = c.phone || '';
   const rawBhxh = c.bhxh || '';
+
+  const fromM = c.from_month || c.fromMonth || '';
+  const toM = c.to_month || c.toMonth || '';
+  const fromMStr = fromM ? formatMonthVN(fromM) : '';
+  const toMStr = toM ? formatMonthVN(toM) : '';
+  const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
+
+  let nextPay = c.next_payment || c.nextPayment || null;
+  if (!nextPay && (toM || fromM)) {
+    nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(c.months) || 1);
+  }
+  const payStatus = c.payment_status || c.paymentStatus || 'Chờ thu tiền';
 
   return (
     <div 
@@ -103,9 +115,15 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
+            <span className="text-slate-400 text-[11px]">Kỳ đóng:</span>
+            <span className="font-mono text-slate-800 font-medium">
+              {periodStr}
+            </span>
+          </div>
+          <div className="flex justify-between items-center text-slate-600">
             <span className="text-slate-400 text-[11px]">Hạn nộp tiếp theo:</span>
-            <span className="text-slate-700 font-medium">
-              {c.nextPayment ? formatDateVN(c.nextPayment) : '---'}
+            <span className="text-slate-700 font-medium font-mono tabular-nums">
+              {nextPay ? formatDateVN(nextPay) : '---'}
             </span>
           </div>
         </div>
@@ -117,7 +135,12 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
             interactive={Boolean(c.id)}
             onClick={() => onStatusClick(c)}
           />
-          <CustomerStatusBadge paymentStatus={c.paymentStatus} nextPayment={c.nextPayment} />
+          <CustomerStatusBadge 
+            payment_status={payStatus} 
+            paymentStatus={payStatus} 
+            next_payment={nextPay} 
+            nextPayment={nextPay} 
+          />
         </div>
       </div>
 
