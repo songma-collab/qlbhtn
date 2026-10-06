@@ -486,6 +486,14 @@ export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterT
     });
   });
 
+  // Mặc định sắp xếp: những khách hàng có giao dịch đóng mới nhất sẽ hiện lên đầu
+  latestCustomers.sort((a, b) => {
+    const dateA = new Date(a.date || a.latest_date || a.created_at || 0).getTime();
+    const dateB = new Date(b.date || b.latest_date || b.created_at || 0).getTime();
+    if (dateB !== dateA) return dateB - dateA;
+    return (Number(b.id) || 0) - (Number(a.id) || 0);
+  });
+
   return latestCustomers;
 };
 

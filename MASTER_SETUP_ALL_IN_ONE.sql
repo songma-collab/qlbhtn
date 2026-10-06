@@ -3259,7 +3259,7 @@ BEGIN
       OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
       OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
     )
-  ORDER BY COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST, COALESCE(c.latest_date, r.date::date) DESC
+  ORDER BY COALESCE(c.latest_date, r.date::date) DESC NULLS LAST, COALESCE(r.id, 0) DESC, COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST
   LIMIT p_limit OFFSET p_offset;
 END;
 $$;

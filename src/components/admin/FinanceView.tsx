@@ -331,7 +331,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
         return true;
       })
-      .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      .sort((a: any, b: any) => {
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
   }, [sourceRecords, currentType, effectiveStaffId, startDateRPC, endDateRPC, filterState]);
 
   // Thống kê KPI cơ bản
@@ -536,7 +541,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const startIdx = (currentPage - 1) * itemsPerPage;
   const paginatedRecords = useMemo(() => {
     if (useServerData && serverRecords.length > 0) {
-      return serverRecords;
+      return [...serverRecords].sort((a: any, b: any) => {
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
     }
     return filteredRecords.slice(startIdx, startIdx + itemsPerPage);
   }, [useServerData, serverRecords, filteredRecords, startIdx, itemsPerPage]);

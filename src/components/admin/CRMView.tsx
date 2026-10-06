@@ -250,7 +250,12 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const startIdx = (currentPage - 1) * itemsPerPage;
   const paginatedCustomers = useMemo(() => {
     if (useServerData && serverCustomers.length > 0) {
-      return serverCustomers;
+      return [...serverCustomers].sort((a, b) => {
+        const dateA = new Date(a.latest_date || a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.latest_date || b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
     }
     return uniqueCustomersList.slice(startIdx, startIdx + itemsPerPage);
   }, [useServerData, serverCustomers, uniqueCustomersList, startIdx, itemsPerPage]);
