@@ -725,7 +725,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const renderCustomerPII = (val: string | null | undefined, typeName: 'CCCD' | 'PHONE' | 'BHXH', recordId?: number) => {
     if (!val) return <span className="text-slate-400">---</span>;
     const isRowRevealed = recordId ? revealedRowIds.has(recordId) : false;
-    const isFullyUnmasked = !isPIIMasked || isRowRevealed || isAdminOrManager;
+    const isFullyUnmasked = !isPIIMasked || isRowRevealed;
 
     let displayVal = val;
     if (!isFullyUnmasked) {
@@ -915,7 +915,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
                 {paginatedCustomers.map((c, idx) => {
                   const isRowRevealed = c.id ? revealedRowIds.has(c.id) : false;
-                  const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
+                  const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
                   return (
                     <CustomerDirectoryCard

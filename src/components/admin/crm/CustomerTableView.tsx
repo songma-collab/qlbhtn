@@ -86,7 +86,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const oldBhxh = r.old_bhxh || r.oldBhxh;
               const hasOldBhxh = Boolean(oldBhxh && oldBhxh !== rawCccd);
               const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
-              const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
+              const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
               const fromM = r.from_month || r.fromMonth || '';
               const toM = r.to_month || r.toMonth || '';
@@ -134,8 +134,18 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="font-mono tabular-nums text-slate-800 font-medium">
-                      {renderCustomerPII(rawCccd, 'CCCD', r.id)}
+                    <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-800 font-medium">
+                      <span>{renderCustomerPII(rawCccd, 'CCCD', r.id)}</span>
+                      {r.id && (
+                        <button
+                          type="button"
+                          onClick={() => toggleRowPII(r.id)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
+                          title={isFullyRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
+                        >
+                          {isFullyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      )}
                     </div>
                     {hasOldBhxh && (
                       <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
@@ -155,7 +165,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                           type="button"
                           onClick={() => toggleRowPII(r.id)}
                           className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
-                          title={isFullyRevealed ? "Ẩn số điện thoại" : "Hiện số điện thoại"}
+                          title={isFullyRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
                         >
                           {isFullyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
                         </button>
@@ -307,7 +317,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const oldBhxh = r.old_bhxh || r.oldBhxh;
             const hasOldBhxh = Boolean(oldBhxh && oldBhxh !== rawCccd);
             const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
-            const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
+            const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
             const fromM = r.from_month || r.fromMonth || '';
             const toM = r.to_month || r.toMonth || '';

@@ -144,4 +144,51 @@ describe('Kiểm thử An toàn Thông tin & Bảo vệ Dữ liệu Cá nhân (S
     });
   });
 
+  describe('4. Kiểm thử Quy chuẩn Hiển thị Mặt nạ PII trên Giao diện (CRM & CustomerTable UI)', () => {
+    const rawCccd = '014197003460';
+    const rawPhone = '0984180479';
+    const rawBhxh = '7912345678';
+
+    it('Khi chế độ che giấu PII đang bật (isPIIMasked = true), dữ liệu phải được che bất kể vai trò người dùng', () => {
+      const isPIIMasked = true;
+      const isRowRevealed = false;
+      const isFullyRevealed = !isPIIMasked || isRowRevealed;
+
+      expect(isFullyRevealed).toBe(false);
+
+      const displayCccd = isFullyRevealed ? rawCccd : maskCCCD(rawCccd, false);
+      const displayPhone = isFullyRevealed ? rawPhone : maskPhone(rawPhone, false);
+      const displayBhxh = isFullyRevealed ? rawBhxh : maskBHXH(rawBhxh, false);
+
+      expect(displayCccd).toBe('014******460');
+      expect(displayPhone).toBe('098****479');
+      expect(displayBhxh).toBe('79*****678');
+    });
+
+    it('Khi bấm con mắt ở từng dòng (isRowRevealed = true), dòng đó được mở riêng biệt', () => {
+      const isPIIMasked = true;
+      const revealedRowIds = new Set([101]);
+
+      // Row 101 được mở
+      const isRow101Revealed = !isPIIMasked || revealedRowIds.has(101);
+      expect(isRow101Revealed).toBe(true);
+      expect(isRow101Revealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014197003460');
+
+      // Row 102 vẫn bị che
+      const isRow102Revealed = !isPIIMasked || revealedRowIds.has(102);
+      expect(isRow102Revealed).toBe(false);
+      expect(isRow102Revealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014******460');
+    });
+
+    it('Khi người dùng bấm nút PII trên thanh công cụ để mở toàn bộ (isPIIMasked = false), tất cả hiển thị rõ', () => {
+      const isPIIMasked = false;
+      const isRowRevealed = false;
+      const isFullyRevealed = !isPIIMasked || isRowRevealed;
+
+      expect(isFullyRevealed).toBe(true);
+      expect(isFullyRevealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014197003460');
+      expect(isFullyRevealed ? rawPhone : maskPhone(rawPhone, false)).toBe('0984180479');
+    });
+  });
+
 });

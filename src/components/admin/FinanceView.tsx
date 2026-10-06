@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useAppContext, handleSchemaCacheMissingColumn } from '../../context/AppContext';
 import { 
   formatMoney, 
@@ -95,7 +95,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     currentUser, 
     addAuditLog, 
     policies, 
-    refreshData 
+    refreshData,
+    refreshTrigger
   } = useAppContext();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -268,6 +269,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const [serverRecords, setServerRecords] = useState<RecordType[]>([]);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
   const [isServerLoading, setIsServerLoading] = useState<boolean>(false);
+  const [serverRefreshTrigger, setServerRefreshTrigger] = useState<number>(0);
+
+  const refreshServerData = useCallback(() => {
+    setServerRefreshTrigger(prev => prev + 1);
+  }, []);
 
   // Dữ liệu nguồn linh hoạt (ưu tiên AppContext records, dự phòng serverRecords nếu records chưa tải xong)
   const sourceRecords = useMemo(() => {
@@ -518,7 +524,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     filterState.kpiQuickFilter,
     filterState.submissionStatus,
     startDateRPC,
-    endDateRPC
+    endDateRPC,
+    serverRefreshTrigger,
+    refreshTrigger
   ]);
 
   // Phân trang
@@ -559,7 +567,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
   // Cập nhật trạng thái thanh toán
   const changePaymentStatus = async (id: number, newStatus: string) => {
-    const target = records.find((r: any) => r.id === id);
+    const target = sourceRecords.find((r: any) => r.id === id);
     if (!target) return;
 
     if (isDateLocked(target.date, lockedKeys)) {
@@ -568,30 +576,40 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     }
 
     if (newStatus === 'Đã hủy') {
+      // Cập nhật lạc quan tại chỗ
+      setServerRecords(prev => prev.map(r => r.id === id ? { ...r, payment_status: 'Đã hủy', paymentStatus: 'Đã hủy' } : r));
       await cancelRecordWithClawback(
         id,
         'Hủy thu tiền theo yêu cầu thao tác tại Bảng Tài Chính',
         currentUser?.name || 'Kế toán viên'
       );
+      refreshServerData();
       showToast('Đã hủy giao dịch và tạo nghiệp vụ thu hồi hoa hồng thành công!', 'success');
       return;
     }
 
+    // 1. Cập nhật lạc quan (Optimistic update) ngay lập tức trên UI
+    setServerRecords(prev => prev.map(r => r.id === id ? { ...r, payment_status: newStatus, paymentStatus: newStatus } : r));
+
     try {
       await updateRecord(id, { payment_status: newStatus });
+      refreshServerData();
       addAuditLog?.(
         'Đổi trạng thái thanh toán',
         `Đổi trạng thái giao dịch TXN${id} của ${target.name} sang "${newStatus}"`
       );
       showToast(`Đã chuyển trạng thái sang "${newStatus}"!`, 'success');
     } catch (err: any) {
+      // Rollback nếu thất bại
+      const origStatus = target.payment_status || (target as any).paymentStatus || 'Chờ thanh toán';
+      setServerRecords(prev => prev.map(r => r.id === id ? { ...r, payment_status: origStatus, paymentStatus: origStatus } : r));
       showAlert('Lỗi cập nhật', err.message || 'Không thể cập nhật trạng thái', 'error');
     }
   };
 
   // Đổi nhân viên thu
   const changeStaff = async (id: number, newStaffId: string) => {
-    const target = records.find((r: any) => r.id === id);
+    const target = sourceRecords.find((r: any) => r.id === id);
     if (!target) return;
 
     if (isDateLocked(target.date, lockedKeys)) {
@@ -599,8 +617,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       return;
     }
 
+    // Cập nhật lạc quan (Optimistic update) ngay lập tức tại chỗ
+    setServerRecords(prev => prev.map(r => r.id === id ? { ...r, staff_id: newStaffId, staffId: newStaffId } : r));
+
     try {
       await updateRecord(id, { staff_id: newStaffId });
+      refreshServerData();
       const staffName = staff.find((s: any) => s.id === newStaffId)?.name || 'Hệ thống';
       addAuditLog?.(
         'Đổi nhân viên phụ trách',
@@ -608,6 +630,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       );
       showToast(`Đã chuyển nhân viên phụ trách sang ${staffName}!`, 'success');
     } catch (err: any) {
+      const origStaff = target.staff_id || (target as any).staffId || '';
+      setServerRecords(prev => prev.map(r => r.id === id ? { ...r, staff_id: origStaff, staffId: origStaff } : r));
       showAlert('Lỗi cập nhật', err.message || 'Không thể đổi nhân viên', 'error');
     }
   };
@@ -621,14 +645,17 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const executeDelete = async () => {
     if (!deletingId) return;
     try {
-      const rec = records.find((r: any) => r.id === deletingId);
+      const rec = sourceRecords.find((r: any) => r.id === deletingId);
+      setServerRecords(prev => prev.filter(r => r.id !== deletingId));
       await deleteRecord(deletingId);
+      refreshServerData();
       addAuditLog?.(
         'Xóa giao dịch tài chính',
         `Đã xóa giao dịch TXN${deletingId} của ${rec?.name || 'Khách hàng'}`
       );
       showToast('Đã xóa giao dịch thành công!', 'success');
     } catch (err: any) {
+      refreshServerData();
       showAlert('Lỗi xóa giao dịch', err.message || 'Không thể xóa giao dịch', 'error');
     } finally {
       setIsConfirmOpen(false);
@@ -645,7 +672,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const executeBulkDelete = async () => {
     if (selectedIds.length === 0) return;
     try {
+      setServerRecords(prev => prev.filter(r => !selectedIds.includes(r.id)));
       await bulkDeleteRecords(selectedIds);
+      refreshServerData();
       addAuditLog?.(
         'Xóa hàng loạt giao dịch',
         `Đã xóa ${selectedIds.length} giao dịch tài chính đã chọn`
@@ -653,6 +682,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       showToast(`Đã xóa ${selectedIds.length} giao dịch thành công!`, 'success');
       setSelectedIds([]);
     } catch (err: any) {
+      refreshServerData();
       showAlert('Lỗi xóa giao dịch', err.message || 'Không thể xóa danh sách giao dịch', 'error');
     } finally {
       setIsBulkDeleteConfirmOpen(false);
@@ -695,6 +725,22 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         submittedDate: batchDate
       }));
 
+      // Cập nhật lạc quan tại chỗ cho serverRecords
+      setServerRecords(prev => prev.map(r => {
+        if (batchModalTargetIds.includes(r.id)) {
+          return {
+            ...r,
+            is_submitted_bhxh: true,
+            isSubmittedBHXH: true,
+            submission_batch: batchName.trim(),
+            submissionBatch: batchName.trim(),
+            submitted_date: batchDate,
+            submittedDate: batchDate
+          };
+        }
+        return r;
+      }));
+
       await Promise.all(
         updates.map(u => updateRecord(u.id, {
           is_submitted_bhxh: u.isSubmittedBHXH,
@@ -702,6 +748,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           submitted_date: u.submittedDate
         }))
       );
+      refreshServerData();
 
       addAuditLog?.(
         'Ghi nhận đợt chuyển BHXH',
@@ -711,12 +758,29 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       setIsBatchModalOpen(false);
       setSelectedIds([]);
     } catch (err: any) {
+      refreshServerData();
       showAlert('Lỗi ghi nhận đợt chuyển', err.message || '', 'error');
     }
   };
 
   const handleUnmarkSubmission = async (targetIds: number[]) => {
     try {
+      // Cập nhật lạc quan tại chỗ
+      setServerRecords(prev => prev.map(r => {
+        if (targetIds.includes(r.id)) {
+          return {
+            ...r,
+            is_submitted_bhxh: false,
+            isSubmittedBHXH: false,
+            submission_batch: undefined,
+            submissionBatch: undefined,
+            submitted_date: undefined,
+            submittedDate: undefined
+          };
+        }
+        return r;
+      }));
+
       await Promise.all(
         targetIds.map(id => updateRecord(id, {
           is_submitted_bhxh: false,
@@ -724,11 +788,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           submitted_date: undefined
         }))
       );
+      refreshServerData();
+
       addAuditLog?.('Hủy chuyển nộp BHXH', `Hủy đánh dấu chuyển nộp cho ${targetIds.length} hồ sơ`);
       showToast(`Đã hủy trạng thái chuyển nộp cho ${targetIds.length} hồ sơ!`, 'success');
       setIsBatchModalOpen(false);
       setSelectedIds([]);
     } catch (err: any) {
+      refreshServerData();
       showAlert('Lỗi hủy chuyển nộp', err.message || '', 'error');
     }
   };
