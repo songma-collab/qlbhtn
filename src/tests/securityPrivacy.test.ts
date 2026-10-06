@@ -144,12 +144,23 @@ describe('Kiểm thử An toàn Thông tin & Bảo vệ Dữ liệu Cá nhân (S
     });
   });
 
-  describe('4. Kiểm thử Quy chuẩn Hiển thị Mặt nạ PII trên Giao diện (CRM & CustomerTable UI)', () => {
+  describe('4. Kiểm thử Quy chuẩn Hiển thị Mặt nạ PII trên Giao diện Đăng nhập (CRM & CustomerTable UI)', () => {
     const rawCccd = '014197003460';
     const rawPhone = '0984180479';
     const rawBhxh = '7912345678';
 
-    it('Khi chế độ che giấu PII đang bật (isPIIMasked = true), dữ liệu phải được che bất kể vai trò người dùng', () => {
+    it('Tài khoản đã đăng nhập: Mặc định là "PII: Đang hiện rõ" (isPIIMasked = false), hiển thị đầy đủ dữ liệu', () => {
+      const isPIIMaskedDefault = false;
+      const isRowRevealed = false;
+      const isFullyRevealed = !isPIIMaskedDefault || isRowRevealed;
+
+      expect(isFullyRevealed).toBe(true);
+      expect(isFullyRevealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014197003460');
+      expect(isFullyRevealed ? rawPhone : maskPhone(rawPhone, false)).toBe('0984180479');
+      expect(isFullyRevealed ? rawBhxh : maskBHXH(rawBhxh, false)).toBe('7912345678');
+    });
+
+    it('Khi nhân viên click vào nút "PII: Đang che giấu" (isPIIMasked = true), dữ liệu lập tức được che', () => {
       const isPIIMasked = true;
       const isRowRevealed = false;
       const isFullyRevealed = !isPIIMasked || isRowRevealed;
@@ -165,7 +176,7 @@ describe('Kiểm thử An toàn Thông tin & Bảo vệ Dữ liệu Cá nhân (S
       expect(displayBhxh).toBe('79*****678');
     });
 
-    it('Khi bấm con mắt ở từng dòng (isRowRevealed = true), dòng đó được mở riêng biệt', () => {
+    it('Khi đang che giấu, bấm con mắt ở từng dòng (isRowRevealed = true) thì mở riêng dòng đó', () => {
       const isPIIMasked = true;
       const revealedRowIds = new Set([101]);
 
@@ -179,15 +190,37 @@ describe('Kiểm thử An toàn Thông tin & Bảo vệ Dữ liệu Cá nhân (S
       expect(isRow102Revealed).toBe(false);
       expect(isRow102Revealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014******460');
     });
+  });
 
-    it('Khi người dùng bấm nút PII trên thanh công cụ để mở toàn bộ (isPIIMasked = false), tất cả hiển thị rõ', () => {
-      const isPIIMasked = false;
-      const isRowRevealed = false;
-      const isFullyRevealed = !isPIIMasked || isRowRevealed;
+  describe('5. Kiểm thử Bảo mật Trang Chủ Công Khai (Tra cứu quá trình & Gia hạn thần tốc - NĐ 13/2023/NĐ-CP)', () => {
+    const publicCccd = '014197003460';
+    const publicName = 'Nguyễn Văn An';
+    const publicPhone = '0984180479';
+    const publicBhxh = '7912345678';
+    const currentUser = null; // Khách vãng lai ngoài trang chủ
 
-      expect(isFullyRevealed).toBe(true);
-      expect(isFullyRevealed ? rawCccd : maskCCCD(rawCccd, false)).toBe('014197003460');
-      expect(isFullyRevealed ? rawPhone : maskPhone(rawPhone, false)).toBe('0984180479');
+    it('Tra cứu quá trình ngoài trang chủ: Tên và CCCD luôn luôn được che giấu tự động', () => {
+      const isPublic = !currentUser;
+      expect(isPublic).toBe(true);
+
+      const displayCccd = isPublic ? maskCCCD(publicCccd, false) : publicCccd;
+      const displayName = isPublic ? maskName(publicName, false) : publicName;
+
+      expect(displayCccd).toBe('014******460');
+      expect(displayName).toBe('Nguyễn *** An');
+    });
+
+    it('Gia hạn thần tốc ngoài trang chủ: Thông tin hồ sơ hiển thị luôn che CCCD, SĐT và Mã BHXH', () => {
+      const isPublic = !currentUser;
+      expect(isPublic).toBe(true);
+
+      const maskedCccd = isPublic ? maskCCCD(publicCccd, false) : publicCccd;
+      const maskedPhone = isPublic ? maskPhone(publicPhone, false) : publicPhone;
+      const maskedBhxh = isPublic ? maskBHXH(publicBhxh, false) : publicBhxh;
+
+      expect(maskedCccd).toBe('014******460');
+      expect(maskedPhone).toBe('098****479');
+      expect(maskedBhxh).toBe('79*****678');
     });
   });
 

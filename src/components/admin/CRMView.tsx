@@ -110,8 +110,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   // Chế độ hiển thị: Danh bạ liên hệ (Directory) vs Bảng quản trị (Table)
   const [viewMode, setViewMode] = useState<'table' | 'directory'>('table');
   
-  // Trạng thái bảo vệ PII (Nghị định 13/2023/NĐ-CP): Mặc định bật bảo vệ che số CCCD/SĐT
-  const [isPIIMasked, setIsPIIMasked] = useState<boolean>(true);
+  // Trạng thái bảo vệ PII (Nghị định 13/2023/NĐ-CP): Mặc định hiển thị rõ cho tài khoản đã đăng nhập
+  const [isPIIMasked, setIsPIIMasked] = useState<boolean>(false);
   const [revealedRowIds, setRevealedRowIds] = useState<Set<number>>(new Set());
 
   // Lựa chọn phân loại loại hình nếu component gọi dạng ALL
@@ -923,6 +923,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                       customer={c}
                       isSelected={c.id ? selectedIds.includes(c.id) : false}
                       isFullyRevealed={isFullyRevealed}
+                      isPIIMasked={isPIIMasked}
                       canEdit={canEditCustomer}
                       canDelete={canDeleteCustomer}
                       onSelect={handleSelectRow}

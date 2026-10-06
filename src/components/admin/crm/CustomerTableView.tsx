@@ -136,14 +136,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   <td className="p-4">
                     <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-800 font-medium">
                       <span>{renderCustomerPII(rawCccd, 'CCCD', r.id)}</span>
-                      {r.id && (
+                      {isPIIMasked && r.id && (
                         <button
                           type="button"
                           onClick={() => toggleRowPII(r.id)}
                           className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
-                          title={isFullyRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
+                          title={isRowRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
                         >
-                          {isFullyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                          {isRowRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
                         </button>
                       )}
                     </div>
@@ -160,14 +160,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                       <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
                         {renderCustomerPII(rawPhone, 'PHONE', r.id)}
                       </span>
-                      {r.id && (
+                      {isPIIMasked && r.id && (
                         <button
                           type="button"
                           onClick={() => toggleRowPII(r.id)}
                           className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
-                          title={isFullyRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
+                          title={isRowRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
                         >
-                          {isFullyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                          {isRowRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
                         </button>
                       )}
                     </div>
@@ -364,14 +364,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     }`}>
                       {r.type}
                     </span>
-                    {r.id && (
+                    {isPIIMasked && r.id && (
                       <button
                         type="button"
                         onClick={() => toggleRowPII(r.id)}
                         className="p-1 rounded text-slate-400 hover:text-slate-600"
-                        title="Bật/Tắt che PII"
+                        title={isRowRevealed ? "Ẩn PII của khách hàng này" : "Hiện PII của khách hàng này"}
                       >
-                        {isFullyRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
+                        {isRowRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
                       </button>
                     )}
                   </div>

@@ -1,7 +1,9 @@
 import React from 'react';
-import { Search, History, X } from 'lucide-react';
+import { Search, History, X, ShieldCheck } from 'lucide-react';
 import { formatMonthVN, formatDateVN, getLocalYYYYMMDD, formatMoney } from '../../utils/helpers';
 import { parseMonthAndYear } from '../../utils/dateStandardHelper';
+import { useAppContext } from '../../context/AppContext';
+import { maskCCCD, maskName } from '../../utils/security';
 
 interface SearchResultModalProps {
   isOpen: boolean;
@@ -11,6 +13,9 @@ interface SearchResultModalProps {
 }
 
 const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, results, searchCode }) => {
+  const { currentUser } = useAppContext();
+  const isPublic = !currentUser;
+
   if (!isOpen) return null;
 
   // Filter out incomplete shell records (must have BOTH fromMonth & toMonth OR amount > 0) if other valid records exist
@@ -65,15 +70,33 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
           </button>
         </div>
         <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar bg-gray-50">
-          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <p className="text-sm text-gray-500 font-semibold mb-1">Khách hàng</p>
-              <p className="text-xl font-extrabold text-[#004182] uppercase">{activeResults[0]?.name ? activeResults[0]?.name.split(' (+')[0] : '---'}</p>
+          <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-6 space-y-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-gray-500 font-semibold mb-1">Khách hàng</p>
+                <p className="text-xl font-extrabold text-[#004182] uppercase">
+                  {activeResults[0]?.name 
+                    ? (isPublic ? maskName(activeResults[0]?.name.split(' (+')[0], false) : activeResults[0]?.name.split(' (+')[0]) 
+                    : '---'}
+                </p>
+              </div>
+              <div className="md:text-right">
+                <p className="text-sm text-gray-500 font-semibold mb-1">Số ĐDCN / CCCD</p>
+                <p className="text-lg font-bold text-[#0ea5e9] font-mono tabular-nums">
+                  {isPublic ? maskCCCD(activeResults[0]?.cccd || searchCode, false) : (activeResults[0]?.cccd || searchCode)}
+                </p>
+              </div>
             </div>
-            <div className="md:text-right">
-              <p className="text-sm text-gray-500 font-semibold mb-1">Số ĐDCN / CCCD</p>
-              <p className="text-lg font-bold text-[#0ea5e9]">{searchCode}</p>
-            </div>
+
+            {/* Banner bảo mật Nghị định 13/2023/NĐ-CP */}
+            {isPublic && (
+              <div className="pt-2.5 border-t border-slate-100 flex items-center gap-2 text-xs text-emerald-800 bg-emerald-50/80 px-3.5 py-2 rounded-xl border border-emerald-200/80">
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                <span>
+                  <strong>Tuân thủ Nghị định 13/2023/NĐ-CP:</strong> Dữ liệu CCCD, SĐT và Mã BHXH đang được tự động che dấu bảo vệ quyền riêng tư cá nhân.
+                </span>
+              </div>
+            )}
           </div>
 
           {bhxhRecords.length > 0 && (

@@ -16,11 +16,12 @@ import {
   formatMonthToVN
 } from '../../utils/dateFormatter';
 import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths } from '../../utils/calculations';
-import { X, Check, Clock } from 'lucide-react';
+import { X, Check, Clock, ShieldCheck } from 'lucide-react';
 import { recordService, customerService } from '../../services';
 import { callPublicPortal } from '../../utils/publicPortal';
 import TurnstileCaptcha from '../TurnstileCaptcha';
 import { generateIdempotencyKey, dbToRecord } from '../../utils/sanitize';
+import { maskCCCD, maskName, maskPhone, maskBHXH } from '../../utils/security';
 
 import BHXHForm from './register/BHXHForm';
 import BHXHCalcSettings from './register/BHXHCalcSettings';
@@ -1157,17 +1158,30 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                 </div>
               )}
               {isRenew && rec && (
-                <div className="bg-blue-50/60 p-4 sm:p-5 rounded-2xl border border-blue-100 shadow-sm mb-5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-100 pb-3 mb-3">
+                <div className="bg-blue-50/60 p-4 sm:p-5 rounded-2xl border border-blue-100 shadow-sm mb-5 space-y-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-blue-100 pb-3">
                     <div>
                       <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Khách hàng</p>
-                      <p className="text-lg font-black text-[#004182] uppercase">{rec.name ? rec.name.split(' (+')[0] : '---'}</p>
+                      <p className="text-lg font-black text-[#004182] uppercase">
+                        {rec.name ? (currentUser ? rec.name.split(' (+')[0] : maskName(rec.name.split(' (+')[0], false)) : '---'}
+                      </p>
                     </div>
                     <div className="sm:text-right">
                       <p className="text-[11px] text-gray-500 font-bold uppercase tracking-wider mb-0.5">Số ĐDCN / CCCD</p>
-                      <p className="text-base font-black text-blue-600">{rec.cccd || rec.citizenId || rec.bhxh}</p>
+                      <p className="text-base font-black text-blue-600 font-mono tabular-nums">
+                        {currentUser ? (rec.cccd || rec.citizenId || rec.bhxh) : maskCCCD(rec.cccd || rec.citizenId || rec.bhxh, false)}
+                      </p>
                     </div>
                   </div>
+
+                  {!currentUser && (
+                    <div className="px-3.5 py-2 bg-emerald-50/80 border border-emerald-200/70 rounded-xl flex items-center gap-2 text-xs text-emerald-800 font-medium">
+                      <ShieldCheck size={15} className="shrink-0 text-emerald-600" />
+                      <span>
+                        <strong>Tuân thủ Nghị định 13/2023/NĐ-CP:</strong> Dữ liệu CCCD, SĐT và Mã BHXH đang được tự động che dấu bảo vệ quyền riêng tư cá nhân.
+                      </span>
+                    </div>
+                  )}
                   {(() => {
                     let fromMStr = formatMonthVN(rec.fromMonth);
                     let toMStr = formatMonthVN(rec.toMonth);

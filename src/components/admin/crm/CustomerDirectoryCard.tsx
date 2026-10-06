@@ -7,6 +7,7 @@ export interface CustomerDirectoryCardProps {
   customer: any;
   isSelected: boolean;
   isFullyRevealed: boolean;
+  isPIIMasked?: boolean;
   canEdit: boolean;
   canDelete: boolean;
   onSelect: (id: number | string) => void;
@@ -25,6 +26,7 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   customer: c,
   isSelected,
   isFullyRevealed,
+  isPIIMasked = false,
   canEdit,
   canDelete,
   onSelect,
@@ -87,7 +89,7 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
             }`}>
               {c.type}
             </span>
-            {c.id && (
+            {isPIIMasked && c.id && (
               <button
                 type="button"
                 onClick={() => onTogglePII(c.id)}
