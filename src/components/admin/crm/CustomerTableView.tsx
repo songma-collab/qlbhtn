@@ -70,7 +70,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               </th>
               <th className="p-4">Họ & Tên Khách Hàng</th>
               <th className="p-4">Số ĐDCN / CCCD</th>
-              <th className="p-4">Mã số BHXH</th>
+              <th className="p-4">Số Điện Thoại</th>
               <th className="p-4">Kỳ đóng</th>
               <th className="p-4">Hạn đóng tiếp</th>
               <th className="p-4">Trạng Thái Đóng</th>
@@ -83,6 +83,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const rawCccd = r.cccd || '';
               const rawBhxh = r.bhxh || '';
               const rawPhone = r.phone || '';
+              const oldBhxh = r.old_bhxh || r.oldBhxh;
+              const hasOldBhxh = Boolean(oldBhxh && oldBhxh !== rawCccd);
               const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
               const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
 
@@ -125,20 +127,6 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="text-xs text-slate-500 font-normal flex items-center gap-1.5 mt-0.5">
-                      <Phone size={11} className="text-slate-400" />
-                      {renderCustomerPII(rawPhone, 'PHONE', r.id)}
-                      {r.id && (
-                        <button
-                          type="button"
-                          onClick={() => toggleRowPII(r.id)}
-                          className="text-slate-400 hover:text-slate-600 p-0.5"
-                          title={isFullyRevealed ? "Ẩn PII" : "Hiện PII"}
-                        >
-                          {isFullyRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
-                        </button>
-                      )}
-                    </div>
                     {r.notes && (
                       <div className="mt-1 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block max-w-[260px] truncate" title={r.notes}>
                         <span className="font-semibold text-slate-400">Ghi chú:</span> {r.notes}
@@ -146,14 +134,33 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     )}
                   </td>
                   <td className="p-4">
-                    <span className="font-mono tabular-nums text-slate-800 font-medium">
+                    <div className="font-mono tabular-nums text-slate-800 font-medium">
                       {renderCustomerPII(rawCccd, 'CCCD', r.id)}
-                    </span>
+                    </div>
+                    {hasOldBhxh && (
+                      <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
+                        <span className="text-slate-400">Mã cũ:</span>
+                        <span>{renderCustomerPII(oldBhxh, 'BHXH', r.id)}</span>
+                      </div>
+                    )}
                   </td>
                   <td className="p-4">
-                    <span className="font-mono tabular-nums text-slate-800 font-medium">
-                      {renderCustomerPII(rawBhxh, 'BHXH', r.id)}
-                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Phone size={13} className="text-[#004182] shrink-0" />
+                      <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
+                        {renderCustomerPII(rawPhone, 'PHONE', r.id)}
+                      </span>
+                      {r.id && (
+                        <button
+                          type="button"
+                          onClick={() => toggleRowPII(r.id)}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
+                          title={isFullyRevealed ? "Ẩn số điện thoại" : "Hiện số điện thoại"}
+                        >
+                          {isFullyRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
+                        </button>
+                      )}
+                    </div>
                   </td>
                   <td className="p-4">
                     <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
@@ -297,6 +304,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const rawCccd = r.cccd || '';
             const rawBhxh = r.bhxh || '';
             const rawPhone = r.phone || '';
+            const oldBhxh = r.old_bhxh || r.oldBhxh;
+            const hasOldBhxh = Boolean(oldBhxh && oldBhxh !== rawCccd);
             const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
             const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
 
@@ -327,10 +336,16 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     />
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">{r.name}</h4>
-                      <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                        <Phone size={11} className="text-slate-400" />
-                        {renderCustomerPII(rawPhone, 'PHONE', r.id)}
-                      </p>
+                      {r.notes ? (
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5" title={r.notes}>
+                          {r.notes}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Phone size={11} className="text-slate-400" />
+                          {renderCustomerPII(rawPhone, 'PHONE', r.id)}
+                        </p>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
@@ -358,11 +373,16 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     <span className="font-mono font-medium text-slate-800">
                       {renderCustomerPII(rawCccd, 'CCCD', r.id)}
                     </span>
+                    {hasOldBhxh && (
+                      <span className="text-[10px] text-slate-500 block font-mono">
+                        Mã cũ: {renderCustomerPII(oldBhxh, 'BHXH', r.id)}
+                      </span>
+                    )}
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Mã số BHXH</span>
+                    <span className="text-[10px] text-slate-400 block">Số điện thoại</span>
                     <span className="font-mono font-medium text-slate-800">
-                      {renderCustomerPII(rawBhxh, 'BHXH', r.id)}
+                      {renderCustomerPII(rawPhone, 'PHONE', r.id)}
                     </span>
                   </div>
                   <div>

@@ -48,7 +48,7 @@ describe('Kiểm thử tính năng Cột Kỳ đóng, Hạn đóng tiếp và Tr
   it('3. Tự động suy luận Hạn đóng tiếp từ Kỳ đóng khi next_payment bị NULL trong DB', () => {
     // Khách hàng có kỳ đóng đến 08/2026 nhưng next_payment null
     const customer = { to_month: '2026-08', next_payment: null };
-    let nextPay = customer.next_payment;
+    let nextPay: string | null = customer.next_payment;
     if (!nextPay && customer.to_month) {
       nextPay = calculateNextPaymentFromToMonth(customer.to_month, 1);
     }

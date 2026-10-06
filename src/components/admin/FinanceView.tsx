@@ -263,12 +263,26 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     return null;
   }, [currentUser, filterState.staffId]);
 
+  // Chế độ Server-Side Pagination & Search cho Tài chính (Hiệu năng cao, mở rộng > 100k giao dịch)
+  const [serverSideMode, setServerSideMode] = useState<boolean>(true);
+  const [serverRecords, setServerRecords] = useState<RecordType[]>([]);
+  const [serverTotalCount, setServerTotalCount] = useState<number>(0);
+  const [isServerLoading, setIsServerLoading] = useState<boolean>(false);
+
+  // Dữ liệu nguồn linh hoạt (ưu tiên AppContext records, dự phòng serverRecords nếu records chưa tải xong)
+  const sourceRecords = useMemo(() => {
+    if (records && records.length > 0) return records;
+    if (serverRecords && serverRecords.length > 0) return serverRecords;
+    return [];
+  }, [records, serverRecords]);
+
   // Lọc danh sách giao dịch
   const filteredRecords = useMemo(() => {
-    return records
+    return sourceRecords
       .filter((r: any) => {
         if (r.type !== currentType) return false;
-        if (effectiveStaffId && r.staffId !== effectiveStaffId) return false;
+        const staffId = r.staff_id || r.staffId;
+        if (effectiveStaffId && staffId !== effectiveStaffId) return false;
 
         if (startDateRPC && endDateRPC) {
           if (!r.date) return false;
@@ -276,18 +290,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           if (recordDateStr < startDateRPC || recordDateStr > endDateRPC) return false;
         }
 
+        const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
         if (filterState.kpiQuickFilter === 'PAID') {
-          if (r.paymentStatus !== 'Đã thu tiền') return false;
+          if (paymentStatus !== 'Đã thu tiền') return false;
         } else if (filterState.kpiQuickFilter === 'PENDING') {
-          if (r.paymentStatus !== 'Chờ thanh toán') return false;
+          if (paymentStatus !== 'Chờ thanh toán') return false;
         }
 
+        const isSubmittedBHXH = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : r.isSubmittedBHXH;
+        const submissionBatch = r.submission_batch || r.submissionBatch;
         if (filterState.submissionStatus === 'UNSUBMITTED') {
-          if (r.isSubmittedBHXH) return false;
+          if (isSubmittedBHXH) return false;
         } else if (filterState.submissionStatus === 'SUBMITTED') {
-          if (!r.isSubmittedBHXH) return false;
+          if (!isSubmittedBHXH) return false;
         } else if (filterState.submissionStatus && filterState.submissionStatus !== 'ALL') {
-          if (r.submissionBatch !== filterState.submissionStatus) return false;
+          if (submissionBatch !== filterState.submissionStatus) return false;
         }
 
         if (filterState.searchQuery && filterState.searchQuery.trim() !== '') {
@@ -297,8 +314,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           const cccdMatch = (r.cccd || '').toLowerCase().includes(q);
           const bhxhMatch = (r.bhxh || '').toLowerCase().includes(q);
           const phoneMatch = (r.phone || '').toLowerCase().includes(q);
-          const receiptMatch = (r.receiptNumber || '').toLowerCase().includes(q);
-          const batchMatch = (r.submissionBatch || '').toLowerCase().includes(q);
+          const receiptMatch = (r.receipt_number || r.receiptNumber || '').toLowerCase().includes(q);
+          const batchMatch = (submissionBatch || '').toLowerCase().includes(q);
           const txnMatch = txnCode.includes(q);
 
           if (!nameMatch && !cccdMatch && !bhxhMatch && !phoneMatch && !receiptMatch && !batchMatch && !txnMatch) {
@@ -309,12 +326,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         return true;
       })
       .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  }, [records, currentType, effectiveStaffId, startDateRPC, endDateRPC, filterState]);
+  }, [sourceRecords, currentType, effectiveStaffId, startDateRPC, endDateRPC, filterState]);
 
   // Thống kê KPI cơ bản
   const stats = useMemo(() => {
     return computeTransactionKPIs(
-      records, 
+      sourceRecords, 
       filterState, 
       { 
         type: currentType, 
@@ -324,13 +341,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       policies, 
       settings
     );
-  }, [records, filterState, currentType, effectiveStaffId, currentUser?.role, policies, settings]);
+  }, [sourceRecords, filterState, currentType, effectiveStaffId, currentUser?.role, policies, settings]);
 
   // BẢNG THỐNG KÊ DÒNG TIỀN VÀ CÂN ĐỐI TÀI CHÍNH TOÀN DIỆN (CASH FLOW STATEMENT)
   const cashflowSummary = useMemo(() => {
-    const relevant = records.filter((r: any) => {
+    const relevant = sourceRecords.filter((r: any) => {
       if (r.type !== currentType) return false;
-      if (effectiveStaffId && r.staffId !== effectiveStaffId) return false;
+      const staffId = r.staff_id || r.staffId;
+      if (effectiveStaffId && staffId !== effectiveStaffId) return false;
       if (startDateRPC && endDateRPC) {
         if (!r.date) return false;
         const dStr = r.date.slice(0, 10);
@@ -359,26 +377,30 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       const rate = getCommissionRateForRecord(r, policies, settings);
       const comm = amt * rate;
 
-      if (r.isAdjustment || amt < 0) {
+      const isAdjustment = r.is_adjustment !== undefined ? r.is_adjustment : r.isAdjustment;
+      const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
+      const isSubmittedBHXH = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : r.isSubmittedBHXH;
+
+      if (isAdjustment || amt < 0) {
         totalClawback += Math.abs(amt);
       }
 
-      if (r.paymentStatus === 'Đã thu tiền') {
+      if (paymentStatus === 'Đã thu tiền') {
         totalCollected += amt;
         countPaid++;
         totalCommissionPaid += comm;
 
-        if (r.isSubmittedBHXH) {
+        if (isSubmittedBHXH) {
           submittedToAgency += amt;
           countSubmitted++;
         } else {
           unsubmittedToAgency += amt;
           countUnsubmitted++;
         }
-      } else if (r.paymentStatus === 'Chờ thanh toán') {
+      } else if (paymentStatus === 'Chờ thanh toán') {
         totalPending += amt;
         countPending++;
-      } else if (r.paymentStatus === 'Đã hủy') {
+      } else if (paymentStatus === 'Đã hủy') {
         totalCancelled += amt;
         countCancelled++;
       }
@@ -403,18 +425,23 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       netAgencyFunds,
       totalTransactions: relevant.length
     };
-  }, [records, currentType, effectiveStaffId, startDateRPC, endDateRPC, policies, settings]);
+  }, [sourceRecords, currentType, effectiveStaffId, startDateRPC, endDateRPC, policies, settings]);
 
   // Danh sách các đợt nộp hợp lệ
   const availableBatches = useMemo(() => {
     const map = new Map<string, { count: number; totalAmount: number; date?: string }>();
-    records
+    sourceRecords
       .filter((r: any) => {
         if (r.type !== currentType) return false;
-        if (!r.isSubmittedBHXH || !r.submissionBatch) return false;
-        if (r.actionType === 'Nhập từ Excel') return false;
-        if (r.paymentStatus === 'Đã hủy') return false;
-        if (effectiveStaffId && r.staffId !== effectiveStaffId) return false;
+        const isSubmittedBHXH = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : r.isSubmittedBHXH;
+        const submissionBatch = r.submission_batch || r.submissionBatch;
+        if (!isSubmittedBHXH || !submissionBatch) return false;
+        const actionType = r.action_type || r.actionType;
+        if (actionType === 'Nhập từ Excel') return false;
+        const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
+        if (paymentStatus === 'Đã hủy') return false;
+        const staffId = r.staff_id || r.staffId;
+        if (effectiveStaffId && staffId !== effectiveStaffId) return false;
         if (startDateRPC && endDateRPC) {
           if (!r.date) return false;
           const dStr = r.date.slice(0, 10);
@@ -423,11 +450,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         return true;
       })
       .forEach((r: any) => {
-        const batchKey = r.submissionBatch.trim();
-        const existing = map.get(batchKey) || { count: 0, totalAmount: 0, date: r.submittedDate };
+        const batchKey = (r.submission_batch || r.submissionBatch || '').trim();
+        const submittedDate = r.submitted_date || r.submittedDate;
+        const existing = map.get(batchKey) || { count: 0, totalAmount: 0, date: submittedDate };
         existing.count += 1;
         existing.totalAmount += (Number(r.amount) || 0);
-        if (!existing.date && r.submittedDate) existing.date = r.submittedDate;
+        if (!existing.date && submittedDate) existing.date = submittedDate;
         map.set(batchKey, existing);
       });
 
@@ -439,13 +467,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         totalAmount: info.totalAmount
       }))
       .sort((a, b) => b.batch.localeCompare(a.batch, undefined, { numeric: true }));
-  }, [records, currentType, effectiveStaffId, startDateRPC, endDateRPC]);
+  }, [sourceRecords, currentType, effectiveStaffId, startDateRPC, endDateRPC]);
 
-  // Chế độ Server-Side Pagination & Search cho Tài chính (Hiệu năng cao, mở rộng > 100k giao dịch)
-  const [serverSideMode, setServerSideMode] = useState<boolean>(true);
-  const [serverRecords, setServerRecords] = useState<RecordType[]>([]);
-  const [serverTotalCount, setServerTotalCount] = useState<number>(0);
-  const [isServerLoading, setIsServerLoading] = useState<boolean>(false);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -650,8 +673,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   };
 
   const handleOpenBatchModalSingle = (record: any) => {
-    setBatchNameInput(record.submissionBatch || generateBatchCode(getLocalYYYYMMDD(), 1));
-    setBatchDateInput(record.submittedDate || getLocalYYYYMMDD());
+    const subBatch = record.submission_batch || record.submissionBatch;
+    const subDate = record.submitted_date || record.submittedDate;
+    setBatchNameInput(subBatch || generateBatchCode(getLocalYYYYMMDD(), 1));
+    setBatchDateInput(subDate || getLocalYYYYMMDD());
     setBatchModalTargetIds([record.id]);
     setIsBatchModalOpen(true);
   };
@@ -763,14 +788,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
   // In / Xuất biên lai
   const handlePrintReceipt = (recId: number) => {
-    const rec = records.find((r: any) => r.id === recId);
+    const rec = sourceRecords.find((r: any) => r.id === recId);
     if (!rec) return;
     executePrintReceipt(rec, staff);
     addAuditLog?.('In biên lai', `In biên lai thu tiền TXN${recId} của khách hàng ${rec.name}`);
   };
 
   const handleExportReceiptImage = async (recId: number) => {
-    const rec = records.find((r: any) => r.id === recId);
+    const rec = sourceRecords.find((r: any) => r.id === recId);
     if (!rec) return;
     try {
       await exportReceiptAsImage(rec, staff, showToast, showAlert);

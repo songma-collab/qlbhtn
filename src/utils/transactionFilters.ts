@@ -241,9 +241,13 @@ export function matchesTransactionSearch(record: any, query: string): boolean {
   // 5. Số biên lai / Mã GD / ID
   if (record.id && String(record.id).toLowerCase().includes(q)) return true;
   if (record.receiptNumber && String(record.receiptNumber).toLowerCase().includes(q)) return true;
+  if (record.receipt_number && String(record.receipt_number).toLowerCase().includes(q)) return true;
   if (record.receiptCode && String(record.receiptCode).toLowerCase().includes(q)) return true;
+  if (record.receipt_code && String(record.receipt_code).toLowerCase().includes(q)) return true;
   if (record.transId && String(record.transId).toLowerCase().includes(q)) return true;
+  if (record.trans_id && String(record.trans_id).toLowerCase().includes(q)) return true;
   if (record.transactionCode && String(record.transactionCode).toLowerCase().includes(q)) return true;
+  if (record.transaction_code && String(record.transaction_code).toLowerCase().includes(q)) return true;
 
   return false;
 }
@@ -276,30 +280,35 @@ export function filterTransactionRecords(
     if (type && r.type !== type) return false;
 
     // 2. Luôn loại trừ "Nhập từ Excel"
-    if (r.actionType === 'Nhập từ Excel') return false;
+    const actionType = r.action_type || r.actionType;
+    if (actionType === 'Nhập từ Excel') return false;
 
     // 3. Luôn loại trừ hồ sơ "Đã hủy"
-    if (r.paymentStatus === 'Đã hủy') return false;
+    const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
+    if (paymentStatus === 'Đã hủy') return false;
 
     // 4. Phân quyền cán bộ thu
-    if (effectiveStaffId && r.staffId !== effectiveStaffId) return false;
+    const staffId = r.staff_id || r.staffId;
+    if (effectiveStaffId && staffId !== effectiveStaffId) return false;
 
     // 5. Kiểm tra thời gian
     if (!isTransactionDateInPeriod(r.date, filter, options?.referenceDateStr)) return false;
 
     // 6. Kiểm tra Trạng thái nộp BHXH (submissionStatus)
+    const isSubmittedBHXH = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : r.isSubmittedBHXH;
+    const submissionBatch = r.submission_batch || r.submissionBatch;
     if (filter.submissionStatus === 'UNSUBMITTED') {
       // Hồ sơ đã thu tiền nhưng chưa nộp BHXH
-      const isPaid = r.paymentStatus === 'Đã thu tiền';
-      if (!isPaid || r.isSubmittedBHXH === true) return false;
+      const isPaid = paymentStatus === 'Đã thu tiền';
+      if (!isPaid || isSubmittedBHXH === true) return false;
     } else if (filter.submissionStatus === 'SUBMITTED') {
-      if (r.isSubmittedBHXH !== true) return false;
+      if (isSubmittedBHXH !== true) return false;
     } else if (filter.submissionStatus && filter.submissionStatus !== 'ALL' && filter.submissionStatus !== 'all') {
       // Lọc theo mã đợt nộp cụ thể: Đợt_... hoặc BATCH_...
       const targetBatch = filter.submissionStatus.startsWith('batch_')
         ? filter.submissionStatus.replace('batch_', '')
         : filter.submissionStatus;
-      if (r.isSubmittedBHXH !== true || r.submissionBatch !== targetBatch) return false;
+      if (isSubmittedBHXH !== true || submissionBatch !== targetBatch) return false;
     }
 
     // 7. Tìm kiếm thông minh
@@ -307,9 +316,9 @@ export function filterTransactionRecords(
 
     // 8. Thẻ KPI 1-chạm (kpiQuickFilter)
     if (filter.kpiQuickFilter === 'PAID') {
-      if (r.paymentStatus !== 'Đã thu tiền') return false;
+      if (paymentStatus !== 'Đã thu tiền') return false;
     } else if (filter.kpiQuickFilter === 'PENDING') {
-      if (r.paymentStatus !== 'Chờ thanh toán') return false;
+      if (paymentStatus !== 'Chờ thanh toán') return false;
     }
 
     return true;
@@ -357,9 +366,10 @@ export function computeTransactionKPIs(
 
   baseFiltered.forEach(r => {
     const amt = Number(r.amount) || 0;
-    if (r.paymentStatus === 'Đã thu tiền') {
+    const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
+    if (paymentStatus === 'Đã thu tiền') {
       totalRev += amt;
-    } else if (r.paymentStatus === 'Chờ thanh toán') {
+    } else if (paymentStatus === 'Chờ thanh toán') {
       totalPending += amt;
     }
   });
@@ -367,15 +377,16 @@ export function computeTransactionKPIs(
   // 3. Danh sách hiển thị cuối cùng sau khi áp dụng KPI quick filter
   let finalFiltered = baseFiltered;
   if (filter.kpiQuickFilter === 'PAID') {
-    finalFiltered = baseFiltered.filter(r => r.paymentStatus === 'Đã thu tiền');
+    finalFiltered = baseFiltered.filter(r => (r.payment_status || r.paymentStatus) === 'Đã thu tiền');
   } else if (filter.kpiQuickFilter === 'PENDING') {
-    finalFiltered = baseFiltered.filter(r => r.paymentStatus === 'Chờ thanh toán');
+    finalFiltered = baseFiltered.filter(r => (r.payment_status || r.paymentStatus) === 'Chờ thanh toán');
   }
 
   // 4. Tính Hoa hồng tương ứng theo danh sách hồ sơ đang được lọc
   let totalComm = 0;
   finalFiltered.forEach(r => {
-    if (r.paymentStatus === 'Đã thu tiền') {
+    const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
+    if (paymentStatus === 'Đã thu tiền') {
       const amt = Number(r.amount) || 0;
       const rate = getCommissionRateForRecord(r, policies, settings);
       totalComm += amt * rate;
