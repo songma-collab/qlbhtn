@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { getCommissionRateForRecord, getCustomerPreviousBHXHMonths } from '../utils/calculations';
 import { isD05TSRenew } from '../utils/exportNationalStandardForms';
+import { recordToDb, dbToRecord } from '../utils/sanitize';
 import type { RecordType, Policy, SettingsType } from '../context/types';
 
 describe('Kiểm thử Nghiệp vụ Gia hạn BHXH Tự Nguyện & Phân loại Hồ sơ Tăng mới vs Gia hạn', () => {
@@ -12,6 +13,7 @@ describe('Kiểm thử Nghiệp vụ Gia hạn BHXH Tự Nguyện & Phân loại
   const mockPolicies: Policy[] = [
     {
       id: 1,
+      name: 'Chính sách hoa hồng',
       parameter_type: 'commission',
       value: { commBHXHNew: 5, commBHXHRenew: 3, commBHYTNew: 5, commBHYTRenew: 3 },
       effective_date: '2026-01-01',
@@ -101,18 +103,44 @@ describe('Kiểm thử Nghiệp vụ Gia hạn BHXH Tự Nguyện & Phân loại
   });
 
   it('5. Biểu mẫu D05-TS: Hồ sơ Tăng mới ghi phương thức Tăng_mới, Hồ sơ Gia hạn ghi Đóng_tiếp', () => {
-    const recordNewD05: Partial<RecordType> = {
+    const recordNewD05: any = {
       type: 'BHXH',
       action_type: 'Tăng mới',
       isRenew: false
     };
     expect(isD05TSRenew(recordNewD05)).toBe(false); // Sẽ ghi 'Tăng_mới'
 
-    const recordRenewD05: Partial<RecordType> = {
+    const recordRenewD05: any = {
       type: 'BHXH',
       action_type: 'Gia hạn',
       isRenew: true
     };
     expect(isD05TSRenew(recordRenewD05)).toBe(true); // Sẽ ghi 'Đóng_tiếp'
+  });
+
+  it('6. Adapter sanitize (recordToDb & dbToRecord) lưu trữ và khôi phục chính xác trường action_type', () => {
+    const appRecordTangMoi = {
+      name: 'Nguyễn Văn Test',
+      type: 'BHXH',
+      actionType: 'Tăng mới',
+      amount: 1500000
+    };
+    const dbPayloadTangMoi = recordToDb(appRecordTangMoi);
+    expect(dbPayloadTangMoi.action_type).toBe('Tăng mới');
+
+    const restoredTangMoi = dbToRecord(dbPayloadTangMoi);
+    expect(restoredTangMoi.action_type).toBe('Tăng mới');
+
+    const appRecordGiaHan = {
+      name: 'Trần Thị Test',
+      type: 'BHXH',
+      action_type: 'Gia hạn',
+      amount: 1500000
+    };
+    const dbPayloadGiaHan = recordToDb(appRecordGiaHan);
+    expect(dbPayloadGiaHan.action_type).toBe('Gia hạn');
+
+    const restoredGiaHan = dbToRecord(dbPayloadGiaHan);
+    expect(restoredGiaHan.action_type).toBe('Gia hạn');
   });
 });
