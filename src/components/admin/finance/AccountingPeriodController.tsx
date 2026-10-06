@@ -33,7 +33,7 @@ export const AccountingPeriodController: React.FC<AccountingPeriodControllerProp
   // Năm đang được duyệt trên bảng chọn nhanh 12 tháng (Month Picker Grid)
   const [gridYear, setGridYear] = useState<number>(() => {
     if (value.selectedMonth && value.selectedMonth.includes('-')) {
-      const parsedYear = parseInt(value.selectedMonth.split('-')[0], 10);
+      const parsedYear = parseInt(value.selectedMonth.split('-')[0] ?? '', 10);
       if (!isNaN(parsedYear)) return parsedYear;
     }
     return new Date().getFullYear();
@@ -42,7 +42,7 @@ export const AccountingPeriodController: React.FC<AccountingPeriodControllerProp
   // Đồng bộ gridYear khi value.selectedMonth thay đổi từ bên ngoài (ví dụ khi bấm Reset)
   useEffect(() => {
     if (value.selectedMonth && value.selectedMonth.includes('-')) {
-      const parsedYear = parseInt(value.selectedMonth.split('-')[0], 10);
+      const parsedYear = parseInt(value.selectedMonth.split('-')[0] ?? '', 10);
       if (!isNaN(parsedYear)) setGridYear(parsedYear);
     }
   }, [value.selectedMonth]);
@@ -65,14 +65,14 @@ export const AccountingPeriodController: React.FC<AccountingPeriodControllerProp
   // Chuyển đổi nhãn hiển thị định dạng Tháng MM/YYYY
   const displayMonthLabel = useMemo(() => {
     const mStr = value.selectedMonth || currentMonthStr;
-    const [y, m] = mStr.split('-');
+    const [y = '', m = ''] = mStr.split('-');
     return `Tháng ${String(m).padStart(2, '0')}/${y}`;
   }, [value.selectedMonth, currentMonthStr]);
 
   // 1. Logic điều hướng tháng (Lùi 1 tháng / Tiến 1 tháng)
   const handleStepMonth = (direction: 'prev' | 'next') => {
     const mStr = value.selectedMonth || currentMonthStr;
-    const [yStr, mStrNum] = mStr.split('-');
+    const [yStr = '', mStrNum = ''] = mStr.split('-');
     let y = parseInt(yStr, 10);
     let m = parseInt(mStrNum, 10);
 

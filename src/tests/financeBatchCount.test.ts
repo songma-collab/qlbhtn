@@ -24,7 +24,7 @@ function computeAvailableBatches(
     endDateRPC?: string;
   }
 ) {
-  const map = new Map<string, { count: number; totalAmount: number; date?: string }>();
+  const map = new Map<string, { count: number; totalAmount: number; date?: string | undefined }>();
 
   records
     .filter(r => {

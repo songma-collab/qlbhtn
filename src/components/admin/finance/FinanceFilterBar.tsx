@@ -8,7 +8,7 @@ import { AccountingPeriodController } from './AccountingPeriodController';
 export interface FinanceFilterBarProps {
   filterState: TransactionFilterState;
   setFilterState: React.Dispatch<React.SetStateAction<TransactionFilterState>>;
-  availableBatches: Array<{ batch: string; date?: string; count: number }>;
+  availableBatches: Array<{ batch: string; date?: string | undefined; count: number; totalAmount?: number | undefined }>;
   staff: any[];
   currentUser: any;
   onReset: () => void;

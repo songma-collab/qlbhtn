@@ -15,9 +15,9 @@ describe('Kiểm thử Khóa sổ kỳ tài chính (Financial Lock Guard Test Su
     type: 'BHXH',
     amount: 1500000,
     months: 6,
-    fromMonth: '2026-08',
-    toMonth: '2027-01',
-    paymentStatus: 'Đã thu tiền',
+    from_month: '2026-08',
+    to_month: '2027-01',
+    payment_status: 'Đã thu tiền',
     status: 'Đang tham gia',
     notes: 'Khách hàng đóng đợt 1'
   };
@@ -61,17 +61,17 @@ describe('Kiểm thử Khóa sổ kỳ tài chính (Financial Lock Guard Test Su
       expect(result.violatedFields).toContain('amount');
     });
 
-    it('CHẶN thay đổi kỳ đóng (months, fromMonth, toMonth) khi kỳ bị khóa', () => {
-      const result = checkFinancialLockViolation(sampleRecord, { months: 12, toMonth: '2027-07' }, lockedKeys);
+    it('CHẶN thay đổi kỳ đóng (months, from_month, to_month) khi kỳ bị khóa', () => {
+      const result = checkFinancialLockViolation(sampleRecord, { months: 12, to_month: '2027-07' }, lockedKeys);
       expect(result.isViolated).toBe(true);
       expect(result.violatedFields).toContain('months');
-      expect(result.violatedFields).toContain('toMonth');
+      expect(result.violatedFields).toContain('to_month');
     });
 
-    it('CHẶN thay đổi trạng thái thanh toán (paymentStatus) khi kỳ bị khóa', () => {
-      const result = checkFinancialLockViolation(sampleRecord, { paymentStatus: 'Đã hủy' }, lockedKeys);
+    it('CHẶN thay đổi trạng thái thanh toán (payment_status) khi kỳ bị khóa', () => {
+      const result = checkFinancialLockViolation(sampleRecord, { payment_status: 'Đã hủy' }, lockedKeys);
       expect(result.isViolated).toBe(true);
-      expect(result.violatedFields).toContain('paymentStatus');
+      expect(result.violatedFields).toContain('payment_status');
     });
 
     it('CHO PHÉP cập nhật thông tin liên lạc (phone, address, notes) khi kỳ bị khóa', () => {

@@ -64,7 +64,7 @@ export const parseVNDate = (val?: string | null): ParsedVNDate | null => {
   const s = val.trim();
   if (!/^\d{2}\/\d{2}\/\d{4}$/.test(s)) return null;
 
-  const [dStr, mStr, yStr] = s.split('/');
+  const [dStr = '', mStr = '', yStr = ''] = s.split('/');
   const day = parseInt(dStr, 10);
   const month = parseInt(mStr, 10);
   const year = parseInt(yStr, 10);
@@ -90,7 +90,7 @@ export const parseVNMonth = (
   const s = val.trim();
   if (!/^\d{2}\/\d{4}$/.test(s)) return null;
 
-  const [mStr, yStr] = s.split('/');
+  const [mStr = '', yStr = ''] = s.split('/');
   const month = parseInt(mStr, 10);
   const year = parseInt(yStr, 10);
 
@@ -114,27 +114,28 @@ export const parseMonthAndYear = (
 
     // MM/YYYY (chuẩn UI form Đăng ký)
     if (/^\d{1,2}\/\d{4}$/.test(s)) {
-      const parts = s.split('/');
-      const m = parseInt(parts[0], 10);
-      const y = parseInt(parts[1], 10);
+      const [mPart = '', yPart = ''] = s.split('/');
+      const m = parseInt(mPart, 10);
+      const y = parseInt(yPart, 10);
       if (m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
         return { month: m, year: y };
       }
     }
     // YYYY-MM (chuẩn DB ISO)
     if (/^\d{4}-\d{1,2}$/.test(s)) {
-      const parts = s.split('-');
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
+      const [yPart = '', mPart = ''] = s.split('-');
+      const y = parseInt(yPart, 10);
+      const m = parseInt(mPart, 10);
       if (m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
         return { month: m, year: y };
       }
     }
     // YYYY-MM-DD
     if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-      const parts = s.split('T')[0].split(' ')[0].split('-');
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
+      const cleanDate = s.split('T')[0]?.split(' ')[0] ?? '';
+      const [yPart = '', mPart = ''] = cleanDate.split('-');
+      const y = parseInt(yPart, 10);
+      const m = parseInt(mPart, 10);
       if (m >= 1 && m <= 12 && y >= 1900 && y <= 2100) {
         return { month: m, year: y };
       }
@@ -145,9 +146,10 @@ export const parseMonthAndYear = (
   if (fallbackDateStr) {
     let f = String(fallbackDateStr).trim();
     if (/^\d{4}-\d{1,2}-\d{1,2}/.test(f)) {
-      const parts = f.split('T')[0].split(' ')[0].split('-');
-      const y = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10);
+      const cleanDate = f.split('T')[0]?.split(' ')[0] ?? '';
+      const [yPart = '', mPart = ''] = cleanDate.split('-');
+      const y = parseInt(yPart, 10);
+      const m = parseInt(mPart, 10);
       if (m >= 1 && m <= 12) return { month: m, year: y };
     }
     const d = new Date(fallbackDateStr);
@@ -192,26 +194,26 @@ export const formatDateVN = (val?: string | Date | null): string => {
   // Dạng D/M/YYYY
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
     const parts = s.split('/');
-    const d = parts[0].padStart(2, '0');
-    const m = parts[1].padStart(2, '0');
-    const y = parts[2];
+    const d = (parts[0] ?? '').padStart(2, '0');
+    const m = (parts[1] ?? '').padStart(2, '0');
+    const y = parts[2] ?? '';
     return `${d}/${m}/${y}`;
   }
 
   // Dạng YYYY-MM-DD hoặc YYYY-MM-DDTHH:mm:ss.sssZ hoặc YYYY-MM-DD HH:mm:ss
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-    const cleanDate = s.split('T')[0].split(' ')[0];
+    const cleanDate = s.split('T')[0]?.split(' ')[0] ?? '';
     const parts = cleanDate.split('-');
-    const y = parts[0];
-    const m = parts[1].padStart(2, '0');
-    const d = parts[2].padStart(2, '0');
+    const y = parts[0] ?? '';
+    const m = (parts[1] ?? '').padStart(2, '0');
+    const d = (parts[2] ?? '').padStart(2, '0');
     return `${d}/${m}/${y}`;
   }
 
   // Dạng YYYY-MM
   if (/^\d{4}-\d{1,2}$/.test(s)) {
     const parts = s.split('-');
-    return `01/${parts[1].padStart(2, '0')}/${parts[0]}`;
+    return `01/${(parts[1] ?? '').padStart(2, '0')}/${parts[0] ?? ''}`;
   }
 
   // Thử parse qua Date an toàn
@@ -251,19 +253,19 @@ export const formatMonthVN = (val?: string | Date | null): string => {
   // Dạng M/YYYY
   if (/^\d{1,2}\/\d{4}$/.test(s)) {
     const parts = s.split('/');
-    return `${parts[0].padStart(2, '0')}/${parts[1]}`;
+    return `${(parts[0] ?? '').padStart(2, '0')}/${parts[1] ?? ''}`;
   }
 
   // Dạng YYYY-MM-DD
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-    const parts = s.split('T')[0].split(' ')[0].split('-');
-    return `${parts[1].padStart(2, '0')}/${parts[0]}`;
+    const parts = (s.split('T')[0]?.split(' ')[0] ?? '').split('-');
+    return `${(parts[1] ?? '').padStart(2, '0')}/${parts[0] ?? ''}`;
   }
 
   // Dạng YYYY-MM
   if (/^\d{4}-\d{1,2}$/.test(s)) {
     const parts = s.split('-');
-    return `${parts[1].padStart(2, '0')}/${parts[0]}`;
+    return `${(parts[1] ?? '').padStart(2, '0')}/${parts[0] ?? ''}`;
   }
 
   return s;
@@ -294,26 +296,26 @@ export const parseToIsoDate = (val?: string | Date | null): string => {
 
   // YYYY-MM-DDTHH...
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-    const clean = s.split('T')[0].split(' ')[0];
+    const clean = s.split('T')[0]?.split(' ')[0] ?? '';
     const parts = clean.split('-');
-    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    return `${parts[0] ?? ''}-${(parts[1] ?? '').padStart(2, '0')}-${(parts[2] ?? '').padStart(2, '0')}`;
   }
 
   // DD/MM/YYYY hoặc D/M/YYYY
   if (/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(s)) {
     const parts = s.split('/');
-    const d = parts[0].padStart(2, '0');
-    const m = parts[1].padStart(2, '0');
-    const y = parts[2];
+    const d = (parts[0] ?? '').padStart(2, '0');
+    const m = (parts[1] ?? '').padStart(2, '0');
+    const y = parts[2] ?? '';
     return `${y}-${m}-${d}`;
   }
 
   // DD-MM-YYYY
   if (/^\d{1,2}-\d{1,2}-\d{4}$/.test(s)) {
     const parts = s.split('-');
-    const d = parts[0].padStart(2, '0');
-    const m = parts[1].padStart(2, '0');
-    const y = parts[2];
+    const d = (parts[0] ?? '').padStart(2, '0');
+    const m = (parts[1] ?? '').padStart(2, '0');
+    const y = parts[2] ?? '';
     return `${y}-${m}-${d}`;
   }
 
@@ -342,8 +344,8 @@ export const parseToIsoMonthDate = (val?: string | Date | null): string => {
     const parts = s.split('/');
     const numM = Number(parts[0]);
     if (numM < 1 || numM > 12) return '';
-    const m = parts[0].padStart(2, '0');
-    const y = parts[1];
+    const m = (parts[0] ?? '').padStart(2, '0');
+    const y = parts[1] ?? '';
     return `${y}-${m}-01`;
   }
 
@@ -352,18 +354,18 @@ export const parseToIsoMonthDate = (val?: string | Date | null): string => {
     const parts = s.split('-');
     const numM = Number(parts[1]);
     if (numM < 1 || numM > 12) return '';
-    const y = parts[0];
-    const m = parts[1].padStart(2, '0');
+    const y = parts[0] ?? '';
+    const m = (parts[1] ?? '').padStart(2, '0');
     return `${y}-${m}-01`;
   }
 
   // YYYY-MM-DD
   if (/^\d{4}-\d{1,2}-\d{1,2}/.test(s)) {
-    const parts = s.split('T')[0].split(' ')[0].split('-');
+    const parts = (s.split('T')[0]?.split(' ')[0] ?? '').split('-');
     const numM = Number(parts[1]);
     if (numM < 1 || numM > 12) return '';
-    const y = parts[0];
-    const m = parts[1].padStart(2, '0');
+    const y = parts[0] ?? '';
+    const m = (parts[1] ?? '').padStart(2, '0');
     return `${y}-${m}-01`;
   }
 
@@ -372,8 +374,8 @@ export const parseToIsoMonthDate = (val?: string | Date | null): string => {
     const parts = s.split('/');
     const numM = Number(parts[1]);
     if (numM < 1 || numM > 12) return '';
-    const m = parts[1].padStart(2, '0');
-    const y = parts[2];
+    const m = (parts[1] ?? '').padStart(2, '0');
+    const y = parts[2] ?? '';
     return `${y}-${m}-01`;
   }
 
@@ -491,15 +493,15 @@ export const formatMonthInputMask = (val: string): string => {
 // ==========================================
 
 export interface StandardPeriodFields {
-  fromMonth?: string;
-  toMonth?: string;
-  from_month_date?: string;
-  to_month_date?: string;
-  months?: number;
-  sm?: number;
-  sy?: number;
-  em?: number;
-  ey?: number;
+  fromMonth?: string | undefined;
+  toMonth?: string | undefined;
+  from_month_date?: string | undefined;
+  to_month_date?: string | undefined;
+  months?: number | undefined;
+  sm?: number | undefined;
+  sy?: number | undefined;
+  em?: number | undefined;
+  ey?: number | undefined;
   [key: string]: any;
 }
 
@@ -597,28 +599,31 @@ export const parseMonthISO = (vnMonthStr?: string | Date | null): string => {
   s = s.replace(/\b0264\b/g, '2026').replace(/\b264\b/g, '2026');
   if (/^\d{4}-\d{2}$/.test(s)) return s;
   const parts = s.split(/[-/]/);
-  if (parts.length === 2) {
+  const p0 = parts[0] ?? '';
+  const p1 = parts[1] ?? '';
+  const p2 = parts[2] ?? '';
+  if (parts.length === 2 && p0 && p1) {
     let m = '';
     let y = '';
-    if (parts[0].length === 4) {
-      y = parts[0];
-      m = parts[1].padStart(2, '0');
+    if (p0.length === 4) {
+      y = p0;
+      m = p1.padStart(2, '0');
     } else {
-      m = parts[0].padStart(2, '0');
-      y = parts[1];
+      m = p0.padStart(2, '0');
+      y = p1;
       if (y.length === 2) y = "20" + y;
     }
     return `${y}-${m}`;
   }
-  if (parts.length === 3) {
+  if (parts.length === 3 && p0 && p1 && p2) {
     let m = '';
     let y = '';
-    if (parts[0].length === 4) {
-      y = parts[0];
-      m = parts[1].padStart(2, '0');
+    if (p0.length === 4) {
+      y = p0;
+      m = p1.padStart(2, '0');
     } else {
-      m = parts[1].padStart(2, '0');
-      y = parts[2];
+      m = p1.padStart(2, '0');
+      y = p2;
       if (y.length === 2) y = "20" + y;
     }
     return `${y}-${m}`;
@@ -705,7 +710,7 @@ export const isValidISODate = (val?: string | null): boolean => {
   if (!val || typeof val !== 'string') return false;
   const s = val.trim();
   if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
-  const [yStr, mStr, dStr] = s.split('-');
+  const [yStr = '', mStr = '', dStr = ''] = s.split('-');
   const y = parseInt(yStr, 10);
   const m = parseInt(mStr, 10);
   const d = parseInt(dStr, 10);
@@ -721,7 +726,7 @@ export const isValidISOMonth = (val?: string | null): boolean => {
   if (!val || typeof val !== 'string') return false;
   const s = val.trim();
   if (!/^\d{4}-\d{2}$/.test(s)) return false;
-  const [yStr, mStr] = s.split('-');
+  const [yStr = '', mStr = ''] = s.split('-');
   const y = parseInt(yStr, 10);
   const m = parseInt(mStr, 10);
   return y >= 1900 && y <= 2100 && m >= 1 && m <= 12;

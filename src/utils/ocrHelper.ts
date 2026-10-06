@@ -6,16 +6,16 @@
 export interface PeriodItem {
   id: number;
   type: 'batbuoc' | 'nhanuoc' | 'tunguyen';
-  fromMonth?: string;
-  toMonth?: string;
-  months?: number;
+  fromMonth?: string | undefined;
+  toMonth?: string | undefined;
+  months?: number | undefined;
   sm: number;
   sy: number;
   em: number;
   ey: number;
   salary: string;
-  workplace?: string;
-  position?: string;
+  workplace?: string | undefined;
+  position?: string | undefined;
 }
 
 /**

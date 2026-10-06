@@ -14,11 +14,11 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       amount: 1500000,
       months: 6,
       status: 'Hoạt động',
-      paymentStatus: 'Đã thu tiền',
-      staffId: 'staff-1',
-      isSubmittedBHXH: true,
-      submissionBatch: 'BATCH_20260905_01',
-      submittedDate: '2026-09-05'
+      payment_status: 'Đã thu tiền',
+      staff_id: 'staff-1',
+      is_submitted_bhxh: true,
+      submission_batch: 'BATCH_20260905_01',
+      submitted_date: '2026-09-05'
     },
     {
       id: 2,
@@ -30,11 +30,11 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       amount: 800000,
       months: 12,
       status: 'Hoạt động',
-      paymentStatus: 'Đã thu tiền',
-      staffId: 'staff-1',
-      isSubmittedBHXH: true,
-      submissionBatch: 'BATCH_20260905_01',
-      submittedDate: '2026-09-05'
+      payment_status: 'Đã thu tiền',
+      staff_id: 'staff-1',
+      is_submitted_bhxh: true,
+      submission_batch: 'BATCH_20260905_01',
+      submitted_date: '2026-09-05'
     },
     {
       id: 3,
@@ -46,10 +46,10 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       amount: 2000000,
       months: 12,
       status: 'Hoạt động',
-      paymentStatus: 'Đã thu tiền',
-      staffId: 'staff-1',
-      isSubmittedBHXH: false, // Chưa nộp BHXH
-      submissionBatch: ''
+      payment_status: 'Đã thu tiền',
+      staff_id: 'staff-1',
+      is_submitted_bhxh: false, // Chưa nộp BHXH
+      submission_batch: ''
     },
     {
       id: 4,
@@ -61,11 +61,11 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       amount: 900000,
       months: 12,
       status: 'Hoạt động',
-      paymentStatus: 'Đã thu tiền',
-      staffId: 'staff-2',
-      isSubmittedBHXH: true,
-      submissionBatch: 'BATCH_20260915_01',
-      submittedDate: '2026-09-15'
+      payment_status: 'Đã thu tiền',
+      staff_id: 'staff-2',
+      is_submitted_bhxh: true,
+      submission_batch: 'BATCH_20260915_01',
+      submitted_date: '2026-09-15'
     },
     {
       id: 5,
@@ -77,16 +77,16 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       amount: 1000000,
       months: 3,
       status: 'Đã hủy',
-      paymentStatus: 'Đã hủy',
-      staffId: 'staff-1',
-      isSubmittedBHXH: false
+      payment_status: 'Đã hủy',
+      staff_id: 'staff-1',
+      is_submitted_bhxh: false
     }
   ];
 
   describe('1. Thống kê Khách hàng theo Nhân viên (Deduplication & Metrics)', () => {
     it('Khách hàng có nhiều giao dịch (BHXH và BHYT) chỉ được tính là 1 khách hàng duy nhất của nhân viên', () => {
       // Lọc các bản ghi hợp lệ của staff-1
-      const staff1Records = mockRecords.filter(r => r.staffId === 'staff-1' && r.paymentStatus !== 'Đã hủy');
+      const staff1Records = mockRecords.filter(r => r.staff_id === 'staff-1' && r.payment_status !== 'Đã hủy');
       
       const customerKeys = new Set<string>();
       let totalAmount = 0;
@@ -104,7 +104,7 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
     });
 
     it('Không tính các bản ghi đã hủy vào tệp khách hàng và doanh thu', () => {
-      const validRecords = mockRecords.filter(r => r.staffId === 'staff-1' && r.paymentStatus !== 'Đã hủy');
+      const validRecords = mockRecords.filter(r => r.staff_id === 'staff-1' && r.payment_status !== 'Đã hủy');
       const canceledRecord = validRecords.find(r => r.id === 5);
       expect(canceledRecord).toBeUndefined();
     });
@@ -135,8 +135,8 @@ describe('Kiểm thử Nghiệp vụ Báo Cáo Khách Hàng Theo Nhân Viên & �
       let pendingAmount = 0;
 
       mockRecords.forEach(r => {
-        if (r.paymentStatus === 'Đã hủy') return;
-        if (r.isSubmittedBHXH) {
+        if (r.payment_status === 'Đã hủy') return;
+        if (r.is_submitted_bhxh) {
           submittedCount++;
           submittedAmount += r.amount;
         } else {

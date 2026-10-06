@@ -24,31 +24,31 @@ describe('Kiểm thử BHYT Hộ gia đình đồng bộ kỳ hạn (Coterminous
       expect(result.breakdown).toHaveLength(5);
 
       // Người 1: 100% rate, 12 tháng -> 105.300 * 12 = 1.263.600 VNĐ
-      const m1 = result.breakdown[0];
+      const m1 = result.breakdown[0]!;
       expect(m1.ratePct).toBe(100);
       expect(m1.monthlyPremium).toBe(105300);
       expect(m1.amount).toBe(1263600);
 
       // Người 2: 70% rate, 10 tháng -> 73.710 * 10 = 737.100 VNĐ
-      const m2 = result.breakdown[1];
+      const m2 = result.breakdown[1]!;
       expect(m2.ratePct).toBe(70);
       expect(m2.monthlyPremium).toBe(73710);
       expect(m2.amount).toBe(737100);
 
       // Người 3: 60% rate, 8 tháng -> 63.180 * 8 = 505.440 VNĐ
-      const m3 = result.breakdown[2];
+      const m3 = result.breakdown[2]!;
       expect(m3.ratePct).toBe(60);
       expect(m3.monthlyPremium).toBe(63180);
       expect(m3.amount).toBe(505440);
 
       // Người 4: 50% rate, 6 tháng -> 52.650 * 6 = 315.900 VNĐ
-      const m4 = result.breakdown[3];
+      const m4 = result.breakdown[3]!;
       expect(m4.ratePct).toBe(50);
       expect(m4.monthlyPremium).toBe(52650);
       expect(m4.amount).toBe(315900);
 
       // Người 5: 40% rate, 3 tháng -> 42.120 * 3 = 126.360 VNĐ
-      const m5 = result.breakdown[4];
+      const m5 = result.breakdown[4]!;
       expect(m5.ratePct).toBe(40);
       expect(m5.monthlyPremium).toBe(42120);
       expect(m5.amount).toBe(126360);
@@ -71,8 +71,8 @@ describe('Kiểm thử BHYT Hộ gia đình đồng bộ kỳ hạn (Coterminous
     it('Trường hợp tối thiểu: Hộ 1 người đóng 1 tháng lẻ', () => {
       const result = calculateBHYTCoterminous([{ name: 'Độc thân', durationMonths: 1 }], BASE_SALARY_2026);
       expect(result.amount).toBe(105300);
-      expect(result.breakdown[0].ratePct).toBe(100);
-      expect(result.breakdown[0].durationMonths).toBe(1);
+      expect(result.breakdown[0]!.ratePct).toBe(100);
+      expect(result.breakdown[0]!.durationMonths).toBe(1);
     });
 
     it('Trường hợp hộ 2 người cùng đóng trọn vẹn 12 tháng', () => {
@@ -85,8 +85,8 @@ describe('Kiểm thử BHYT Hộ gia đình đồng bộ kỳ hạn (Coterminous
       // Người 2: 73.710 * 12 = 884.520
       // Tổng: 2.148.120 VNĐ
       expect(result.amount).toBe(2148120);
-      expect(result.breakdown[0].amount).toBe(1263600);
-      expect(result.breakdown[1].amount).toBe(884520);
+      expect(result.breakdown[0]!.amount).toBe(1263600);
+      expect(result.breakdown[1]!.amount).toBe(884520);
     });
 
     it('Trường hợp hộ trên 5 người (người thứ 6 và 7 vẫn giữ nguyên tỷ lệ 40%)', () => {
@@ -100,10 +100,10 @@ describe('Kiểm thử BHYT Hộ gia đình đồng bộ kỳ hạn (Coterminous
         { durationMonths: 12 }  // Người thứ 7
       ];
       const result = calculateBHYTCoterminous(members, BASE_SALARY_2026);
-      expect(result.breakdown[5].ratePct).toBe(40);
-      expect(result.breakdown[6].ratePct).toBe(40);
-      expect(result.breakdown[5].amount).toBe(42120 * 12); // 505.440
-      expect(result.breakdown[6].amount).toBe(42120 * 12); // 505.440
+      expect(result.breakdown[5]!.ratePct).toBe(40);
+      expect(result.breakdown[6]!.ratePct).toBe(40);
+      expect(result.breakdown[5]!.amount).toBe(42120 * 12); // 505.440
+      expect(result.breakdown[6]!.amount).toBe(42120 * 12); // 505.440
     });
 
     it('Phòng thủ dữ liệu: Tự động fallback về 12 tháng nếu durationMonths bị khuyết hoặc bằng 0', () => {
@@ -112,10 +112,10 @@ describe('Kiểm thử BHYT Hộ gia đình đồng bộ kỳ hạn (Coterminous
         { name: 'Số tháng 0', durationMonths: 0 }
       ];
       const result = calculateBHYTCoterminous(members, BASE_SALARY_2026);
-      expect(result.breakdown[0].durationMonths).toBe(12);
-      expect(result.breakdown[1].durationMonths).toBe(12);
-      expect(result.breakdown[0].amount).toBe(1263600);
-      expect(result.breakdown[1].amount).toBe(884520);
+      expect(result.breakdown[0]!.durationMonths).toBe(12);
+      expect(result.breakdown[1]!.durationMonths).toBe(12);
+      expect(result.breakdown[0]!.amount).toBe(1263600);
+      expect(result.breakdown[1]!.amount).toBe(884520);
     });
   });
 });

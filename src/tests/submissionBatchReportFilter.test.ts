@@ -90,7 +90,8 @@ describe('Kiểm thử Bộ lọc Thời gian (Tháng / Quý / Năm) cho Báo C�
           amount: 1000000,
           months: 6,
           status: 'Hoạt động',
-          paymentStatus: 'Đã thu tiền'
+          payment_status: 'Đã thu tiền',
+          phone: '0981111222'
         } as RecordType
       ]
     };
@@ -120,10 +121,10 @@ describe('Kiểm thử Bộ lọc Thời gian (Tháng / Quý / Năm) cho Báo C�
         amount: 1500000,
         months: 6,
         status: 'Hoạt động',
-        paymentStatus: 'Đã thu tiền',
-        isSubmittedBHXH: true,
-        submissionBatch: 'BATCH_AUG_01',
-        submittedDate: '2026-08-15'
+        payment_status: 'Đã thu tiền',
+        is_submitted_bhxh: true,
+        submission_batch: 'BATCH_AUG_01',
+        submitted_date: '2026-08-15'
       },
       // Tháng 9/2026: 2 đợt nộp (1 đợt 2tr, 1 đợt 3tr) + 1 hồ sơ chưa nộp (500k)
       {
@@ -135,10 +136,10 @@ describe('Kiểm thử Bộ lọc Thời gian (Tháng / Quý / Năm) cho Báo C�
         amount: 2000000,
         months: 6,
         status: 'Hoạt động',
-        paymentStatus: 'Đã thu tiền',
-        isSubmittedBHXH: true,
-        submissionBatch: 'BATCH_SEP_01',
-        submittedDate: '2026-09-05'
+        payment_status: 'Đã thu tiền',
+        is_submitted_bhxh: true,
+        submission_batch: 'BATCH_SEP_01',
+        submitted_date: '2026-09-05'
       },
       {
         id: 3,
@@ -149,10 +150,10 @@ describe('Kiểm thử Bộ lọc Thời gian (Tháng / Quý / Năm) cho Báo C�
         amount: 3000000,
         months: 12,
         status: 'Hoạt động',
-        paymentStatus: 'Đã thu tiền',
-        isSubmittedBHXH: true,
-        submissionBatch: 'BATCH_SEP_02',
-        submittedDate: '2026-09-12'
+        payment_status: 'Đã thu tiền',
+        is_submitted_bhxh: true,
+        submission_batch: 'BATCH_SEP_02',
+        submitted_date: '2026-09-12'
       },
       {
         id: 4,
@@ -163,9 +164,9 @@ describe('Kiểm thử Bộ lọc Thời gian (Tháng / Quý / Năm) cho Báo C�
         amount: 500000,
         months: 3,
         status: 'Hoạt động',
-        paymentStatus: 'Đã thu tiền',
-        isSubmittedBHXH: false,
-        submissionBatch: ''
+        payment_status: 'Đã thu tiền',
+        is_submitted_bhxh: false,
+        submission_batch: ''
       }
     ];
 

@@ -139,7 +139,7 @@ describe('Date Formatter & Zod Validation Suite', () => {
       const futureRes = vnDobSchema.safeParse('01/01/2099');
       expect(futureRes.success).toBe(false);
       if (!futureRes.success) {
-        expect(futureRes.error.issues[0].message).toContain('tương lai');
+        expect(futureRes.error.issues[0]!.message).toContain('tương lai');
       }
     });
 
@@ -170,7 +170,7 @@ describe('Date Formatter & Zod Validation Suite', () => {
       });
       expect(invalid.success).toBe(false);
       if (!invalid.success) {
-        expect(invalid.error.issues[0].message).toContain('Đến tháng không được nhỏ hơn');
+        expect(invalid.error.issues[0]!.message).toContain('Đến tháng không được nhỏ hơn');
       }
     });
 

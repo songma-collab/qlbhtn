@@ -4,17 +4,17 @@
 import { formatMoney, formatDateVN } from './helpers';
 
 export interface VietQRConfig {
-  agencyName?: string;
-  agencyCode?: string;
-  bankBin?: string;
-  bankId?: string;
-  bankName?: string;
-  accountNo?: string;
-  accountNumber?: string;
-  accountName?: string;
-  accountHolder?: string;
-  template?: 'compact' | 'compact2' | 'qr_only' | 'print' | string;
-  qrTemplate?: 'compact' | 'compact2' | 'qr_only' | 'print' | string;
+  agencyName?: string | undefined;
+  agencyCode?: string | undefined;
+  bankBin?: string | undefined;
+  bankId?: string | undefined;
+  bankName?: string | undefined;
+  accountNo?: string | undefined;
+  accountNumber?: string | undefined;
+  accountName?: string | undefined;
+  accountHolder?: string | undefined;
+  template?: 'compact' | 'compact2' | 'qr_only' | 'print' | string | undefined;
+  qrTemplate?: 'compact' | 'compact2' | 'qr_only' | 'print' | string | undefined;
 }
 
 export interface BankOption {
@@ -126,16 +126,16 @@ export const generateVietQRUrl = ({
   template,
   qrTemplate
 }: {
-  bankBin?: string;
-  bankId?: string;
-  accountNo?: string;
-  accountNumber?: string;
-  accountName?: string;
-  accountHolder?: string;
+  bankBin?: string | undefined;
+  bankId?: string | undefined;
+  accountNo?: string | undefined;
+  accountNumber?: string | undefined;
+  accountName?: string | undefined;
+  accountHolder?: string | undefined;
   amount: number;
   content: string;
-  template?: 'compact' | 'compact2' | 'qr_only' | 'print' | string;
-  qrTemplate?: 'compact' | 'compact2' | 'qr_only' | 'print' | string;
+  template?: 'compact' | 'compact2' | 'qr_only' | 'print' | string | undefined;
+  qrTemplate?: 'compact' | 'compact2' | 'qr_only' | 'print' | string | undefined;
 }): string => {
   let resolvedBin = bankBin;
   if (!resolvedBin && bankId) {
@@ -172,21 +172,21 @@ export const calculateSLALevel = (daysRemaining: number): SLALevel => {
 };
 
 export interface CustomerReminderInfo {
-  name?: string;
-  customerName?: string;
-  phone?: string;
-  type?: 'BHXH' | 'BHYT' | string;
-  code?: string; // BHXH hoặc CCCD
-  cccd?: string;
-  bhxh?: string;
+  name?: string | undefined;
+  customerName?: string | undefined;
+  phone?: string | undefined;
+  type?: 'BHXH' | 'BHYT' | string | undefined;
+  code?: string | undefined; // BHXH hoặc CCCD
+  cccd?: string | undefined;
+  bhxh?: string | undefined;
   amount: number;
-  nextPayment?: string;
-  dueDate?: string;
-  months?: number;
-  daysRemaining?: number;
-  slaStatus?: string;
-  staffName?: string;
-  staffPhone?: string;
+  nextPayment?: string | undefined;
+  dueDate?: string | undefined;
+  months?: number | undefined;
+  daysRemaining?: number | undefined;
+  slaStatus?: string | undefined;
+  staffName?: string | undefined;
+  staffPhone?: string | undefined;
 }
 
 /**

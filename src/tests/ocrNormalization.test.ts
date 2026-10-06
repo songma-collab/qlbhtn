@@ -48,10 +48,10 @@ describe('OCR Normalization Unit Tests', () => {
 
       const result = normalizeOcrPeriods(input);
       expect(result).toHaveLength(3);
-      expect(result[0].sy).toBe(2015);
-      expect(result[0].salary).toBe('2.34');
-      expect(result[1].sy).toBe(2019);
-      expect(result[2].sy).toBe(2023);
+      expect(result[0]!.sy).toBe(2015);
+      expect(result[0]!.salary).toBe('2.34');
+      expect(result[1]!.sy).toBe(2019);
+      expect(result[2]!.sy).toBe(2023);
     });
 
     it('handles 2-digit years and non-numeric month strings', () => {
@@ -62,13 +62,13 @@ describe('OCR Normalization Unit Tests', () => {
 
       const result = normalizeOcrPeriods(input);
       expect(result).toHaveLength(2);
-      expect(result[0].sy).toBe(1998);
-      expect(result[0].sm).toBe(5);
-      expect(result[0].ey).toBe(2002);
-      expect(result[0].em).toBe(12);
+      expect(result[0]!.sy).toBe(1998);
+      expect(result[0]!.sm).toBe(5);
+      expect(result[0]!.ey).toBe(2002);
+      expect(result[0]!.em).toBe(12);
 
-      expect(result[1].sy).toBe(2023);
-      expect(result[1].ey).toBe(2023);
+      expect(result[1]!.sy).toBe(2023);
+      expect(result[1]!.ey).toBe(2023);
     });
 
     it('fixes inverted start and end dates', () => {
@@ -77,10 +77,10 @@ describe('OCR Normalization Unit Tests', () => {
       ];
 
       const result = normalizeOcrPeriods(input);
-      expect(result[0].sy).toBe(2020);
-      expect(result[0].sm).toBe(1);
-      expect(result[0].ey).toBe(2022);
-      expect(result[0].em).toBe(12);
+      expect(result[0]!.sy).toBe(2020);
+      expect(result[0]!.sm).toBe(1);
+      expect(result[0]!.ey).toBe(2022);
+      expect(result[0]!.em).toBe(12);
     });
 
     it('fills zero or missing salary from previous valid period (maternity/leave scenario)', () => {
@@ -90,7 +90,7 @@ describe('OCR Normalization Unit Tests', () => {
       ];
 
       const result = normalizeOcrPeriods(input);
-      expect(result[1].salary).toBe('7.000.000');
+      expect(result[1]!.salary).toBe('7.000.000');
     });
   });
 });

@@ -33,15 +33,15 @@ interface StaffCustomerStat {
   customers: {
     key: string;
     name: string;
-    cccd?: string;
-    phone?: string;
-    bhxh?: string;
-    address?: string;
+    cccd?: string | undefined;
+    phone?: string | undefined;
+    bhxh?: string | undefined;
+    address?: string | undefined;
     types: ('BHXH' | 'BHYT')[];
     recordsCount: number;
     totalPaid: number;
     lastPaymentDate: string;
-    nextPayment?: string;
+    nextPayment?: string | undefined;
     status: string;
   }[];
 }
@@ -83,24 +83,25 @@ export const StaffCustomerReport: React.FC = () => {
 
     return visibleStaff.map(s => {
       // Lấy toàn bộ giao dịch hợp lệ của nhân viên này
-      const staffRecords = records.filter(r => 
-        (r.staffId === s.id || r.staffId === s.username || r.staff_id === s.id) &&
-        r.paymentStatus !== 'Đã hủy'
-      );
+      const staffRecords = records.filter(r => {
+        const sId = r.staff_id || (r as any).staffId;
+        const pStatus = r.payment_status || (r as any).paymentStatus;
+        return (sId === s.id || sId === s.username) && pStatus !== 'Đã hủy';
+      });
 
       // Gom cụm khách hàng duy nhất của nhân viên (Deduplication theo CCCD hoặc Phone hoặc Tên+Địa chỉ)
       const customerMap = new Map<string, {
         key: string;
         name: string;
-        cccd?: string;
-        phone?: string;
-        bhxh?: string;
-        address?: string;
+        cccd?: string | undefined;
+        phone?: string | undefined;
+        bhxh?: string | undefined;
+        address?: string | undefined;
         types: Set<'BHXH' | 'BHYT'>;
         recordsCount: number;
         totalPaid: number;
         lastPaymentDate: string;
-        nextPayment?: string;
+        nextPayment?: string | undefined;
         status: string;
       }>();
 
@@ -127,13 +128,13 @@ export const StaffCustomerReport: React.FC = () => {
             name: r.name || 'Chưa đặt tên',
             cccd: r.cccd,
             phone: r.phone,
-            bhxh: r.bhxh || r.old_bhxh || r.oldBhxh,
+            bhxh: r.bhxh || r.old_bhxh || (r as any).oldBhxh,
             address: r.address,
             types: new Set(),
             recordsCount: 0,
             totalPaid: 0,
             lastPaymentDate: r.date,
-            nextPayment: r.nextPayment || r.targetDate,
+            nextPayment: r.next_payment || (r as any).nextPayment || (r as any).targetDate,
             status: r.status || 'Hoạt động'
           });
         }
@@ -147,16 +148,17 @@ export const StaffCustomerReport: React.FC = () => {
 
         if (!c.cccd && r.cccd) c.cccd = r.cccd;
         if (!c.phone && r.phone) c.phone = r.phone;
-        if (!c.bhxh && (r.bhxh || r.old_bhxh || r.oldBhxh)) {
-          c.bhxh = r.bhxh || r.old_bhxh || r.oldBhxh;
+        if (!c.bhxh && (r.bhxh || r.old_bhxh || (r as any).oldBhxh)) {
+          c.bhxh = r.bhxh || r.old_bhxh || (r as any).oldBhxh;
         }
         if (!c.address && r.address) c.address = r.address;
 
         if (r.date > c.lastPaymentDate) {
           c.lastPaymentDate = r.date;
         }
-        if (r.nextPayment && (!c.nextPayment || r.nextPayment > c.nextPayment)) {
-          c.nextPayment = r.nextPayment;
+        const rNext = r.next_payment || (r as any).nextPayment;
+        if (rNext && (!c.nextPayment || rNext > c.nextPayment)) {
+          c.nextPayment = rNext;
         }
       });
 
@@ -194,7 +196,7 @@ export const StaffCustomerReport: React.FC = () => {
       return {
         staffId: s.id || s.username || '',
         staffName: s.name,
-        staffCode: s.staffCode || s.username || s.id || 'N/A',
+        staffCode: s.staff_code || (s as any).staffCode || s.username || s.id || 'N/A',
         role: s.role || 'Nhân viên',
         area: s.area || 'Chưa phân vùng',
         phone: s.phone || 'Chưa cập nhật',

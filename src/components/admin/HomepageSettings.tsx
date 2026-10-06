@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { supabase } from '../../lib/supabase';
+import { policyService } from '../../services/policyService';
 import { Sliders, Save, RefreshCw, Sparkles, ShieldCheck } from 'lucide-react';
 import ConfirmModal from '../modals/ConfirmModal';
 
@@ -37,26 +37,21 @@ const HomepageSettings = () => {
       const configPolicy = policies?.find(p => p.parameter_type === 'homepage_config');
       if (configPolicy) {
         // Update existing policy
-        const { error } = await supabase
-          .from('policies')
-          .update({
-            value: formData,
-            is_active: true
-          })
-          .eq('id', configPolicy.id);
+        const { error } = await policyService.updatePolicy(configPolicy.id, {
+          value: formData,
+          is_active: true
+        });
         if (error) throw error;
       } else {
         // Insert new policy
-        const { error } = await supabase
-          .from('policies')
-          .insert({
-            parameter_type: 'homepage_config',
-            name: 'Cấu hình nội dung trang chủ',
-            value: formData,
-            effective_date: '2026-01-01',
-            description: 'Cấu hình nội dung trang chủ',
-            is_active: true
-          });
+        const { error } = await policyService.addPolicy({
+          parameter_type: 'homepage_config',
+          name: 'Cấu hình nội dung trang chủ',
+          value: formData,
+          effective_date: '2026-01-01',
+          description: 'Cấu hình nội dung trang chủ',
+          is_active: true
+        });
         if (error) throw error;
       }
       

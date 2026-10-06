@@ -1,0 +1,34 @@
+name: Production CI/CD Pipeline & Quality Gate
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  production-certification:
+    name: Production Quality & Security Gate
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 1. Checkout Code
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Node.js (v20 LTS)
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 3. Install Dependencies
+        run: npm ci
+
+      - name: 4. Strict Typecheck (Zero Error Tolerance)
+        run: npm run typecheck
+
+      - name: 5. Execute Automated Test Suite (50 Suites / 461 Tests)
+        run: npm run test
+
+      - name: 6. Production Bundle Build (Vite)
+        run: npm run build

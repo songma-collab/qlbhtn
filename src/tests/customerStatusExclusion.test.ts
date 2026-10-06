@@ -166,7 +166,7 @@ describe('Kiểm thử Quản lý Trạng thái Khách hàng & Loại trừ Đô
 
       // Khách hàng vẫn được gom cụm duy nhất thành 1 người
       expect(unified.length).toBe(1);
-      const customer = unified[0];
+      const customer = unified[0]!;
       expect(customer.cccd).toBe('001200000888');
       expect(customer.bhxh).toBe('7912345678');
       // Trạng thái mới nhất là "Đã dừng đóng"
@@ -195,12 +195,12 @@ describe('Kiểm thử Quản lý Trạng thái Khách hàng & Loại trừ Đô
       const reUnified = groupRecordsByCustomer(updatedHistory);
 
       expect(reUnified.length).toBe(1);
-      expect(reUnified[0].status).toBe('Đang tham gia');
+      expect(reUnified[0]!.status).toBe('Đang tham gia');
 
       // Lúc này khách hàng xuất hiện trở lại trong danh sách quản lý
       const reRenewalList = filterRenewalDispatchCustomers(reUnified);
       expect(reRenewalList.length).toBe(1);
-      expect(reRenewalList[0].cccd).toBe('001200000888');
+      expect(reRenewalList[0]!.cccd).toBe('001200000888');
     });
   });
 

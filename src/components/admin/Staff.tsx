@@ -28,7 +28,7 @@ const Staff = () => {
   const handleDelete = async () => {
     if (!deleteId) return;
     const targetStaff = staff.find(s => s.id === deleteId);
-    const associatedRecords = records.filter(r => r.staffId === deleteId);
+    const associatedRecords = records.filter(r => (r.staff_id || (r as any).staffId) === deleteId);
     
     const safety = checkStaffDeleteSafety(currentUser, targetStaff, staff, associatedRecords.length);
     if (!safety.allowed) {
@@ -63,8 +63,9 @@ const Staff = () => {
 
   const filteredStaffs = React.useMemo(() => {
     const filtered = staff.filter(s => {
+      const staffCd = s.staff_code || (s as any).staffCode;
       const matchSearch = s.name.toLowerCase().includes(searchTxt.toLowerCase()) || 
-                          (s.staffCode && s.staffCode.toLowerCase().includes(searchTxt.toLowerCase())) ||
+                          (staffCd && staffCd.toLowerCase().includes(searchTxt.toLowerCase())) ||
                           (s.username && s.username.toLowerCase().includes(searchTxt.toLowerCase())) ||
                           (s.id && s.id.toLowerCase().includes(searchTxt.toLowerCase()));
       const matchRole = roleFilter === 'all' || s.role === roleFilter;
@@ -165,7 +166,7 @@ const Staff = () => {
             <tbody className="divide-y divide-slate-100">
               {filteredStaffs.map((s, index) => (
                 <tr key={s.id || `new-${index}`} className="hover:bg-slate-50/60 transition-colors border-b border-slate-100">
-                  <td className="p-4 font-mono font-bold text-slate-600">{s.staffCode || s.username || s.id || 'NEW'}</td>
+                  <td className="p-4 font-mono font-bold text-slate-600">{s.staff_code || (s as any).staffCode || s.username || s.id || 'NEW'}</td>
                   <td className="p-4 font-semibold text-slate-800">{s.name}</td>
                   <td className="p-4">
                     <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
@@ -221,7 +222,7 @@ const Staff = () => {
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <h3 className="font-bold text-gray-900">{s.name}</h3>
-                    <span className="font-mono text-xs text-gray-500">{s.staffCode || s.username || s.id || 'NEW'}</span>
+                    <span className="font-mono text-xs text-gray-500">{s.staff_code || (s as any).staffCode || s.username || s.id || 'NEW'}</span>
                   </div>
                   <span className={`px-2 py-1 rounded text-[10px] font-bold ${
                     s.role === 'Admin' ? 'bg-purple-100 text-purple-700' :

@@ -15,7 +15,7 @@ import {
 } from '../../utils/helpers';
 import { parseMonthAndYear, toDbDate } from '../../utils/dateStandardHelper';
 import { getCommissionRateForRecord } from '../../utils/calculations';
-import { supabase } from '../../lib/supabase';
+import { policyService } from '../../services/policyService';
 import { 
   FileDown, 
   FileUp, 
@@ -65,6 +65,8 @@ import { FinanceStatsCards } from './finance/FinanceStatsCards';
 import { FinanceFilterBar } from './finance/FinanceFilterBar';
 import { FinanceBatchModal } from './finance/FinanceBatchModal';
 import { FinanceLockModal } from './finance/FinanceLockModal';
+import { FinanceCashflowStatement } from './finance/FinanceCashflowStatement';
+import { FinanceTransactionsTable } from './finance/FinanceTransactionsTable';
 import { printReceipt as executePrintReceipt, exportReceiptAsImage } from './finance/receiptService';
 import { SubmissionBatchReport } from './finance/SubmissionBatchReport';
 import { hasPermission } from '../../utils/permissions';
@@ -184,8 +186,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       let sortVal = 0;
       const yrMatch = key.match(/20\d{2}/);
       const mMatch = key.match(/(?:month[:_]|thang[_\s]?)(\d{1,2})/i) || key.match(/[-/](\d{1,2})/);
-      const yr = yrMatch ? parseInt(yrMatch[0], 10) : 2026;
-      const mo = mMatch ? parseInt(mMatch[1], 10) : 1;
+      const yr = yrMatch && yrMatch[0] ? parseInt(yrMatch[0], 10) : 2026;
+      const mo = mMatch && mMatch[1] ? parseInt(mMatch[1], 10) : 1;
       sortVal = yr * 100 + mo;
       return { key, label, sortVal };
     });
@@ -553,7 +555,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     }
 
     try {
-      await updateRecord(id, { paymentStatus: newStatus });
+      await updateRecord(id, { payment_status: newStatus });
       addAuditLog?.(
         'Đổi trạng thái thanh toán',
         `Đổi trạng thái giao dịch TXN${id} của ${target.name} sang "${newStatus}"`
@@ -575,7 +577,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     }
 
     try {
-      await updateRecord(id, { staffId: newStaffId, staff_id: newStaffId });
+      await updateRecord(id, { staff_id: newStaffId });
       const staffName = staff.find((s: any) => s.id === newStaffId)?.name || 'Hệ thống';
       addAuditLog?.(
         'Đổi nhân viên phụ trách',
@@ -670,9 +672,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
       await Promise.all(
         updates.map(u => updateRecord(u.id, {
-          isSubmittedBHXH: u.isSubmittedBHXH,
-          submissionBatch: u.submissionBatch,
-          submittedDate: u.submittedDate
+          is_submitted_bhxh: u.isSubmittedBHXH,
+          submission_batch: u.submissionBatch,
+          submitted_date: u.submittedDate
         }))
       );
 
@@ -692,9 +694,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     try {
       await Promise.all(
         targetIds.map(id => updateRecord(id, {
-          isSubmittedBHXH: false,
-          submissionBatch: null,
-          submittedDate: null
+          is_submitted_bhxh: false,
+          submission_batch: undefined,
+          submitted_date: undefined
         }))
       );
       addAuditLog?.('Hủy chuyển nộp BHXH', `Hủy đánh dấu chuyển nộp cho ${targetIds.length} hồ sơ`);
@@ -735,23 +737,18 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       }
 
       if (activePolicy) {
-        await supabase
-          .from('policies')
-          .update({
-            value: { lockedKeys: currentArr },
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', activePolicy.id);
+        await policyService.updatePolicy(activePolicy.id, {
+          value: { lockedKeys: currentArr }
+        });
       } else {
-        await supabase
-          .from('policies')
-          .insert({
-            parameter_type: 'locked_periods',
-            name: 'Khóa kỳ tài chính',
-            is_active: true,
-            value: { lockedKeys: currentArr },
-            description: 'Danh sách các kỳ tài chính đã chốt khóa'
-          });
+        await policyService.addPolicy({
+          parameter_type: 'locked_periods',
+          name: 'Khóa kỳ tài chính',
+          is_active: true,
+          value: { lockedKeys: currentArr },
+          effective_date: new Date().toISOString().split('T')[0] || '2026-01-01',
+          description: 'Danh sách các kỳ tài chính đã chốt khóa'
+        });
       }
 
       await refreshData();
@@ -1013,7 +1010,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           )}
 
           {/* Nhập Excel Giao dịch */}
-          {hasPermission(currentUser, 'records.create', settings) && (
+          {hasPermission(currentUser, 'customers.create', settings) && (
             <label className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl text-xs font-semibold transition shadow-xs flex items-center cursor-pointer">
               <FileUp size={15} className="mr-1 text-slate-500" />
               <span>{isFinanceImporting ? 'Đang nạp...' : 'Nhập Excel'}</span>
@@ -1098,172 +1095,12 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           />
 
           {/* 3. BẢNG THỐNG KÊ DÒNG TIỀN & CÂN ĐỐI TÀI CHÍNH TOÀN DIỆN (CASH FLOW STATEMENT) */}
-          <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
-            <div 
-              onClick={() => setShowCashflowStatement(prev => !prev)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowCashflowStatement(prev => !prev); }}
-              className="p-4 bg-slate-50/80 border-b border-slate-200 flex items-center justify-between cursor-pointer select-none hover:bg-slate-100/70 transition"
-            >
-              <div className="flex items-center gap-2.5">
-                <Landmark size={18} className="text-[#004182]" />
-                <div>
-                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">
-                    Bảng Thống Kê Dòng Tiền & Cân Đối Tài Chính ({currentPeriodLabel})
-                  </h3>
-                  <p className="text-[11px] text-slate-500">
-                    Phân tích chi tiết dòng tiền vào, dòng tiền ra, chi phí hoa hồng và tồn quỹ đối soát cơ quan BHXH
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 text-xs font-semibold text-slate-600">
-                <span className="font-mono tabular-nums text-[#004182] font-bold">
-                  Tồn quỹ: {formatMoney(cashflowSummary.netAgencyFunds)}
-                </span>
-                {showCashflowStatement ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </div>
-            </div>
-
-            {showCashflowStatement && (
-              <div className="p-4 sm:p-5">
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                  {/* Cột 1: Dòng tiền vào (Inflow) */}
-                  <div className="bg-slate-50/60 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <ArrowDownRight size={15} className="text-emerald-600" />
-                          1. DÒNG TIỀN VÀO (THU KHÁCH HÀNG)
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          {cashflowSummary.countPaid + cashflowSummary.countPending} GD
-                        </span>
-                      </div>
-                      <div className="space-y-2.5 text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600 flex items-center gap-1">
-                            <CheckCircle2 size={13} className="text-emerald-500" /> Thực thu từ khách hàng:
-                          </span>
-                          <span className="font-mono tabular-nums text-right font-bold text-emerald-700">
-                            +{formatMoney(cashflowSummary.totalCollected)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600 flex items-center gap-1">
-                            <Clock size={13} className="text-amber-500" /> Công nợ chờ thanh toán:
-                          </span>
-                          <span className="font-mono tabular-nums text-right font-semibold text-amber-700">
-                            {formatMoney(cashflowSummary.totalPending)}
-                          </span>
-                        </div>
-                        {cashflowSummary.countCancelled > 0 && (
-                          <div className="flex justify-between items-center text-slate-400">
-                            <span>Hồ sơ đã hủy ({cashflowSummary.countCancelled}):</span>
-                            <span className="font-mono tabular-nums text-right">
-                              {formatMoney(cashflowSummary.totalCancelled)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pt-3 mt-3 border-t border-slate-200 flex justify-between items-baseline">
-                      <span className="text-xs font-bold text-slate-700">Tổng Thực Thu Được:</span>
-                      <span className="font-mono tabular-nums text-right text-base font-black text-emerald-700">
-                        {formatMoney(cashflowSummary.totalCollected)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cột 2: Dòng tiền ra & Nghiệp vụ (Outflow) */}
-                  <div className="bg-slate-50/60 rounded-xl p-4 border border-slate-200 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-slate-200">
-                        <span className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <ArrowUpRight size={15} className="text-blue-600" />
-                          2. DÒNG TIỀN RA & QUYẾT TOÁN
-                        </span>
-                        <span className="text-[11px] text-slate-500 font-mono">
-                          {cashflowSummary.countSubmitted} đợt nộp
-                        </span>
-                      </div>
-                      <div className="space-y-2.5 text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Đã nộp cơ quan BHXH:</span>
-                          <span className="font-mono tabular-nums text-right font-bold text-slate-800">
-                            -{formatMoney(cashflowSummary.submittedToAgency)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Hoa hồng chi trả nhân viên:</span>
-                          <span className="font-mono tabular-nums text-right font-semibold text-[#b45309]">
-                            -{formatMoney(cashflowSummary.totalCommissionPaid)}
-                          </span>
-                        </div>
-                        {cashflowSummary.totalClawback > 0 && (
-                          <div className="flex justify-between items-center">
-                            <span className="text-rose-600">Thu hồi hoa hồng / Clawback:</span>
-                            <span className="font-mono tabular-nums text-right font-bold text-rose-600">
-                              -{formatMoney(cashflowSummary.totalClawback)}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="pt-3 mt-3 border-t border-slate-200 flex justify-between items-baseline">
-                      <span className="text-xs font-bold text-slate-700">Tổng Đã Chi / Chuyển:</span>
-                      <span className="font-mono tabular-nums text-right text-base font-black text-slate-800">
-                        {formatMoney(cashflowSummary.submittedToAgency + cashflowSummary.totalCommissionPaid)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Cột 3: Tồn quỹ & Cân đối ròng (Net Balance) */}
-                  <div className="bg-blue-50/40 rounded-xl p-4 border border-blue-200 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center justify-between mb-3 pb-2 border-b border-blue-200">
-                        <span className="text-xs font-bold text-[#004182] flex items-center gap-1.5">
-                          <Wallet size={15} className="text-[#004182]" />
-                          3. CÂN ĐỐI TỒN QUỸ RÒNG
-                        </span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-100 text-[#004182]">
-                          Đối soát
-                        </span>
-                      </div>
-                      <div className="space-y-2.5 text-xs">
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Tiền giữ hộ chưa nộp BHXH:</span>
-                          <span className="font-mono tabular-nums text-right font-bold text-blue-800">
-                            {formatMoney(cashflowSummary.unsubmittedToAgency)}
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Hồ sơ chờ nộp BHXH:</span>
-                          <span className="font-mono tabular-nums text-right font-semibold text-slate-700">
-                            {cashflowSummary.countUnsubmitted} hồ sơ
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-slate-600">Tỷ lệ hoàn thành nộp BHXH:</span>
-                          <span className="font-mono tabular-nums text-right font-bold text-[#004182]">
-                            {cashflowSummary.countPaid > 0 
-                              ? `${Math.round((cashflowSummary.countSubmitted / cashflowSummary.countPaid) * 100)}%` 
-                              : '0%'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="pt-3 mt-3 border-t border-blue-200 flex justify-between items-baseline">
-                      <span className="text-xs font-bold text-[#004182]">Tồn Quỹ Thực Tế:</span>
-                      <span className="font-mono tabular-nums text-right text-base font-black text-[#004182]">
-                        {formatMoney(cashflowSummary.netAgencyFunds)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
+          <FinanceCashflowStatement
+            currentPeriodLabel={currentPeriodLabel}
+            cashflowSummary={cashflowSummary}
+            showCashflowStatement={showCashflowStatement}
+            setShowCashflowStatement={setShowCashflowStatement}
+          />
 
           {/* 4. Thanh lọc giao dịch thông minh & Bộ lọc kế toán */}
           <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
@@ -1276,314 +1113,34 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
               onReset={handleResetFilters}
             />
 
-            {/* 5. Bảng giao dịch tài chính với font-mono căn chỉnh thẳng hàng */}
-            <div className="overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50/90 text-slate-600 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        className="w-4 h-4 rounded border-slate-300 text-[#004182] focus:ring-[#004182] cursor-pointer"
-                        checked={selectedIds.length === paginatedRecords.length && paginatedRecords.length > 0}
-                        onChange={handleSelectAll}
-                      />
-                    </th>
-                    <th className="p-4">Mã GD & Thời Gian</th>
-                    <th className="p-4">Khách Hàng</th>
-                    <th className="p-4">Loại GD</th>
-                    <th className="p-4">Kỳ Đóng</th>
-                    <th className="p-4 text-right">Số Tiền Thu</th>
-                    <th className="p-4 text-right">Hoa Hồng</th>
-                    <th className="p-4">Nhân Viên Thu</th>
-                    <th className="p-4">Trạng Thái</th>
-                    <th className="p-4 text-center">Chuyển BHXH</th>
-                    <th className="p-4 text-center">Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedRecords.length === 0 ? (
-                    <tr>
-                      <td colSpan={11} className="p-12 text-center text-slate-500">
-                        Không tìm thấy giao dịch nào phù hợp với điều kiện lọc.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedRecords.map((r: any, index: number) => {
-                      const recLocked = isDateLocked(r.date, lockedKeys);
-                      const actionTag = r.isAdjustment
-                        ? <span className="bg-rose-100 text-rose-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><RotateCcw size={10} className="mr-1" /> Bù trừ âm</span>
-                        : r.actionType === 'Gia hạn' 
-                          ? <span className="bg-[#FDB913]/20 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><RotateCw size={10} className="mr-1" /> Gia hạn</span>
-                          : <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-[10px] font-bold uppercase flex items-center w-fit"><Plus size={10} className="mr-1" /> Mới</span>;
-
-                      const statusColors: any = {
-                        'Đã thu tiền': 'text-emerald-700 bg-emerald-50 border-emerald-200',
-                        'Chờ thanh toán': 'text-amber-700 bg-amber-50 border-amber-200',
-                        'Đã hủy': 'text-rose-700 bg-rose-50 border-rose-200'
-                      };
-                      const colorClass = statusColors[r.paymentStatus] || statusColors['Đã thu tiền'];
-                      const periodStr = (r.fromMonth && r.toMonth) ? `${formatMonthVN(r.fromMonth)} - ${formatMonthVN(r.toMonth)}` : '---';
-
-                      const rate = getCommissionRateForRecord(r, policies, settings);
-                      const commAmount = Number(r.amount) * rate;
-
-                      return (
-                        <tr 
-                          key={r.id || `rec-${index}`} 
-                          className={`hover:bg-slate-50/80 transition border-b border-slate-100 ${
-                            recLocked ? 'bg-amber-50/20' : (r.id && selectedIds.includes(r.id) ? 'bg-blue-50/40' : '')
-                          }`}
-                        >
-                          <td className="p-4 text-center">
-                            <input 
-                              type="checkbox" 
-                              className="w-4 h-4 rounded border-slate-300 text-[#004182] focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
-                              checked={r.id ? selectedIds.includes(r.id) : false}
-                              onChange={() => r.id && handleSelectRow(r.id)}
-                              disabled={!r.id || recLocked}
-                              title={recLocked ? "Dữ liệu kỳ này đã bị khóa" : ""}
-                            />
-                          </td>
-                          <td className="p-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className="text-xs font-mono font-bold text-slate-600">
-                                TXN{r.id ? r.id.toString().slice(-6) : 'NEW'}
-                              </span>
-                              {recLocked && (
-                                <span className="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded text-[10px] font-bold inline-flex items-center gap-0.5">
-                                  <Lock size={10} /> Đã khóa
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-xs font-mono tabular-nums text-slate-400 block mt-0.5">
-                              {new Date(r.date).toLocaleString('vi-VN', {hour:'2-digit', minute:'2-digit', day:'2-digit', month:'2-digit', year:'numeric'})}
-                            </span>
-                          </td>
-                          <td className="p-4">
-                            <p className="font-semibold text-slate-800 text-sm">{r.name}</p>
-                            <p className="text-[11px] font-mono text-slate-500">{r.bhxh || r.cccd || r.phone}</p>
-                          </td>
-                          <td className="p-4">
-                            <div className="flex flex-col items-start gap-1">
-                              <span className={`font-bold text-xs ${r.type === 'BHXH' ? 'text-[#004182]' : 'text-sky-700'}`}>
-                                {r.type}
-                              </span>
-                              {actionTag}
-                            </div>
-                          </td>
-                          <td className="p-4 text-xs font-mono tabular-nums text-slate-600 font-medium">
-                            {periodStr}
-                          </td>
-                          {/* SỐ TIỀN THU: font-mono tabular-nums text-right */}
-                          <td className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
-                            r.amount < 0 ? 'text-rose-600' : 'text-[#004182]'
-                          }`}>
-                            {formatMoney(r.amount)}
-                          </td>
-                          {/* HOA HỒNG: font-mono tabular-nums text-right */}
-                          <td className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
-                            commAmount < 0 ? 'text-rose-600' : 'text-emerald-700'
-                          }`}>
-                            {commAmount > 0 ? '+' : ''}{formatMoney(commAmount)}
-                          </td>
-                          <td className="p-4">
-                            {currentUser?.role === 'Nhân viên' ? (
-                              <span className="text-xs font-medium text-slate-700">
-                                {staff.find((s: any) => s.id === r.staffId)?.name || '-- Trống --'}
-                              </span>
-                            ) : (
-                              <select 
-                                value={r.staffId || ''} 
-                                onChange={e => r.id && changeStaff(r.id, e.target.value)} 
-                                disabled={!r.id || recLocked} 
-                                className="text-xs font-medium rounded-lg px-2 py-1 border border-slate-200 outline-none cursor-pointer bg-white text-slate-700 max-w-[120px] disabled:opacity-50 disabled:cursor-not-allowed"
-                              >
-                                <option value="">-- Trống --</option>
-                                {staff.map((s: any) => (
-                                  <option key={s.id} value={s.id}>{s.name}</option>
-                                ))}
-                              </select>
-                            )}
-                          </td>
-                          <td className="p-4">
-                            <select 
-                              value={r.paymentStatus || 'Chờ thanh toán'} 
-                              onChange={e => r.id && changePaymentStatus(r.id, e.target.value)} 
-                              disabled={!r.id || recLocked || (!canCollect && !canRefund && currentUser?.role !== 'Admin')} 
-                              className={`text-xs font-bold rounded-lg px-2 py-1 border outline-none cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${colorClass}`}
-                            >
-                              <option value="Đã thu tiền">Đã thu tiền</option>
-                              <option value="Chờ thanh toán">Chờ thanh toán</option>
-                              <option value="Đã hủy">Đã hủy</option>
-                            </select>
-                          </td>
-                          <td className="p-4 text-center">
-                            {r.isSubmittedBHXH ? (
-                              <div className="inline-flex flex-col items-center">
-                                <button
-                                  type="button"
-                                  onClick={() => r.id && handleOpenBatchModalSingle(r)}
-                                  disabled={!r.id || recLocked}
-                                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-300 hover:bg-emerald-100 shadow-xs transition cursor-pointer disabled:opacity-50"
-                                  title="Xem/sửa đợt nộp"
-                                >
-                                  <CheckSquare size={13} className="text-emerald-600" />
-                                  <span>Đã chuyển</span>
-                                </button>
-                                {(r.submissionBatch || r.submittedDate) && (
-                                  <span className="text-[11px] font-mono font-bold text-emerald-800 mt-1 whitespace-nowrap bg-emerald-100/70 px-2 py-0.5 rounded-md border border-emerald-200">
-                                    {r.submissionBatch || 'Đợt chuyển'}{r.submittedDate ? ` (${dateISOToVN(r.submittedDate)})` : ''}
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <button
-                                type="button"
-                                onClick={() => r.id && handleOpenBatchModalSingle(r)}
-                                disabled={!r.id || recLocked}
-                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold bg-slate-50 text-slate-500 border border-slate-200 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-300 transition cursor-pointer disabled:opacity-50"
-                                title="Bấm để ghi nhận chuyển nộp BHXH"
-                              >
-                                <Square size={13} className="text-slate-400" />
-                                <span>Chưa chuyển</span>
-                              </button>
-                            )}
-                          </td>
-                          <td className="p-4 text-center">
-                            <div className="flex items-center justify-center gap-1">
-                              <button 
-                                type="button"
-                                onClick={() => { setVietQrRecord(r); setIsVietQrOpen(true); }}
-                                className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition cursor-pointer" 
-                                title="Mã VietQR nộp tiền (NAPAS 247)"
-                              >
-                                <QrCode size={15} />
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => r.id && handlePrintReceipt(r.id)} 
-                                disabled={!r.id} 
-                                className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer" 
-                                title="In biên lai thu tiền"
-                              >
-                                <Printer size={15} />
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => r.id && handleExportReceiptImage(r.id)} 
-                                disabled={!r.id} 
-                                className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-40 transition cursor-pointer" 
-                                title="Xuất file ảnh biên lai"
-                              >
-                                <Image size={15} />
-                              </button>
-                              <button 
-                                type="button"
-                                onClick={() => r.id && confirmDelete(r.id)} 
-                                disabled={!r.id || recLocked || Boolean(r.isSubmittedBHXH)} 
-                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-40 transition cursor-pointer" 
-                                title={r.isSubmittedBHXH ? "Không thể xóa hồ sơ đã chuyển cơ quan BHXH" : "Xóa"}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-
-                {/* HÀNG TỔNG KẾT DƯỚI BẢNG VỚI FONT-MONO CĂN PHẢI */}
-                {paginatedRecords.length > 0 && (
-                  <tfoot className="bg-slate-50/95 font-bold border-t border-slate-200 text-xs">
-                    <tr>
-                      <td colSpan={5} className="p-4 text-slate-700">
-                        Tổng cộng trang hiện tại ({paginatedRecords.length} / {totalCount} giao dịch):
-                      </td>
-                      <td className="p-4 font-mono tabular-nums text-right text-sm text-[#004182]">
-                        {formatMoney(paginatedRecords.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0))}
-                      </td>
-                      <td className="p-4 font-mono tabular-nums text-right text-sm text-emerald-700">
-                        {formatMoney(paginatedRecords.reduce((acc: number, r: any) => {
-                          const rate = getCommissionRateForRecord(r, policies, settings);
-                          return acc + (Number(r.amount) * rate);
-                        }, 0))}
-                      </td>
-                      <td colSpan={4}></td>
-                    </tr>
-                  </tfoot>
-                )}
-              </table>
-            </div>
-
-            {/* Phân trang */}
-            {totalPages > 1 && (
-              <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span>Hiển thị</span>
-                  <select
-                    value={itemsPerPage}
-                    onChange={e => {
-                      setItemsPerPage(Number(e.target.value));
-                      setCurrentPage(1);
-                    }}
-                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium outline-none cursor-pointer"
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                    <option value={100}>100</option>
-                  </select>
-                  <span>trên tổng {totalCount} giao dịch</span>
-                </div>
-
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(1)}
-                    disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                    title="Trang đầu"
-                  >
-                    <ChevronsLeft size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                    title="Trang trước"
-                  >
-                    <ChevronLeft size={16} />
-                  </button>
-
-                  <span className="px-3 py-1 text-xs font-semibold text-slate-700">
-                    Trang {currentPage} / {totalPages}
-                  </span>
-
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                    title="Trang sau"
-                  >
-                    <ChevronRight size={16} />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage(totalPages)}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition cursor-pointer"
-                    title="Trang cuối"
-                  >
-                    <ChevronsRight size={16} />
-                  </button>
-                </div>
-              </div>
-            )}
+            {/* 5. Bảng giao dịch tài chính */}
+            <FinanceTransactionsTable
+              paginatedRecords={paginatedRecords}
+              totalCount={totalCount}
+              selectedIds={selectedIds}
+              handleSelectAll={handleSelectAll}
+              handleSelectRow={handleSelectRow}
+              changeStaff={changeStaff}
+              changePaymentStatus={changePaymentStatus}
+              handleOpenBatchModalSingle={handleOpenBatchModalSingle}
+              handlePrintReceipt={handlePrintReceipt}
+              handleExportReceiptImage={handleExportReceiptImage}
+              confirmDelete={confirmDelete}
+              setVietQrRecord={setVietQrRecord}
+              setIsVietQrOpen={setIsVietQrOpen}
+              currentPage={currentPage}
+              setCurrentPage={setCurrentPage}
+              totalPages={totalPages}
+              itemsPerPage={itemsPerPage}
+              setItemsPerPage={setItemsPerPage}
+              lockedKeys={lockedKeys}
+              policies={policies}
+              settings={settings}
+              staff={staff}
+              currentUser={currentUser}
+              canCollect={canCollect}
+              canRefund={canRefund}
+            />
           </div>
         </>
       )}

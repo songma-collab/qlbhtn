@@ -6,8 +6,8 @@ export type PeriodMode = 'MONTH' | 'RANGE' | 'ALL';
 export interface PeriodFilterValue {
   mode: PeriodMode;
   selectedMonth: string; // 'YYYY-MM'
-  startDate?: string;    // 'YYYY-MM-DD'
-  endDate?: string;      // 'YYYY-MM-DD'
+  startDate?: string | undefined;    // 'YYYY-MM-DD'
+  endDate?: string | undefined;      // 'YYYY-MM-DD'
 }
 
 export interface TransactionFilterState {
@@ -17,10 +17,10 @@ export interface TransactionFilterState {
   staffId: string;
   periodType: 'MONTH' | 'QUARTER' | 'YEAR' | 'ALL' | 'CUSTOM' | 'RANGE';
   selectedMonth: string; // Định dạng 'YYYY-MM'
-  customStartDate?: string;
-  customEndDate?: string;
-  startDate?: string;
-  endDate?: string;
+  customStartDate?: string | undefined;
+  customEndDate?: string | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
 }
 
 export const DEFAULT_TRANSACTION_FILTER_STATE: TransactionFilterState = {
@@ -249,10 +249,10 @@ export function matchesTransactionSearch(record: any, query: string): boolean {
 }
 
 export interface FilterTransactionOptions {
-  type?: 'BHXH' | 'BHYT';
-  currentUserRole?: string;
-  currentUserId?: string;
-  referenceDateStr?: string;
+  type?: ('BHXH' | 'BHYT') | undefined;
+  currentUserRole?: string | undefined;
+  currentUserId?: string | undefined;
+  referenceDateStr?: string | undefined;
 }
 
 /**

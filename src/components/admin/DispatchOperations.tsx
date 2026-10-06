@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer } from '../../utils/helpers';
-import { supabase } from '../../lib/supabase';
+import { recordService, auditService } from '../../services';
 import {
   Users,
   AlertTriangle,
@@ -133,8 +133,9 @@ const DispatchOperations: React.FC = () => {
       let daysRemaining = 999;
       let slaStatus: CustomerItem['slaStatus'] = 'safe';
 
-      if (r.nextPayment) {
-        const nextDate = new Date(r.nextPayment);
+      const nextPay = r.next_payment || (r as any).nextPayment;
+      if (nextPay) {
+        const nextDate = new Date(nextPay);
         nextDate.setHours(0, 0, 0, 0);
         const diffTime = nextDate.getTime() - today.getTime();
         daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
@@ -160,17 +161,17 @@ const DispatchOperations: React.FC = () => {
         bhxh: r.bhxh || '',
         address: r.address || '',
         type: (r.type as 'BHXH' | 'BHYT') || 'BHXH',
-        actionType: r.actionType,
+        actionType: r.action_type || (r as any).actionType,
         amount: Number(r.amount) || 0,
         months: Number(r.months) || 12,
         method: r.method || (r.months ? `Đóng ${r.months} tháng` : ''),
-        fromMonth: r.fromMonth || '',
-        toMonth: r.toMonth || '',
+        fromMonth: r.from_month || (r as any).fromMonth || '',
+        toMonth: r.to_month || (r as any).toMonth || '',
         date: r.date,
-        nextPayment: r.nextPayment || '',
-        staffId: r.staffId || '',
+        nextPayment: nextPay || '',
+        staffId: r.staff_id || (r as any).staffId || '',
         notes: r.notes || '',
-        paymentStatus: r.paymentStatus,
+        paymentStatus: r.payment_status || (r as any).paymentStatus || '',
         status: r.status || 'Đang tham gia',
         daysRemaining,
         slaStatus
@@ -311,13 +312,8 @@ const DispatchOperations: React.FC = () => {
       const targetStaff = staff.find(s => s.id === targetStaffId);
       const staffName = targetStaff?.name || targetStaffId;
 
-      // Update in Supabase
-      const { error } = await supabase
-        .from('records')
-        .update({ staffId: targetStaffId })
-        .in('id', selectedIds);
-
-      if (error) throw error;
+      // Update qua recordService
+      await recordService.assignStaffToRecords(selectedIds, targetStaffId);
 
       await addAuditLog('Bulk Dispatch Reassignment', `Đã điều phối ${selectedIds.length} khách hàng cho cán bộ ${staffName}`);
 
@@ -337,20 +333,12 @@ const DispatchOperations: React.FC = () => {
   const handleUpdateNotes = async (customer: CustomerItem, newStatus: string) => {
     try {
       const updatedNotes = `${newStatus} (Cập nhật: ${new Date().toLocaleDateString('vi-VN')})`;
-      const targetId = Number(customer.id);
-
-      let query = supabase.from('records').update({ notes: updatedNotes });
-      if (!isNaN(targetId) && targetId > 0) {
-        query = query.eq('id', targetId);
-      } else if (customer.cccd) {
-        query = query.eq('cccd', customer.cccd);
-      } else if (customer.bhxh) {
-        query = query.eq('bhxh', customer.bhxh);
-      } else if (customer.phone) {
-        query = query.eq('phone', customer.phone);
-      }
-
-      const { error } = await query;
+      const { error } = await recordService.updateRecordNotes({
+        id: customer.id,
+        cccd: customer.cccd,
+        bhxh: customer.bhxh,
+        phone: customer.phone
+      }, updatedNotes);
 
       if (error) throw error;
 
@@ -373,7 +361,7 @@ const DispatchOperations: React.FC = () => {
     setLogResult('✅ Đã đồng ý & Hẹn ngày nộp tiền');
     const d = new Date();
     d.setDate(d.getDate() + 3);
-    setLogPromiseDate(d.toISOString().split('T')[0]);
+    setLogPromiseDate(d.toISOString().split('T')[0] ?? '');
     setLogPromiseAmount(c.amount || '');
     setLogContent('');
   };
@@ -395,14 +383,10 @@ const DispatchOperations: React.FC = () => {
 
       const targetId = Number(selectedCustomerForLog.id);
       if (!isNaN(targetId) && targetId > 0) {
-        const { error: rpcErr } = await supabase.rpc('log_customer_contact', {
-          p_record_id: targetId,
-          p_note: summary,
-          p_channel: logChannel
-        });
+        const { error: rpcErr } = await auditService.logCustomerContact(targetId, summary, logChannel);
         if (rpcErr) {
-          // Fallback an toàn trực tiếp theo ID duy nhất (không fallback theo SĐT hay CCCD)
-          const { error } = await supabase.from('records').update({ notes: fullLogNote }).eq('id', targetId);
+          // Fallback an toàn trực tiếp theo ID duy nhất qua recordService
+          const { error } = await recordService.updateRecordNotes({ id: targetId }, fullLogNote);
           if (error) throw error;
         }
       } else {
@@ -752,7 +736,7 @@ const DispatchOperations: React.FC = () => {
               >
                 <option value="all">Tất cả cán bộ</option>
                 {staff.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.staffCode || s.role})</option>
+                  <option key={s.id} value={s.id}>{s.name} ({s.staff_code || (s as any).staffCode || s.role})</option>
                 ))}
               </select>
             </div>
@@ -786,7 +770,7 @@ const DispatchOperations: React.FC = () => {
                 <div className="flex items-center justify-between">
                   <span className="font-bold text-xs text-slate-900 truncate max-w-[140px]">{s.name}</span>
                   <span className="text-[10px] font-mono px-1.5 py-0.5 bg-slate-200 text-slate-700 rounded">
-                    {s.staffCode || s.role}
+                    {s.staff_code || (s as any).staffCode || s.role}
                   </span>
                 </div>
                 <div className="mt-2 grid grid-cols-3 gap-1 text-[11px] text-center">
@@ -951,7 +935,7 @@ const DispatchOperations: React.FC = () => {
                       {/* Assigned Staff */}
                       <td className="py-3.5 px-3">
                         <div className="font-bold text-slate-800">{staffObj?.name || 'Chưa phân công'}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">{staffObj?.staffCode || staffObj?.role || ''}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{staffObj?.staff_code || (staffObj as any)?.staffCode || staffObj?.role || ''}</div>
                       </td>
 
                       {/* Interaction Status */}
@@ -1172,7 +1156,7 @@ const DispatchOperations: React.FC = () => {
               >
                 <option value="">-- Chọn cán bộ tiếp nhận --</option>
                 {staff.map(s => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.staffCode || s.role})</option>
+                  <option key={s.id} value={s.id}>{s.name} ({s.staff_code || (s as any).staffCode || s.role})</option>
                 ))}
               </select>
             </div>

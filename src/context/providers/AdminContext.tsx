@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import type { StaffType, SettingsType, AuditLogType } from '../types';
-import { supabase } from '../../lib/supabase';
+import { authService, staffService, auditService, systemSettingService, policyService } from '../../services';
 import { logSecurityAudit } from '../../utils/security';
 import { DEFAULT_SYSTEM_POLICIES } from '../../data/defaultPolicies';
 import {
@@ -89,47 +89,37 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
         }
       }
 
-      // 1. Kiểm tra session hợp lệ trực tiếp với Supabase Auth Server (chữ ký số mật mã)
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      // 1. Kiểm tra session hợp lệ trực tiếp với Auth Server (chữ ký số mật mã)
+      const { data: { user }, error: authError } = await authService.getUser();
 
       if (authError || !user) {
         setCurrentUserState(null);
         return;
       }
 
-      // 2. Tra cứu hồ sơ nhân sự chính thức từ Server qua RPC get_current_staff_profile
+      // 2. Tra cứu hồ sơ nhân sự chính thức từ Server qua staffService
       let staffUser: StaffType | null = null;
       try {
-        const { data: rpcRes, error: rpcErr } = await supabase.rpc('get_current_staff_profile');
-        if (!rpcErr && rpcRes?.success && rpcRes?.profile) {
-          staffUser = rpcRes.profile;
+        const { profile } = await staffService.getCurrentStaffProfile();
+        if (profile) {
+          staffUser = profile;
         }
       } catch (rpcEx) {
-        console.warn('[AdminContext] RPC get_current_staff_profile fallback:', rpcEx);
+        console.warn('[AdminContext] staffService.getCurrentStaffProfile fallback:', rpcEx);
       }
 
       // 3. Fallback: Nếu RPC chưa nạp hoặc trả về null, tra cứu theo auth_user_id
       if (!staffUser) {
-        const { data: byAuthId } = await supabase
-          .from('staff')
-          .select('id, name, email, role, status, staffCode, area, username')
-          .eq('auth_user_id', user.id)
-          .maybeSingle();
-
+        const byAuthId = await staffService.getStaffByAuthId(user.id);
         if (byAuthId) {
-          staffUser = byAuthId as StaffType;
+          staffUser = byAuthId;
         } else if (user.email) {
           const userEmail = user.email.trim().toLowerCase();
-          const { data: byEmail } = await supabase
-            .from('staff')
-            .select('id, name, email, role, status, staffCode, area, username')
-            .ilike('email', userEmail)
-            .maybeSingle();
-
+          const byEmail = await staffService.getStaffByEmail(userEmail);
           if (byEmail) {
-            staffUser = byEmail as StaffType;
+            staffUser = byEmail;
             // Tự động liên kết auth_user_id vào hồ sơ nhân sự
-            await supabase.from('staff').update({ auth_user_id: user.id }).eq('id', byEmail.id);
+            await staffService.bindStaffAuthUser(byEmail.id, user.id);
           }
         }
       }
@@ -138,7 +128,7 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
       if (staffUser) {
         if (staffUser.status === 'Tạm khóa') {
           console.warn('[AdminContext] Tài khoản nhân viên đang bị tạm khóa. Đăng xuất ngay.');
-          await supabase.auth.signOut();
+          await authService.signOut();
           setCurrentUserState(null);
         } else {
           const { password, ...safeStaff } = staffUser as any;
@@ -156,11 +146,11 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
     }
   }, []);
 
-  // Lắng nghe sự kiện xác thực thời gian thực từ Supabase Auth
+  // Lắng nghe sự kiện xác thực thời gian thực từ Auth Service
   useEffect(() => {
     verifyAndSyncSession();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (event, session) => {
       if (event === 'SIGNED_OUT' || !session) {
         setCurrentUserState(null);
         if (typeof window !== 'undefined') {
@@ -184,9 +174,9 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
   const fetchAdminData = useCallback(async () => {
     try {
       const [settingsRes, staffRes, logsRes] = await Promise.all([
-        supabase.from('settings').select('*').eq('id', 1).maybeSingle(),
-        supabase.from('staff').select('*'),
-        isAdmin ? supabase.from('auditlogs').select('*').order('timestamp', { ascending: false }).limit(500) : Promise.resolve({ data: [] })
+        systemSettingService.fetchSettings(),
+        staffService.fetchAllStaff(),
+        isAdmin ? auditService.fetchAuditLogs(500) : Promise.resolve({ data: [] as AuditLogType[], error: null })
       ]);
 
       if (settingsRes.data) {
@@ -219,10 +209,10 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
 
   const addStaff = useCallback(async (newStaffData: StaffType): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('staff').insert([newStaffData]);
+      const { success, error } = await staffService.addStaff(newStaffData);
       if (error) throw error;
       await fetchAdminData();
-      return true;
+      return success;
     } catch (error: any) {
       console.error('Error adding staff:', error);
       throw error;
@@ -231,10 +221,10 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
 
   const updateStaff = useCallback(async (id: string, updatedFields: Partial<StaffType>): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('staff').update(updatedFields).eq('id', id);
+      const { success, error } = await staffService.updateStaff(id, updatedFields);
       if (error) throw error;
       await fetchAdminData();
-      return true;
+      return success;
     } catch (error: any) {
       console.error('Error updating staff:', error);
       return false;
@@ -243,10 +233,10 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
 
   const deleteStaff = useCallback(async (id: string): Promise<boolean> => {
     try {
-      const { error } = await supabase.from('staff').delete().eq('id', id);
+      const { success, error } = await staffService.deleteStaff(id);
       if (error) throw error;
       await fetchAdminData();
-      return true;
+      return success;
     } catch (error: any) {
       console.error('Error deleting staff:', error);
       return false;
@@ -269,23 +259,14 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
         }
 
         try {
-          const existingPolicy = policies.find(p => p.parameter_type === 'payment_vietqr');
-          if (existingPolicy?.id) {
-            await supabase.from('policies').update({
-              value: vietQRConfig,
-              is_active: true
-            }).eq('id', existingPolicy.id);
-          } else {
-            await supabase.from('policies').insert([{
-              parameter_type: 'payment_vietqr',
-              name: 'Cấu hình VietQR Đại lý',
-              value: vietQRConfig,
-              effective_date: '2026-01-01',
-              description: 'Cấu hình tài khoản ngân hàng thụ hưởng VietQR NAPAS 247 của Đại lý',
-              notes: 'Cấu hình tài khoản ngân hàng thụ hưởng VietQR NAPAS 247 của Đại lý',
-              is_active: true
-            }]);
-          }
+          await policyService.upsertPolicy('payment_vietqr', {
+            name: 'Cấu hình VietQR Đại lý',
+            value: vietQRConfig,
+            effective_date: '2026-01-01',
+            description: 'Cấu hình tài khoản ngân hàng thụ hưởng VietQR NAPAS 247 của Đại lý',
+            notes: 'Cấu hình tài khoản ngân hàng thụ hưởng VietQR NAPAS 247 của Đại lý',
+            is_active: true
+          });
         } catch (policyErr) {
           console.warn('[AdminContext] Lưu policy payment_vietqr:', policyErr);
         }
@@ -299,23 +280,14 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
         (updatedFields as any).role_permissions = cleanRolePerms;
 
         try {
-          const existingPolicy = policies.find(p => p.parameter_type === 'rbac_role_permissions');
-          if (existingPolicy?.id) {
-            await supabase.from('policies').update({
-              value: cleanRolePerms,
-              is_active: true
-            }).eq('id', existingPolicy.id);
-          } else {
-            await supabase.from('policies').insert([{
-              parameter_type: 'rbac_role_permissions',
-              name: 'Bảng Phân Quyền Vai Trò RBAC',
-              value: cleanRolePerms,
-              effective_date: '2026-01-01',
-              description: 'Cấu hình phân quyền vai trò nhân sự và cán bộ đại lý',
-              notes: 'Ma trận phân quyền vai trò chi tiết quản trị viên thiết lập',
-              is_active: true
-            }]);
-          }
+          await policyService.upsertPolicy('rbac_role_permissions', {
+            name: 'Bảng Phân Quyền Vai Trò RBAC',
+            value: cleanRolePerms,
+            effective_date: '2026-01-01',
+            description: 'Cấu hình phân quyền vai trò nhân sự và cán bộ đại lý',
+            notes: 'Ma trận phân quyền vai trò chi tiết quản trị viên thiết lập',
+            is_active: true
+          });
         } catch (rbacErr) {
           console.warn('[AdminContext] Lưu policy rbac_role_permissions:', rbacErr);
         }
@@ -329,45 +301,30 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
         (updatedFields as any).user_overrides = cleanUserOverrides;
 
         try {
-          const existingPolicy = policies.find(p => p.parameter_type === 'rbac_user_overrides');
-          if (existingPolicy?.id) {
-            await supabase.from('policies').update({
-              value: cleanUserOverrides,
-              is_active: true
-            }).eq('id', existingPolicy.id);
-          } else {
-            await supabase.from('policies').insert([{
-              parameter_type: 'rbac_user_overrides',
-              name: 'Phân Quyền Đặc Cách Riêng Theo Nhân Viên',
-              value: cleanUserOverrides,
-              effective_date: '2026-01-01',
-              description: 'Cấu hình phân quyền đặc cách riêng (User Overrides) cho từng cán bộ thu',
-              notes: 'Quyền cấp thêm hoặc chặn riêng cho từng tài khoản nhân viên',
-              is_active: true
-            }]);
-          }
+          await policyService.upsertPolicy('rbac_user_overrides', {
+            name: 'Phân Quyền Đặc Cách Riêng Theo Nhân Viên',
+            value: cleanUserOverrides,
+            effective_date: '2026-01-01',
+            description: 'Cấu hình phân quyền đặc cách riêng (User Overrides) cho từng cán bộ thu',
+            notes: 'Quyền cấp thêm hoặc chặn riêng cho từng tài khoản nhân viên',
+            is_active: true
+          });
 
-          // Đồng bộ đặc cách riêng trực tiếp vào bảng staff cho từng nhân viên
+          // Đồng bộ đặc cách riêng trực tiếp vào bảng staff cho từng nhân viên qua staffService
           const staffEntries = Object.entries(cleanUserOverrides);
           for (const [staffId, override] of staffEntries) {
             const ov = override as { granted?: string[]; revoked?: string[] };
-            await supabase.from('staff').update({
-              custom_permissions: ov?.granted || [],
-              revoked_permissions: ov?.revoked || []
-            }).eq('id', staffId);
+            await staffService.updateStaffCustomPermissions(staffId, ov?.granted || [], ov?.revoked || []);
           }
         } catch (overrideErr) {
           console.warn('[AdminContext] Lưu policy rbac_user_overrides / staff:', overrideErr);
         }
       }
 
-      // Gọi RPC save_rbac_permissions nếu có cập nhật quyền
+      // Gọi RPC save_rbac_permissions qua staffService nếu có cập nhật quyền
       if (cleanRolePerms || cleanUserOverrides) {
         try {
-          await supabase.rpc('save_rbac_permissions', {
-            p_role_permissions: cleanRolePerms || null,
-            p_user_overrides: cleanUserOverrides || null
-          });
+          await staffService.saveRbacPermissions(cleanRolePerms, cleanUserOverrides);
         } catch (rpcErr) {
           // Fallback qua direct update bảng settings và policies đã thực hiện
         }
@@ -379,23 +336,14 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
         storePrintConfig(printConfig);
 
         try {
-          const existingPolicy = policies.find(p => p.parameter_type === 'report_print_settings');
-          if (existingPolicy?.id) {
-            await supabase.from('policies').update({
-              value: printConfig,
-              is_active: true
-            }).eq('id', existingPolicy.id);
-          } else {
-            await supabase.from('policies').insert([{
-              parameter_type: 'report_print_settings',
-              name: 'Cấu hình Thông số In ấn & Báo cáo',
-              value: printConfig,
-              effective_date: '2026-01-01',
-              description: 'Cấu hình thông tin cơ quan cấp trên, tên đại lý thu, thủ trưởng đơn vị và các chức danh in biểu mẫu',
-              notes: 'Thông số in ấn và mẫu biểu chuẩn Nghị định 30/2020/NĐ-CP',
-              is_active: true
-            }]);
-          }
+          await policyService.upsertPolicy('report_print_settings', {
+            name: 'Cấu hình Thông số In ấn & Báo cáo',
+            value: printConfig,
+            effective_date: '2026-01-01',
+            description: 'Cấu hình thông tin cơ quan cấp trên, tên đại lý thu, thủ trưởng đơn vị và các chức danh in biểu mẫu',
+            notes: 'Thông số in ấn và mẫu biểu chuẩn Nghị định 30/2020/NĐ-CP',
+            is_active: true
+          });
         } catch (printErr) {
           console.warn('[AdminContext] Lưu policy report_print_settings:', printErr);
         }
@@ -404,25 +352,8 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
       const dbSettingsPayload = sanitizeSettingsForDb(updatedFields);
 
       if (Object.keys(dbSettingsPayload).length > 0) {
-        let attempts = 0;
-        while (attempts < 5) {
-          attempts++;
-          const { error } = await supabase
-            .from('settings')
-            .update(dbSettingsPayload)
-            .eq('id', 1);
-
-          if (!error) break;
-
-          const handled = handleSettingsSchemaCacheMissingColumn(error, dbSettingsPayload);
-          if (handled && Object.keys(dbSettingsPayload).length > 0) {
-            continue;
-          }
-          if (handled && Object.keys(dbSettingsPayload).length === 0) {
-            break;
-          }
-          throw error;
-        }
+        const { error } = await systemSettingService.updateSettings(dbSettingsPayload);
+        if (error) throw error;
       }
 
       setSettingsLive(prev => {

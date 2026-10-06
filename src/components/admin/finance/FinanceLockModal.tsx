@@ -135,7 +135,7 @@ export const FinanceLockModal: React.FC<FinanceLockModalProps> = ({
                         </button>
                         <button 
                           type="button" 
-                          onClick={() => executeUnlockKeys([latestItem.key])} 
+                          onClick={() => latestItem && executeUnlockKeys([latestItem.key])} 
                           className="w-full py-2.5 px-4 rounded-xl text-emerald-800 font-bold transition bg-emerald-100 hover:bg-emerald-200 flex items-center justify-center gap-2 text-xs sm:text-sm cursor-pointer border border-emerald-300"
                         >
                           <Unlock size={16} /> Mở khóa kỳ gần nhất ({latestItem?.label})

@@ -1,6 +1,6 @@
 import React, { ErrorInfo, ReactNode } from 'react';
 import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { auditService } from '../../services';
 
 interface Props {
   children: ReactNode;
@@ -43,10 +43,10 @@ export class ErrorBoundary extends React.Component<Props, State> {
     // Cố gắng ghi nhận sự cố UI vào auditlogs để đơn giản hóa vận hành & truy vết lỗi
     (async () => {
       try {
-        await supabase.from('auditlogs').insert([{
+        await auditService.insertAuditLog({
           action: 'CLIENT_UI_CRASH',
           details: `Lỗi giao diện: ${error.message} tại ${window.location.pathname}. Stack: ${error.stack?.substring(0, 300)}`
-        }]);
+        });
       } catch {
         // Bỏ qua nếu có lỗi mạng hoặc offline
       }

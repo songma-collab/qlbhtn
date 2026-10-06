@@ -186,21 +186,22 @@ export const getStoredVietQRConfig = (): VietQRConfig => {
  * Trích xuất cấu hình VietQR từ bất kỳ đối tượng nào chứa các trường VietQR
  */
 export const extractVietQRConfig = (
-  source: Partial<SettingsType>,
-  fallback?: Partial<SettingsType>
+  source: Partial<SettingsType> | Partial<VietQRConfig>,
+  fallback?: Partial<SettingsType> | Partial<VietQRConfig>
 ): VietQRConfig => {
-  const base = fallback || {};
+  const base = (fallback || {}) as Partial<SettingsType> & Partial<VietQRConfig>;
+  const src = source as Partial<SettingsType> & Partial<VietQRConfig>;
   return {
-    agencyName: (source.agencyName ?? source.agency_name ?? base.agencyName ?? base.agency_name ?? DEFAULT_VIETQR_CONFIG.agencyName)?.trim(),
-    agencyCode: (source.agencyCode ?? source.agency_code ?? base.agencyCode ?? base.agency_code ?? DEFAULT_VIETQR_CONFIG.agencyCode)?.trim(),
-    bankBin: (source.bankBin ?? source.bank_bin ?? base.bankBin ?? base.bank_bin ?? DEFAULT_VIETQR_CONFIG.bankBin)?.trim(),
-    bankId: (source.bankId ?? source.bank_id ?? base.bankId ?? base.bank_id ?? DEFAULT_VIETQR_CONFIG.bankId)?.trim(),
-    bankName: (source.bankName ?? source.bank_name ?? base.bankName ?? base.bank_name ?? DEFAULT_VIETQR_CONFIG.bankName)?.trim(),
-    accountNumber: (source.accountNumber ?? source.accountNo ?? source.account_number ?? source.bank_account ?? base.accountNumber ?? base.account_number ?? base.bank_account ?? DEFAULT_VIETQR_CONFIG.accountNumber)?.trim(),
-    accountNo: (source.accountNo ?? source.accountNumber ?? source.account_number ?? source.bank_account ?? base.accountNo ?? base.accountNumber ?? base.bank_account ?? DEFAULT_VIETQR_CONFIG.accountNo)?.trim(),
-    accountHolder: (source.accountHolder ?? source.accountName ?? source.account_holder ?? source.bank_owner ?? base.accountHolder ?? base.account_holder ?? base.bank_owner ?? DEFAULT_VIETQR_CONFIG.accountHolder)?.trim(),
-    accountName: (source.accountName ?? source.accountHolder ?? source.account_holder ?? source.bank_owner ?? base.accountName ?? base.account_holder ?? base.bank_owner ?? DEFAULT_VIETQR_CONFIG.accountName)?.trim(),
-    qrTemplate: source.qrTemplate ?? source.qr_template ?? (source as any).template ?? base.qrTemplate ?? base.qr_template ?? DEFAULT_VIETQR_CONFIG.qrTemplate
+    agencyName: (src.agencyName ?? src.agency_name ?? base.agencyName ?? base.agency_name ?? DEFAULT_VIETQR_CONFIG.agencyName)?.trim(),
+    agencyCode: (src.agencyCode ?? src.agency_code ?? base.agencyCode ?? base.agency_code ?? DEFAULT_VIETQR_CONFIG.agencyCode)?.trim(),
+    bankBin: (src.bankBin ?? src.bank_bin ?? base.bankBin ?? base.bank_bin ?? DEFAULT_VIETQR_CONFIG.bankBin)?.trim(),
+    bankId: (src.bankId ?? src.bank_id ?? base.bankId ?? base.bank_id ?? DEFAULT_VIETQR_CONFIG.bankId)?.trim(),
+    bankName: (src.bankName ?? src.bank_name ?? base.bankName ?? base.bank_name ?? DEFAULT_VIETQR_CONFIG.bankName)?.trim(),
+    accountNumber: (src.accountNumber ?? src.accountNo ?? src.account_number ?? src.bank_account ?? base.accountNumber ?? base.account_number ?? base.bank_account ?? DEFAULT_VIETQR_CONFIG.accountNumber)?.trim(),
+    accountNo: (src.accountNo ?? src.accountNumber ?? src.account_number ?? src.bank_account ?? base.accountNo ?? base.accountNumber ?? base.bank_account ?? DEFAULT_VIETQR_CONFIG.accountNo)?.trim(),
+    accountHolder: (src.accountHolder ?? src.accountName ?? src.account_holder ?? src.bank_owner ?? base.accountHolder ?? base.account_holder ?? base.bank_owner ?? DEFAULT_VIETQR_CONFIG.accountHolder)?.trim(),
+    accountName: (src.accountName ?? src.accountHolder ?? src.account_holder ?? src.bank_owner ?? base.accountName ?? base.account_holder ?? base.bank_owner ?? DEFAULT_VIETQR_CONFIG.accountName)?.trim(),
+    qrTemplate: src.qrTemplate ?? src.qr_template ?? (src as any).template ?? base.qrTemplate ?? base.qr_template ?? DEFAULT_VIETQR_CONFIG.qrTemplate
   };
 };
 
@@ -227,14 +228,14 @@ export const hasVietQRFields = (fields: Partial<SettingsType>): boolean => {
  * Định nghĩa cấu hình thông số in ấn và mẫu biểu báo cáo hành chính (Nghị định 30/2020/NĐ-CP)
  */
 export interface ReportPrintConfig {
-  parentAgencyName?: string;
-  agencyName?: string;
-  managerName?: string;
-  reportLocation?: string;
-  controllerName?: string;
-  managerTitle?: string;
-  creatorTitle?: string;
-  controllerTitle?: string;
+  parentAgencyName?: string | undefined;
+  agencyName?: string | undefined;
+  managerName?: string | undefined;
+  reportLocation?: string | undefined;
+  controllerName?: string | undefined;
+  managerTitle?: string | undefined;
+  creatorTitle?: string | undefined;
+  controllerTitle?: string | undefined;
 }
 
 export const DEFAULT_REPORT_PRINT_CONFIG: Required<ReportPrintConfig> = {

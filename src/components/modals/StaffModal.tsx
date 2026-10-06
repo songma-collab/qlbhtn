@@ -29,7 +29,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
           status: s.status || 'Hoạt động', 
           role: s.role || 'Nhân viên',
           username: s.username || s.id || '',
-          staffCode: s.staffCode || s.username || s.id || ''
+          staffCode: s.staff_code || (s as any).staffCode || s.username || s.id || ''
         });
       } else {
         const randomNum = Math.floor(Math.random() * 90000 + 10000).toString();
@@ -46,7 +46,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
     // 1. Thẩm tra dữ liệu đầu vào (Input Validation)
     const validation = validateStaffInput(formData);
     if (!validation.valid) {
-      showToast(validation.errors[0], 'error');
+      showToast(validation.errors[0] || 'Dữ liệu không hợp lệ', 'error');
       return;
     }
 

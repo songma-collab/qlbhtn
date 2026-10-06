@@ -3,11 +3,11 @@ import React, { createContext, useContext, useState, ReactNode, useCallback } fr
 export interface FeedbackContextType {
   toastMessage: string | null;
   showToast: (msg: string, type?: string) => void;
-  alertModalConfig: { isOpen: boolean; title: string; message: string; onConfirm?: () => void } | null;
+  alertModalConfig: { isOpen: boolean; title: string; message: string; onConfirm?: (() => void) | undefined } | null;
   showAlert: (title: string, message: string, onConfirmOrType?: (() => void) | string) => void;
   closeAlert: () => void;
-  globalRegisterModal: { isOpen: boolean; type: 'BHXH' | 'BHYT'; initialData?: any };
-  setGlobalRegisterModal: React.Dispatch<React.SetStateAction<{ isOpen: boolean; type: 'BHXH' | 'BHYT'; initialData?: any }>>;
+  globalRegisterModal: { isOpen: boolean; type: 'BHXH' | 'BHYT'; initialData?: any | undefined };
+  setGlobalRegisterModal: React.Dispatch<React.SetStateAction<{ isOpen: boolean; type: 'BHXH' | 'BHYT'; initialData?: any | undefined }>>;
 }
 
 const FeedbackContext = createContext<FeedbackContextType | undefined>(undefined);
@@ -18,13 +18,13 @@ export const FeedbackProvider: React.FC<{ children: ReactNode }> = ({ children }
     isOpen: boolean;
     title: string;
     message: string;
-    onConfirm?: () => void;
+    onConfirm?: (() => void) | undefined;
   } | null>(null);
 
   const [globalRegisterModal, setGlobalRegisterModal] = useState<{ 
     isOpen: boolean; 
     type: 'BHXH' | 'BHYT'; 
-    initialData?: any 
+    initialData?: any | undefined;
   }>({ isOpen: false, type: 'BHXH' });
 
   const showToast = useCallback((msg: string) => {

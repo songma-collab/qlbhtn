@@ -76,8 +76,8 @@ export const groupRecordsByBatch = (records: RecordType[]): Map<string, BatchSum
   const map = new Map<string, BatchSummary>();
 
   records.forEach(r => {
-    if (r.paymentStatus === 'Đã hủy') return;
-    const batchKey = (r.submissionBatch || 'UNASSIGNED').trim();
+    if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy') return;
+    const batchKey = (r.submission_batch || (r as any).submissionBatch || 'UNASSIGNED').trim();
 
     if (!map.has(batchKey)) {
       map.set(batchKey, {
@@ -86,8 +86,8 @@ export const groupRecordsByBatch = (records: RecordType[]): Map<string, BatchSum
         totalAmount: 0,
         bhxhCount: 0,
         bhytCount: 0,
-        submittedDate: r.submittedDate,
-        isSubmittedBHXH: Boolean(r.isSubmittedBHXH),
+        submittedDate: r.submitted_date || (r as any).submittedDate,
+        isSubmittedBHXH: Boolean(r.is_submitted_bhxh ?? (r as any).isSubmittedBHXH),
         records: []
       });
     }
@@ -100,11 +100,12 @@ export const groupRecordsByBatch = (records: RecordType[]): Map<string, BatchSum
     } else {
       item.bhytCount += 1;
     }
-    if (r.isSubmittedBHXH) {
+    if (r.is_submitted_bhxh || (r as any).isSubmittedBHXH) {
       item.isSubmittedBHXH = true;
     }
-    if (r.submittedDate && !item.submittedDate) {
-      item.submittedDate = r.submittedDate;
+    const sDate = r.submitted_date || (r as any).submittedDate;
+    if (sDate && !item.submittedDate) {
+      item.submittedDate = sDate;
     }
     item.records.push(r);
   });

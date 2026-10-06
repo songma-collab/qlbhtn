@@ -81,17 +81,19 @@ const PredictiveAnalytics: React.FC = () => {
     });
 
     latestCustomerRecords.forEach(r => {
-      if (r.paymentStatus === 'Đã hủy' || !r.nextPayment || r.status === 'Đã dừng đóng') return;
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      const nextPay = r.next_payment || (r as any).nextPayment;
+      if (pStatus === 'Đã hủy' || !nextPay || r.status === 'Đã dừng đóng') return;
 
-      const expMonth = r.nextPayment.substring(0, 7);
+      const expMonth = nextPay.substring(0, 7);
       if (bhxhForecast[expMonth] !== undefined) {
         const amt = Number(r.amount) || 0;
         if (r.type === 'BHXH') {
-          bhxhForecast[expMonth] += amt;
+          bhxhForecast[expMonth] = (bhxhForecast[expMonth] || 0) + amt;
         } else if (r.type === 'BHYT') {
-          bhytForecast[expMonth] += amt;
+          bhytForecast[expMonth] = (bhytForecast[expMonth] || 0) + amt;
         }
-        countForecast[expMonth] += 1;
+        countForecast[expMonth] = (countForecast[expMonth] || 0) + 1;
       }
     });
 
@@ -113,7 +115,9 @@ const PredictiveAnalytics: React.FC = () => {
       const amountVal = Number(r.amount) || 0;
       if (amountVal <= 0) return;
 
-      const nextTs = new Date(r.nextPayment).getTime();
+      const nextPay = r.next_payment || (r as any).nextPayment;
+      if (!nextPay) return;
+      const nextTs = new Date(nextPay).getTime();
       const diffDays = Math.ceil((nextTs - todayTs) / (1000 * 60 * 60 * 24));
 
       // Consider upcoming renewals within 60 days or already overdue up to 15 days
@@ -142,6 +146,7 @@ const PredictiveAnalytics: React.FC = () => {
 
         list.push({
           ...r,
+          nextPayment: nextPay,
           diffDays,
           riskLevel,
           riskLabel,

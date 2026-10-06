@@ -122,7 +122,7 @@ describe('Kiểm thử An toàn Thông tin & Bảo vệ Dữ liệu Cá nhân (S
       const store = new MockImmutableAuditStore();
       store.insert({ id: 1, action: 'Đăng nhập', details: 'Nhân viên A đăng nhập', timestamp: new Date().toISOString() });
       expect(store.getAll()).toHaveLength(1);
-      expect(store.getAll()[0].action).toBe('Đăng nhập');
+      expect(store.getAll()[0]!.action).toBe('Đăng nhập');
     });
 
     it('Chặn đứng và ném ngoại lệ khi cố ý UPDATE bản ghi nhật ký kiểm toán', () => {

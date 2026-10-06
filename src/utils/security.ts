@@ -325,7 +325,7 @@ export const checkStaffDeleteSafety = (
   targetStaff: { id?: string; name?: string; role?: string } | null | undefined,
   staffList: Array<{ id?: string; role?: string; status?: string }>,
   associatedRecordCount: number
-): { allowed: boolean; reason?: string; suggestedAction?: 'SOFT_DELETE' | 'BLOCK' } => {
+): { allowed: boolean; reason?: string | undefined; suggestedAction?: 'SOFT_DELETE' | 'BLOCK' | undefined } => {
   if (!currentUser || currentUser.role !== 'Admin') {
     return {
       allowed: false,

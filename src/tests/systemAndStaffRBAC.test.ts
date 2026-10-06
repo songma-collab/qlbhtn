@@ -282,7 +282,7 @@ describe('BỘ KIỂM THỬ PHÂN QUYỀN HỆ THỐNG & CHÍNH SÁCH ĐA KỲ (
       const record: Partial<RecordType> = {
         date: '2026-07-15',
         type: 'BHXH',
-        actionType: 'Đăng ký mới'
+        action_type: 'Đăng ký mới'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBe(0.05); // 5%
@@ -292,7 +292,7 @@ describe('BỘ KIỂM THỬ PHÂN QUYỀN HỆ THỐNG & CHÍNH SÁCH ĐA KỲ (
       const record: Partial<RecordType> = {
         date: '2026-08-10',
         type: 'BHXH',
-        actionType: 'Đăng ký mới'
+        action_type: 'Đăng ký mới'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBe(0.15); // 15%
@@ -302,7 +302,7 @@ describe('BỘ KIỂM THỬ PHÂN QUYỀN HỆ THỐNG & CHÍNH SÁCH ĐA KỲ (
       const record: Partial<RecordType> = {
         date: '2026-08-10',
         type: 'BHXH',
-        actionType: 'Gia hạn định kỳ'
+        action_type: 'Gia hạn định kỳ'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBe(0.09); // 9%
@@ -312,7 +312,7 @@ describe('BỘ KIỂM THỬ PHÂN QUYỀN HỆ THỐNG & CHÍNH SÁCH ĐA KỲ (
       const record: Partial<RecordType> = {
         date: '2026-08-10',
         type: 'BHYT',
-        actionType: 'Đăng ký mới'
+        action_type: 'Đăng ký mới'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBe(0.09); // 9%
@@ -322,17 +322,17 @@ describe('BỘ KIỂM THỬ PHÂN QUYỀN HỆ THỐNG & CHÍNH SÁCH ĐA KỲ (
       const record: Partial<RecordType> = {
         date: '2026-08-10',
         type: 'BHYT',
-        actionType: 'Tái tục thẻ'
+        action_type: 'Tái tục thẻ'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBe(0.05); // 5%
     });
 
     it('Xử lý an toàn khi ngày hồ sơ rỗng/NULL: Tự động fallback về ngày hiện tại', () => {
-      const record: Partial<RecordType> = {
+      const record: any = {
         date: undefined,
         type: 'BHXH',
-        actionType: 'Đăng ký mới'
+        action_type: 'Đăng ký mới'
       };
       const rate = getCommissionRateForRecord(record, commissionPolicies, null);
       expect(rate).toBeGreaterThan(0);

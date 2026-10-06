@@ -90,23 +90,23 @@ describe('Kiểm thử Ranh Giới Ngày Hiệu Lực Chính Sách (Policy Bound
     it('1.4. Tính phí hộ gia đình nhiều thành viên (1-5 người) tại 2 ranh giới ngày', () => {
       // Hộ 2 người trước mốc (12 tháng, 1.8M): Người 1 (100%) = 972k, Người 2 (70%) = 680.4k. Tổng = 1.652.400đ
       const ho2Before = calculateBHYT(12, 2, 1800000);
-      expect(ho2Before.breakdown[0].amount).toBe(972000);
-      expect(ho2Before.breakdown[1].amount).toBe(680400);
+      expect(ho2Before.breakdown[0]!.amount).toBe(972000);
+      expect(ho2Before.breakdown[1]!.amount).toBe(680400);
       expect(ho2Before.amount).toBe(1652400);
 
       // Hộ 2 người sau mốc (12 tháng, 2.34M): Người 1 = 1.263.600đ, Người 2 = 884.520đ. Tổng = 2.148.120đ
       const ho2After = calculateBHYT(12, 2, 2340000);
-      expect(ho2After.breakdown[0].amount).toBe(1263600);
-      expect(ho2After.breakdown[1].amount).toBe(884520);
+      expect(ho2After.breakdown[0]!.amount).toBe(1263600);
+      expect(ho2After.breakdown[1]!.amount).toBe(884520);
       expect(ho2After.amount).toBe(2148120);
 
       // Hộ 5 người trước mốc: Người thứ 5 hưởng 40% (388.800đ)
       const ho5Before = calculateBHYT(12, 5, 1800000);
-      expect(ho5Before.breakdown[4].amount).toBe(388800);
+      expect(ho5Before.breakdown[4]!.amount).toBe(388800);
 
       // Hộ 5 người sau mốc: Người thứ 5 hưởng 40% (505.440đ)
       const ho5After = calculateBHYT(12, 5, 2340000);
-      expect(ho5After.breakdown[4].amount).toBe(505440);
+      expect(ho5After.breakdown[4]!.amount).toBe(505440);
     });
   });
 
@@ -155,16 +155,16 @@ describe('Kiểm thử Ranh Giới Ngày Hiệu Lực Chính Sách (Policy Bound
         phone: '0912345678',
         status: 'Đang tham gia',
         months: 12,
-        fromMonth: '2024-01',
-        toMonth: '2024-12',
+        from_month: '2024-01',
+        to_month: '2024-12',
         date: '2024-01-15',
         amount: 972000,
-        baseSalarySnapshot: 1800000, // Snapshot thời điểm tháng 01/2024
-        paymentStatus: 'Đã thanh toán'
+        base_salary_snapshot: 1800000, // Snapshot thời điểm tháng 01/2024
+        payment_status: 'Đã thanh toán'
       };
 
       // Khi tái tính toán hoặc kiểm tra, nếu có snapshot thì dùng snapshot
-      const salaryToUse = historicalRecord.baseSalarySnapshot || 2340000;
+      const salaryToUse = historicalRecord.base_salary_snapshot || 2340000;
       const reCalc = calculateBHYT(historicalRecord.months, 1, salaryToUse);
       expect(reCalc.amount).toBe(972000);
       expect(reCalc.amount).toBe(historicalRecord.amount);
@@ -180,18 +180,18 @@ describe('Kiểm thử Ranh Giới Ngày Hiệu Lực Chính Sách (Policy Bound
         amount: 1386000,
         income: 1500000,
         months: 6,
-        fromMonth: '2024-01',
-        toMonth: '2024-06',
+        from_month: '2024-01',
+        to_month: '2024-06',
         date: '2024-01-10',
-        nnSupportPct: 30,
-        povertyStandardSnapshot: 1500000,
-        paymentStatus: 'Đã thanh toán'
+        nn_support_pct: 30,
+        poverty_standard_snapshot: 1500000,
+        payment_status: 'Đã thanh toán'
       };
 
-      const povertyToUse = historicalBHXH.povertyStandardSnapshot || 1800000;
+      const povertyToUse = historicalBHXH.poverty_standard_snapshot || 1800000;
       const res = calculateBHXH(
-        historicalBHXH.income,
-        historicalBHXH.nnSupportPct || 0,
+        historicalBHXH.income || 0,
+        historicalBHXH.nn_support_pct || 0,
         0, // dpSupportPct
         '6', // method 6 tháng
         0, // customMonths

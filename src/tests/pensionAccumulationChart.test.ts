@@ -51,7 +51,7 @@ describe('Kiểm thử Mô Phỏng Lương Hưu Luật BHXH 2024 & Điểm Hòa 
       expect(timeline).toHaveLength(35);
 
       // Tháng đầu tiên
-      const y1 = timeline[0];
+      const y1 = timeline[0]!;
       expect(y1.grossMonthly).toBe(660000); // 3.000.000 * 22%
       expect(y1.supportMonthly).toBe(66000); // 1.500.000 * 22% * 20%
       expect(y1.personalMonthly).toBe(594000); // 660.000 - 66.000
@@ -66,7 +66,7 @@ describe('Kiểm thử Mô Phỏng Lương Hưu Luật BHXH 2024 & Điểm Hòa 
       // 10 năm đầu: 120 * 594.000 = 71.280.000đ
       // 5 năm sau: 60 * 660.000 = 39.600.000đ
       // Tổng cá nhân nộp: 71.280.000 + 39.600.000 = 110.880.000đ
-      const y15 = timeline[14];
+      const y15 = timeline[14]!;
       expect(y15.year).toBe(15);
       expect(y15.isEligibleForPension).toBe(true);
       expect(y15.pensionRatePct).toBe(45);
@@ -79,7 +79,7 @@ describe('Kiểm thử Mô Phỏng Lương Hưu Luật BHXH 2024 & Điểm Hòa 
       // 10 năm đầu: 120 * 594.000 = 71.280.000đ
       // 20 năm sau: 240 * 660.000 = 158.400.000đ
       // Tổng cá nhân nộp: 71.280.000 + 158.400.000 = 229.680.000đ
-      const y30 = timeline[29];
+      const y30 = timeline[29]!;
       expect(y30.year).toBe(30);
       expect(y30.pensionRatePct).toBe(75);
       expect(y30.cumulativePersonal).toBe(229680000);
@@ -143,8 +143,8 @@ describe('Kiểm thử Mô Phỏng Lương Hưu Luật BHXH 2024 & Điểm Hòa 
         applyCpi: true
       });
 
-      const pensionWithoutCpi = timelineWithoutCpi[19].monthlyPension; // 20 năm = 45%
-      const pensionWithCpi = timelineWithCpi[19].monthlyPension;
+      const pensionWithoutCpi = timelineWithoutCpi[19]!.monthlyPension; // 20 năm = 45%
+      const pensionWithCpi = timelineWithCpi[19]!.monthlyPension;
 
       expect(pensionWithoutCpi).toBe(2250000); // 5.000.000 * 45%
       expect(pensionWithCpi).toBeGreaterThan(pensionWithoutCpi);
@@ -181,7 +181,7 @@ describe('Kiểm thử Mô Phỏng Lương Hưu Luật BHXH 2024 & Điểm Hòa 
       expect(breakEvenItem!.netSurplus).toBeGreaterThanOrEqual(0);
 
       // Đến năm thứ 25 hưu trí: giá trị an sinh nhận được gấp nhiều lần tổng vốn đóng
-      const finalYear = analysis.timeline[24];
+      const finalYear = analysis.timeline[24]!;
       expect(finalYear.cumulativeBenefitWithBHYT).toBeGreaterThan(analysis.totalContributed * 3);
     });
   });

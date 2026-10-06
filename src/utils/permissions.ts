@@ -374,7 +374,7 @@ export const getPermissionsForRole = (
   settings?: any
 ): PermissionKey[] => {
   if (role === 'Admin') {
-    return DEFAULT_ROLE_PERMISSIONS.Admin;
+    return DEFAULT_ROLE_PERMISSIONS.Admin ?? [];
   }
   const cleanMap = sanitizeRolePermissions(settings?.rolePermissions);
   return cleanMap[role] || DEFAULT_ROLE_PERMISSIONS[role] || [];
@@ -399,7 +399,7 @@ export const sanitizeRolePermissions = (
 
   return {
     ...cleanMap,
-    Admin: [...DEFAULT_ROLE_PERMISSIONS.Admin] // Luôn giữ 100% quyền cho Admin
+    Admin: [...(DEFAULT_ROLE_PERMISSIONS.Admin || [])] // Luôn giữ 100% quyền cho Admin
   };
 };
 
@@ -420,7 +420,7 @@ export const getEffectivePermissionsForStaff = (
     role.toLowerCase() === 'quản trị viên' ||
     (staff.name || '').toLowerCase().includes('phạm văn học')
   ) {
-    return [...DEFAULT_ROLE_PERMISSIONS.Admin];
+    return [...(DEFAULT_ROLE_PERMISSIONS.Admin || [])];
   }
 
   // 1. Quyền cơ sở từ vai trò

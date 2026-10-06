@@ -68,20 +68,20 @@ export interface AppContextType {
   addRecord: (record: Omit<RecordType, 'id'>) => Promise<RecordType | null>;
   bulkPutRecords: (records: RecordType[]) => Promise<boolean>;
   updateRecord: (id: number, record: Partial<RecordType>) => Promise<boolean>;
-  updateCustomerStatus: (recordId: number, newStatus: CustomerStatus, reason?: string) => Promise<boolean>;
+  updateCustomerStatus: (recordId: number, newStatus: CustomerStatus, reason?: string | undefined) => Promise<boolean>;
   updateCustomerParticipation: (
     targetIdOrKey: string,
     data: {
       prior_periods: any[];
       prior_voluntary_months: number;
       prior_compulsory_months: number;
-      prior_participation_notes?: string;
+      prior_participation_notes?: string | undefined;
     }
   ) => Promise<boolean>;
   deleteRecord: (id: number) => Promise<boolean>;
   bulkDeleteRecords: (ids: number[]) => Promise<boolean>;
   deleteCustomer: (customerKey: string) => Promise<boolean>;
-  cancelRecordWithClawback: (recordId: number, reason: string, currentUserRole?: string) => Promise<boolean>;
+  cancelRecordWithClawback: (recordId: number, reason: string, currentUserRole?: string | undefined) => Promise<boolean>;
 
   fetchCustomerTransactions: (customerIdOrKey: string) => Promise<RecordType[]>;
   fetchCustomerByCode: (code: string) => Promise<any>;
@@ -94,7 +94,7 @@ export interface AppContextType {
   updatePolicy: (id: number, policy: Partial<Policy>) => Promise<boolean>;
   deletePolicy: (id: number) => Promise<boolean>;
   activatePolicy: (id: number, parameterType: string) => Promise<boolean>;
-  syncDefaultPolicies?: () => Promise<boolean>;
+  syncDefaultPolicies?: (() => Promise<boolean>) | undefined;
 
   updateSettings: (settings: Partial<SettingsType>) => Promise<boolean>;
   setSettings: (settings: Partial<SettingsType>) => Promise<boolean>;
@@ -102,9 +102,9 @@ export interface AppContextType {
 
   toastMessage: string | null;
   toastConfig: ToastConfig | null;
-  toasts?: ToastConfig[];
+  toasts?: ToastConfig[] | undefined;
   showToast: (msg: string, type?: ToastType | string | { type?: ToastType; action?: ToastAction; duration?: number; title?: string; badge?: string; playSound?: boolean }) => void;
-  hideToast?: (id?: string) => void;
+  hideToast?: ((id?: string) => void) | undefined;
 
   alertModalConfig: AlertModalConfig | null;
   showAlert: (title: string, message: string, onConfirmOrType?: (() => void) | AlertType | string, explicitType?: AlertType) => void;

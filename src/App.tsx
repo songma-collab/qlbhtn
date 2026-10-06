@@ -19,9 +19,9 @@ import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
-import AdminView from './components/AdminView';
 
 // Lazy load secondary & heavy views to optimize initial bundle size & load speed
+const AdminView = lazyWithRetry(() => import('./components/AdminView'));
 const ContributionCalculationView = lazyWithRetry(() => import('./components/ContributionCalculationView'));
 const PensionAssistantView = lazyWithRetry(() => import('./components/PensionAssistantView'));
 const SupportView = lazyWithRetry(() => import('./components/SupportView'));
@@ -99,7 +99,7 @@ const AppContent = () => {
           <Route path="/bhxh1lan" element={<DeferredRoute><BHXH1LanView /></DeferredRoute>} />
           <Route path="/tro-ly-huu-tri" element={<DeferredRoute><PensionAssistantView /></DeferredRoute>} />
           <Route path="/support" element={<DeferredRoute><SupportView /></DeferredRoute>} />
-          <Route path="/admin/*" element={<ProtectedRoute><AdminView /></ProtectedRoute>} />
+          <Route path="/admin/*" element={<ProtectedRoute><DeferredRoute><AdminView /></DeferredRoute></ProtectedRoute>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>

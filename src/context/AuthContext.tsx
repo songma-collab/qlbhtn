@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useMemo } from 'react';
-import { supabase } from '../lib/supabase';
+import { authService } from '../services';
 import { StaffType } from './types';
 
 interface AuthContextType {
@@ -27,11 +27,11 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, []);
 
-  // Lắng nghe thay đổi session Supabase Auth
+  // Lắng nghe thay đổi session Auth Service
   useEffect(() => {
     const initAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session } } = await authService.getSession();
         if (!session) {
           if (!currentUser) setCurrentUser(null);
         }
@@ -44,7 +44,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event) => {
+    const { data: { subscription } } = authService.onAuthStateChange(async (event) => {
       if (event === 'SIGNED_OUT') {
         setCurrentUser(null);
       }
@@ -64,7 +64,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = async () => {
     try {
-      await supabase.auth.signOut();
+      await authService.signOut();
     } finally {
       setCurrentUser(null);
     }

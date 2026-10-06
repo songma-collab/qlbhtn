@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { supabase } from '../../lib/supabase';
+import { customerService, recordService } from '../../services';
 import { 
   formatDateVN, 
   parseDateISO, 
@@ -63,11 +63,13 @@ import { CustomerStatusBadge, CustomerParticipationBadge } from '../common/Custo
 import { CustomerStatusModal } from '../modals/CustomerStatusModal';
 import { CustomerParticipationModal } from '../modals/CustomerParticipationModal';
 import { useRecordFilters } from '../../hooks/useRecordFilters';
-import { RecordFilterToolbar } from './RecordFilterToolbar';
+import { CustomerFilterBar } from './crm/CustomerFilterBar';
 import { VirtualizedRecordTable } from '../common/VirtualizedRecordTable';
 import { hasPermission } from '../../utils/permissions';
-import { customerService } from '../../services/customerService';
 import { CustomerDirectoryCard } from './crm/CustomerDirectoryCard';
+import { CustomerTableView } from './crm/CustomerTableView';
+import { AssignStaffModal } from './crm/AssignStaffModal';
+import { ExcelImportConfirmModal } from './crm/ExcelImportConfirmModal';
 
 export interface CRMViewProps {
   type?: 'BHXH' | 'BHYT' | 'ALL' | string;
@@ -201,10 +203,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         const res = await customerService.searchCustomersServer({
           type: selectedType,
           search: filterState.searchQuery,
-          staffId: filterState.staffId === 'all' ? undefined : filterState.staffId,
-          status: filterState.status === 'all' ? undefined : filterState.status,
-          fromDate: filterState.startDate,
-          toDate: filterState.endDate,
+          staffId: filterState.staffId === 'all' || filterState.staffId === 'ALL' ? undefined : filterState.staffId,
+          status: filterState.customerStatus === 'ALL' ? undefined : filterState.customerStatus,
+          fromDate: filterState.customStartDate,
+          toDate: filterState.customEndDate,
           limit: itemsPerPage,
           offset: offset,
         });
@@ -236,9 +238,9 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     itemsPerPage,
     filterState.searchQuery,
     filterState.staffId,
-    filterState.status,
-    filterState.startDate,
-    filterState.endDate,
+    filterState.customerStatus,
+    filterState.customStartDate,
+    filterState.customEndDate,
   ]);
 
   const useServerData = serverSideMode && serverTotalCount > 0;
@@ -427,27 +429,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       const staffTarget = staff.find((s: any) => s.id === assignStaffId);
       const staffName = staffTarget ? staffTarget.name : 'Chưa phân công';
 
-      let totalUpdated = 0;
-      for (const cKey of targetCustomerKeys) {
-        const { error } = await supabase
-          .from('customers')
-          .update({
-            assigned_staff_id: assignStaffId || null,
-            updated_at: new Date().toISOString()
-          })
-          .eq('customer_key', cKey);
-
-        if (!error) totalUpdated++;
-      }
-
-      await supabase
-        .from('records')
-        .update({
-          staff_id: assignStaffId || null,
-          staffId: assignStaffId || null,
-          updated_at: new Date().toISOString()
-        })
-        .in('id', selectedIds);
+      const totalUpdated = await customerService.assignStaffToCustomers(targetCustomerKeys, assignStaffId);
+      await recordService.assignStaffToRecords(selectedIds, assignStaffId);
 
       addAuditLog?.(
         'Phân công khách hàng',
@@ -566,7 +549,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     setIsImporting(true);
     try {
       // 1. Thử upsert trực tiếp vào bảng customers trên Supabase để không sinh giao dịch trong records
-      const { error } = await supabase.from('customers').upsert(parsedData.customerProfiles, { onConflict: 'customer_key' });
+      const { error } = await customerService.upsertCustomerProfiles(parsedData.customerProfiles);
       if (error) {
         console.warn('Direct customers upsert failed, fallback to profile-only records:', error);
         // Fallback: nếu schema chưa hỗ trợ direct upsert, tạo record dạng 'Hồ sơ gốc' không có số tiền giao dịch
@@ -658,9 +641,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     }
   };
 
-  const handleSelectRow = (id: number) => {
+  const handleSelectRow = (id: string | number) => {
+    const numId = Number(id);
     setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      prev.includes(numId) ? prev.filter(item => item !== numId) : [...prev, numId]
     );
   };
 
@@ -854,66 +838,25 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       </div>
 
       {/* 2. Thanh tìm kiếm định danh thông minh & Bộ lọc 2 tầng */}
+      <CustomerFilterBar
+        isPIIMasked={isPIIMasked}
+        detectedSearchType={detectedSearchType}
+        filterState={filterState}
+        updateFilter={updateFilter}
+        resetFilters={resetFilters}
+        quickPillCounts={quickPillCounts}
+        staff={staff}
+        submissionBatches={submissionBatches}
+        isAdminOrManager={isAdminOrManager}
+        setCurrentPage={setCurrentPage}
+        filteredCount={filteredRecords.length}
+        directoryStats={directoryStats}
+        useVirtualization={useVirtualization}
+        setUseVirtualization={setUseVirtualization}
+      />
+
+      {/* 3. Nội dung hiển thị: Bảng quản lý vs Danh bạ thẻ đối tượng */}
       <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
-        {/* Banner bảo mật PII nếu đang che */}
-        {isPIIMasked && (
-          <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2">
-            <div className="flex items-center gap-1.5">
-              <ShieldCheck size={14} className="text-emerald-600 shrink-0" />
-              <span>
-                <strong>Tuân thủ Nghị định 13/2023/NĐ-CP:</strong> Dữ liệu CCCD, SĐT và Mã BHXH đang được tự động che dấu.
-              </span>
-            </div>
-            <div className="flex items-center gap-2 text-slate-500">
-              {detectedSearchType && (
-                <span className={`px-2 py-0.5 rounded-md border text-[11px] font-semibold ${detectedSearchType.color}`}>
-                  {detectedSearchType.label}
-                </span>
-              )}
-              <span>Bấm biểu tượng mắt ở từng dòng để xem chi tiết khi cần.</span>
-            </div>
-          </div>
-        )}
-
-        <RecordFilterToolbar
-          filterState={filterState}
-          onFilterChange={updateFilter}
-          onReset={resetFilters}
-          quickPillCounts={quickPillCounts}
-          staffList={staff}
-          submissionBatches={submissionBatches}
-          isAdminOrManager={isAdminOrManager}
-          onPageReset={() => setCurrentPage(1)}
-        />
-
-        {/* Thanh trạng thái phụ: Số lượng kết quả & Chế độ Virtualization */}
-        <div className="flex flex-wrap items-center justify-between px-4 py-2 bg-slate-50/70 border-t border-b border-slate-200 text-xs text-slate-600 gap-2">
-          <div className="flex items-center gap-3">
-            <span>
-              Tổng tìm thấy: <strong className="text-slate-900 font-semibold">{filteredRecords.length}</strong> khách hàng
-            </span>
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <span>Đang tham gia: <strong className="text-emerald-700 font-semibold">{directoryStats.active}</strong></span>
-            <span aria-hidden="true" className="text-slate-300">·</span>
-            <span>Dừng đóng: <strong className="text-slate-600 font-semibold">{directoryStats.stopped}</strong></span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => setUseVirtualization(prev => !prev)}
-            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition cursor-pointer border ${
-              useVirtualization 
-                ? 'bg-[#004182] text-white border-[#004182]' 
-                : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50'
-            }`}
-            title="Tối ưu hóa cuộn mượt cho danh bạ lớn trên 3.000 khách hàng"
-          >
-            <Layers size={13} />
-            <span>{useVirtualization ? 'Đang bật Ảo hóa (Virtual)' : 'Ảo hóa danh bạ lớn'}</span>
-          </button>
-        </div>
-
-        {/* 3. Nội dung hiển thị: Bảng quản lý vs Danh bạ thẻ đối tượng */}
         {viewMode === 'directory' ? (
           /* ================= VIEW 1: DANH BẠ THẺ ĐỐI TƯỢNG (DIRECTORY VIEW) ================= */
           <div className="p-4 bg-slate-50/50">
@@ -979,358 +922,29 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           </div>
         ) : (
           /* ================= VIEW 3: BẢNG QUẢN LÝ THÔNG TIN KHÁCH HÀNG (TABLE VIEW) ================= */
-          <>
-            {/* Desktop Table View */}
-            <div className="hidden md:block overflow-x-auto custom-scrollbar">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50/90 text-slate-600 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 w-12 text-center">
-                      <input 
-                        type="checkbox" 
-                        checked={paginatedCustomers.length > 0 && selectedIds.length === paginatedCustomers.length}
-                        onChange={handleSelectAll}
-                        className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
-                      />
-                    </th>
-                    <th className="p-4">Họ & Tên Khách Hàng</th>
-                    <th className="p-4">Số ĐDCN / CCCD</th>
-                    <th className="p-4">Mã số BHXH</th>
-                    <th className="p-4">Loại hình</th>
-                    <th className="p-4">Hạn đóng tiếp</th>
-                    <th className="p-4">Trạng Thái Đóng</th>
-                    <th className="p-4">Trạng Thái KH</th>
-                    <th className="p-4 text-center">Thao Tác</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {paginatedCustomers.map((r, index) => {
-                    const rawCccd = r.cccd || '';
-                    const rawBhxh = r.bhxh || '';
-                    const rawPhone = r.phone || '';
-                    const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
-                    const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
-
-                    return (
-                      <tr 
-                        key={r.id || `row-${index}`} 
-                        className={`hover:bg-slate-50/80 transition border-b border-slate-100 ${
-                          r.id && selectedIds.includes(r.id) ? 'bg-blue-50/40' : ''
-                        }`}
-                      >
-                        <td className="p-4 text-center">
-                          <input 
-                            type="checkbox" 
-                            checked={r.id ? selectedIds.includes(r.id) : false}
-                            onChange={() => r.id && handleSelectRow(r.id)}
-                            disabled={!r.id}
-                            className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
-                          />
-                        </td>
-                        <td className="p-4">
-                          <div className="font-semibold text-slate-800 text-sm">
-                            {r.name}
-                          </div>
-                          <div className="text-xs text-slate-500 font-normal flex items-center gap-1.5 mt-0.5">
-                            <Phone size={11} className="text-slate-400" />
-                            {renderCustomerPII(rawPhone, 'PHONE', r.id)}
-                            {r.id && (
-                              <button
-                                type="button"
-                                onClick={() => toggleRowPII(r.id)}
-                                className="text-slate-400 hover:text-slate-600 p-0.5"
-                                title={isFullyRevealed ? "Ẩn PII" : "Hiện PII"}
-                              >
-                                {isFullyRevealed ? <EyeOff size={11} /> : <Eye size={11} />}
-                              </button>
-                            )}
-                          </div>
-                          {r.notes && (
-                            <div className="mt-1 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block max-w-[260px] truncate" title={r.notes}>
-                              <span className="font-semibold text-slate-400">Ghi chú:</span> {r.notes}
-                            </div>
-                          )}
-                        </td>
-                        <td className="p-4">
-                          <span className="font-mono tabular-nums text-slate-800 font-medium">
-                            {renderCustomerPII(rawCccd, 'CCCD', r.id)}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className="font-mono tabular-nums text-slate-800 font-medium">
-                            {renderCustomerPII(rawBhxh, 'BHXH', r.id)}
-                          </span>
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                            r.type === 'BHXH' ? 'bg-blue-50 text-[#004182] border border-blue-200' : 'bg-sky-50 text-sky-700 border border-sky-200'
-                          }`}>
-                            {r.type}
-                          </span>
-                        </td>
-                        <td className="p-4 text-slate-600 text-xs font-medium">
-                          {r.nextPayment ? formatDateVN(r.nextPayment) : '---'}
-                        </td>
-                        <td className="p-4">
-                          <CustomerStatusBadge paymentStatus={r.paymentStatus} nextPayment={r.nextPayment} />
-                        </td>
-                        <td className="p-4">
-                          <CustomerParticipationBadge 
-                            status={r.status || 'Đang tham gia'} 
-                            interactive={Boolean(r.id)}
-                            onClick={() => r.id && setStatusModalRecord(r)} 
-                          />
-                        </td>
-                        <td className="p-4">
-                          <div className="flex items-center justify-center gap-1">
-                            <button 
-                              type="button"
-                              onClick={() => r.id && setStatusModalRecord(r)} 
-                              disabled={!r.id} 
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Đổi trạng thái Đang tham gia / Dừng đóng"
-                            >
-                              <UserCheck size={15} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => setParticipationRecord(r)} 
-                              className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Hồ sơ tham gia trước đây"
-                            >
-                              <History size={15} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => handleViewHistory(r)} 
-                              disabled={!r.id} 
-                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Xem kết quả tra cứu quá trình"
-                            >
-                              <Eye size={15} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => setVietQrRecord(r)} 
-                              disabled={!r.id} 
-                              className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Mã VietQR nộp tiền"
-                            >
-                              <QrCode size={15} />
-                            </button>
-                            {currentUser?.role !== 'Nhân viên' && (
-                              <button 
-                                type="button"
-                                onClick={() => r.id && openAssignModal(r.id)} 
-                                disabled={!r.id} 
-                                className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 disabled:opacity-50 transition cursor-pointer" 
-                                title="Phân công nhân viên"
-                              >
-                                <UserPlus size={15} />
-                              </button>
-                            )}
-                            <button 
-                              type="button"
-                              onClick={() => r.id && copyZaloMessage(r)} 
-                              disabled={!r.id} 
-                              className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Sao chép tin nhắn Zalo"
-                            >
-                              <Copy size={15} />
-                            </button>
-                            <button 
-                              type="button"
-                              onClick={() => r.id && openRegisterModal(r.type as 'BHXH' | 'BHYT', r, true)} 
-                              disabled={!r.id} 
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 disabled:opacity-50 transition cursor-pointer" 
-                              title="Gia hạn hồ sơ"
-                            >
-                              <Zap size={15} />
-                            </button>
-                            {canEditCustomer && (
-                              <button 
-                                type="button"
-                                onClick={() => r.id && openRegisterModal(r.type as 'BHXH' | 'BHYT', r, false)} 
-                                disabled={!r.id} 
-                                className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50 disabled:opacity-50 transition cursor-pointer" 
-                                title="Sửa thông tin"
-                              >
-                                <Edit size={15} />
-                              </button>
-                            )}
-                            {canDeleteCustomer && (
-                              <button 
-                                type="button"
-                                onClick={() => r.id && confirmDelete(r.id)} 
-                                disabled={!r.id} 
-                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-50 transition cursor-pointer" 
-                                title="Xóa"
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {paginatedCustomers.length === 0 && (
-                    <tr>
-                      <td colSpan={9} className="p-12 text-center text-slate-500">
-                        Không tìm thấy hồ sơ khách hàng nào phù hợp với bộ lọc.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Mobile Cards View */}
-            <div className="md:hidden divide-y divide-slate-100">
-              {paginatedCustomers.length === 0 ? (
-                <div className="p-8 text-center text-slate-500">
-                  Không tìm thấy hồ sơ nào phù hợp.
-                </div>
-              ) : (
-                paginatedCustomers.map((r, index) => {
-                  const rawCccd = r.cccd || '';
-                  const rawBhxh = r.bhxh || '';
-                  const rawPhone = r.phone || '';
-                  const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
-                  const isFullyRevealed = !isPIIMasked || isRowRevealed || isAdminOrManager;
-
-                  return (
-                    <div 
-                      key={r.id || `mob-${index}`} 
-                      className={`p-4 ${r.id && selectedIds.includes(r.id) ? 'bg-blue-50/40' : 'bg-white'}`}
-                    >
-                      <div className="flex justify-between items-start mb-2.5">
-                        <div className="flex items-start gap-2.5">
-                          <input 
-                            type="checkbox" 
-                            checked={r.id ? selectedIds.includes(r.id) : false}
-                            onChange={() => r.id && handleSelectRow(r.id)}
-                            className="mt-1 w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
-                          />
-                          <div>
-                            <h4 className="font-bold text-slate-900 text-sm">{r.name}</h4>
-                            <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                              <Phone size={11} className="text-slate-400" />
-                              {renderCustomerPII(rawPhone, 'PHONE', r.id)}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            r.type === 'BHXH' ? 'bg-blue-50 text-[#004182] border border-blue-200' : 'bg-sky-50 text-sky-700 border border-sky-200'
-                          }`}>
-                            {r.type}
-                          </span>
-                          {r.id && (
-                            <button
-                              type="button"
-                              onClick={() => toggleRowPII(r.id)}
-                              className="p-1 rounded text-slate-400 hover:text-slate-600"
-                              title="Bật/Tắt che PII"
-                            >
-                              {isFullyRevealed ? <EyeOff size={13} /> : <Eye size={13} />}
-                            </button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 mb-3">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Định danh CCCD</span>
-                          <span className="font-mono font-medium text-slate-800">
-                            {renderCustomerPII(rawCccd, 'CCCD', r.id)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Mã số BHXH</span>
-                          <span className="font-mono font-medium text-slate-800">
-                            {renderCustomerPII(rawBhxh, 'BHXH', r.id)}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Hạn đóng</span>
-                          <span className="text-slate-700 font-medium">
-                            {r.nextPayment ? formatDateVN(r.nextPayment) : '---'}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Trạng thái</span>
-                          <CustomerStatusBadge paymentStatus={r.paymentStatus} nextPayment={r.nextPayment} />
-                        </div>
-                      </div>
-
-                      <div className="flex items-center justify-between gap-1 pt-1">
-                        <CustomerParticipationBadge 
-                          status={r.status || 'Đang tham gia'} 
-                          interactive={Boolean(r.id)}
-                          onClick={() => r.id && setStatusModalRecord(r)} 
-                        />
-                        <div className="flex items-center gap-1">
-                          <button 
-                            type="button"
-                            onClick={() => handleViewHistory(r)} 
-                            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50"
-                            title="Lịch sử"
-                          >
-                            <History size={15} />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => setVietQrRecord(r)} 
-                            className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50"
-                            title="VietQR"
-                          >
-                            <QrCode size={15} />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => copyZaloMessage(r)} 
-                            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
-                            title="Zalo"
-                          >
-                            <Copy size={15} />
-                          </button>
-                          <button 
-                            type="button"
-                            onClick={() => openRegisterModal(r.type as 'BHXH' | 'BHYT', r, true)} 
-                            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50"
-                            title="Gia hạn"
-                          >
-                            <Zap size={15} />
-                          </button>
-                          {canEditCustomer && (
-                            <button 
-                              type="button"
-                              onClick={() => openRegisterModal(r.type as 'BHXH' | 'BHYT', r, false)} 
-                              className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50"
-                              title="Sửa"
-                            >
-                              <Edit size={15} />
-                            </button>
-                          )}
-                          {canDeleteCustomer && (
-                            <button 
-                              type="button"
-                              onClick={() => confirmDelete(r.id)} 
-                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                              title="Xóa"
-                            >
-                              <Trash2 size={15} />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </>
+          <CustomerTableView
+            customers={paginatedCustomers}
+            selectedIds={selectedIds}
+            onSelectAll={handleSelectAll}
+            onSelectRow={handleSelectRow}
+            renderCustomerPII={renderCustomerPII}
+            toggleRowPII={toggleRowPII}
+            revealedRowIds={revealedRowIds}
+            isPIIMasked={isPIIMasked}
+            isAdminOrManager={isAdminOrManager}
+            currentUser={currentUser}
+            canEditCustomer={canEditCustomer}
+            canDeleteCustomer={canDeleteCustomer}
+            onStatusClick={(r) => setStatusModalRecord(r)}
+            onParticipationClick={(r) => setParticipationRecord(r)}
+            onViewHistory={(r) => handleViewHistory(r)}
+            onVietQrClick={(r) => setVietQrRecord(r)}
+            onAssignClick={(id) => openAssignModal(id)}
+            onCopyZalo={(r) => copyZaloMessage(r)}
+            onExtendClick={(r) => openRegisterModal(r.type as 'BHXH' | 'BHYT', r, true)}
+            onEditClick={(r) => openRegisterModal(r.type as 'BHXH' | 'BHYT', r, false)}
+            onDeleteClick={(id) => confirmDelete(id)}
+          />
         )}
 
         {/* 4. Phân trang chuẩn Design System */}
@@ -1434,133 +1048,31 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       )}
 
       {/* Modal xác nhận phương thức Nhập Excel Thông Minh */}
-      {isImportConfirmOpen && importConfirmData && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 border border-slate-200">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#004182] flex items-center justify-center font-bold">
-                <FileUp size={24} />
-              </div>
-              <div>
-                <h3 className="text-lg font-black text-slate-900">
-                  Tùy Chọn Nhập Dữ Liệu Excel
-                </h3>
-                <p className="text-xs text-slate-500">
-                  Tệp: <span className="font-semibold text-slate-700">{importConfirmFileName}</span> ({importConfirmData.records.length} bản ghi hợp lệ)
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-5 text-xs text-amber-900 leading-relaxed">
-              <p className="font-bold flex items-center gap-1.5 mb-1 text-amber-800">
-                <AlertCircle size={15} /> Phát hiện dữ liệu giao dịch đóng tiền trong file Excel:
-              </p>
-              Hệ thống đã nhận diện đầy đủ: <strong>Kỳ đóng (Từ tháng - Đến tháng)</strong>, <strong>Mức thu nhập</strong>, <strong>Số tiền đóng</strong>, <strong>Hoa hồng</strong> và <strong>Nhân viên thu</strong>. Vui lòng chọn cách nhập mong muốn:
-            </div>
-
-            <div className="space-y-3 mb-6">
-              <button
-                type="button"
-                onClick={() => handleExecuteFullImport(importConfirmData)}
-                disabled={isImporting}
-                className="w-full text-left p-4 rounded-2xl border-2 border-blue-200 hover:border-[#004182] bg-blue-50/50 hover:bg-blue-50 transition cursor-pointer group"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm text-[#004182] group-hover:underline">
-                    1. Đồng bộ toàn diện (Khuyên dùng)
-                  </span>
-                  <span className="text-[11px] bg-[#004182] text-white px-2 py-0.5 rounded-full font-semibold">
-                    Đầy đủ dữ liệu
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mt-1">
-                  Nhập cả <strong>Giao dịch vào Sổ quỹ</strong> (chuẩn hóa tiền thu, kỳ đóng, hoa hồng) và <strong>Tự động cập nhật Danh bạ khách hàng</strong> với hạn đóng tiếp theo chính xác.
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleExecuteDirectoryOnlyImport(importConfirmData)}
-                disabled={isImporting}
-                className="w-full text-left p-4 rounded-2xl border border-slate-200 hover:border-slate-400 bg-slate-50/60 hover:bg-slate-50 transition cursor-pointer"
-              >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-sm text-slate-800">
-                    2. Chỉ cập nhật Danh bạ khách hàng
-                  </span>
-                  <span className="text-[11px] bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-semibold">
-                    Không tạo giao dịch
-                  </span>
-                </div>
-                <p className="text-xs text-slate-500 mt-1">
-                  Chỉ lưu thông tin nhân khẩu (CCCD, SĐT, Địa chỉ, Ngày sinh, Hạn nộp) vào Danh bạ khách hàng. <strong>Hoàn toàn không sinh giao dịch trong Sổ quỹ tài chính</strong>.
-                </p>
-              </button>
-            </div>
-
-            <div className="flex justify-end gap-2.5">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsImportConfirmOpen(false);
-                  setImportConfirmData(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                disabled={isImporting}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ExcelImportConfirmModal
+        isOpen={Boolean(isImportConfirmOpen && importConfirmData)}
+        onClose={() => {
+          setIsImportConfirmOpen(false);
+          setImportConfirmData(null);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+        }}
+        fileName={importConfirmFileName}
+        recordCount={importConfirmData?.records?.length || 0}
+        onConfirmFull={() => importConfirmData && handleExecuteFullImport(importConfirmData)}
+        onConfirmDirectoryOnly={() => importConfirmData && handleExecuteDirectoryOnlyImport(importConfirmData)}
+        isImporting={isImporting}
+      />
 
       {/* Modal phân công nhân viên phụ trách */}
-      {isAssignModalOpen && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200">
-            <h3 className="text-base font-bold text-slate-900 mb-2">
-              Phân Công Nhân Viên Phụ Trách ({selectedIds.length} khách hàng)
-            </h3>
-            <p className="text-xs text-slate-500 mb-4">
-              Chọn nhân viên phụ trách chăm sóc, đôn đốc gia hạn cho các khách hàng được chọn:
-            </p>
-            <div className="mb-5">
-              <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                Nhân viên phụ trách:
-              </label>
-              <select
-                value={assignStaffId}
-                onChange={e => setAssignStaffId(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-sm outline-none focus:border-[#004182] bg-white cursor-pointer"
-              >
-                <option value="">-- Thu hồi phân công (Chưa giao ai) --</option>
-                {staff.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name} ({s.phone || 'Không có SĐT'})</option>
-                ))}
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setIsAssignModalOpen(false)}
-                className="px-4 py-2 border border-slate-200 text-slate-600 rounded-xl hover:bg-slate-50 text-xs font-semibold cursor-pointer"
-              >
-                Hủy bỏ
-              </button>
-              <button
-                type="button"
-                onClick={executeAssignStaff}
-                disabled={isAssigning}
-                className="px-4 py-2 bg-[#004182] hover:bg-[#003166] text-white rounded-xl text-xs font-semibold cursor-pointer shadow-xs disabled:opacity-50"
-              >
-                {isAssigning ? 'Đang lưu...' : 'Xác nhận phân công'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <AssignStaffModal
+        isOpen={isAssignModalOpen}
+        onClose={() => setIsAssignModalOpen(false)}
+        selectedCount={selectedIds.length}
+        staff={staff}
+        assignStaffId={assignStaffId}
+        setAssignStaffId={setAssignStaffId}
+        onConfirm={executeAssignStaff}
+        isAssigning={isAssigning}
+      />
 
       {/* Modal Lịch sử giao dịch */}
       {searchModalOpen && (

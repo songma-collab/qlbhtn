@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { policyService, systemSettingService } from '../services';
 import { SettingsType, Policy } from './types';
-import { withRetry } from '../utils/networkHelper';
 import { 
   sanitizeSettingsForDb, 
   mergeSettingsWithVietQR, 
@@ -50,8 +49,8 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
   const fetchPoliciesAndSettings = useCallback(async () => {
     try {
       const [policiesRes, settingsRes] = await Promise.all([
-        withRetry<any>(() => supabase.from('system_policies').select('*').order('effective_date', { ascending: false })),
-        withRetry<any>(() => supabase.from('settings').select('*').limit(1).maybeSingle())
+        policyService.fetchPolicies(),
+        systemSettingService.fetchSettings()
       ]);
 
       if (policiesRes?.data) {
@@ -59,10 +58,11 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
       }
 
       if (settingsRes?.data) {
+        const sData = settingsRes.data;
         setSettingsLive(prev => mergeSettingsWithVietQR({
           ...prev,
-          ...settingsRes.data,
-          cpiIndex: settingsRes.data.cpiIndex || prev.cpiIndex
+          ...sData,
+          cpiIndex: sData.cpiIndex || prev.cpiIndex
         }, policiesRes?.data));
       }
     } catch (err) {
@@ -96,9 +96,7 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
       const dbFields = sanitizeSettingsForDb(newSettings);
       if (Object.keys(dbFields).length > 0) {
-        const { error } = await withRetry<any>(() => 
-          supabase.from('settings').upsert({ id: 1, ...dbFields })
-        );
+        const { error } = await systemSettingService.upsertSettings(dbFields);
         if (error) throw error;
       }
 
@@ -112,7 +110,7 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const addPolicy = async (policy: Omit<Policy, 'id'>): Promise<boolean> => {
     try {
-      const { error } = await withRetry<any>(() => supabase.from('system_policies').insert([policy]));
+      const { error } = await policyService.addPolicy(policy);
       if (error) throw error;
       await fetchPoliciesAndSettings();
       return true;
@@ -124,7 +122,7 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const updatePolicy = async (id: number, policy: Partial<Policy>): Promise<boolean> => {
     try {
-      const { error } = await withRetry<any>(() => supabase.from('system_policies').update(policy).eq('id', id));
+      const { error } = await policyService.updatePolicy(id, policy);
       if (error) throw error;
       await fetchPoliciesAndSettings();
       return true;
@@ -136,7 +134,7 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const deletePolicy = async (id: number): Promise<boolean> => {
     try {
-      const { error } = await withRetry<any>(() => supabase.from('system_policies').delete().eq('id', id));
+      const { error } = await policyService.deletePolicy(id);
       if (error) throw error;
       await fetchPoliciesAndSettings();
       return true;
@@ -148,12 +146,8 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const activatePolicy = async (id: number, parameterType: string): Promise<boolean> => {
     try {
-      await withRetry<any>(() => 
-        supabase.from('system_policies').update({ is_active: false }).eq('parameter_type', parameterType)
-      );
-      await withRetry<any>(() => 
-        supabase.from('system_policies').update({ is_active: true }).eq('id', id)
-      );
+      const { error } = await policyService.activatePolicy(id, parameterType);
+      if (error) throw error;
       await fetchPoliciesAndSettings();
       return true;
     } catch (err) {

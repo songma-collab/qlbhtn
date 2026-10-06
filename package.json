@@ -11,8 +11,9 @@
     "start": "node server.ts",
     "clean": "node -e \"import('fs').then(fs => fs.rmSync('dist', { recursive: true, force: true }))\"",
     "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify-baseline": "npm run lint && npm run test && npm run build"
+    "verify-baseline": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {
     "@google/genai": "^2.24.0",

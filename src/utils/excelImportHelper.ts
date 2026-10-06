@@ -108,7 +108,7 @@ export const parseMonthSafe = (val: any): string => {
   
   // Dạng MM/YYYY hoặc M/YYYY
   const m1 = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
-  if (m1) {
+  if (m1 && m1[1] && m1[2]) {
     const m = m1[1].padStart(2, '0');
     const y = m1[2];
     return `${m}/${y}`;
@@ -116,7 +116,7 @@ export const parseMonthSafe = (val: any): string => {
 
   // Dạng YYYY-MM hoặc YYYY/MM
   const m2 = s.match(/^(\d{4})[\/\-](\d{1,2})$/);
-  if (m2) {
+  if (m2 && m2[1] && m2[2]) {
     const y = m2[1];
     const m = m2[2].padStart(2, '0');
     return `${m}/${y}`;
@@ -143,7 +143,7 @@ export const parseDateSafe = (val: any): string => {
   const s = String(val).trim();
   // Dạng DD/MM/YYYY
   const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
-  if (m) {
+  if (m && m[1] && m[2] && m[3]) {
     const d = m[1].padStart(2, '0');
     const mo = m[2].padStart(2, '0');
     const y = m[3];
@@ -180,7 +180,14 @@ export const generateCustomerKeyJs = (type: string, bhxh?: string, cccd?: string
   const cleanCccd = String(cccd || '').replace(/\D/g, '');
   const cleanBhxh = String(bhxh || '').replace(/\D/g, '');
   const cleanPhone = String(phone || '').replace(/\D/g, '');
-  const cleanName = String(name || '').trim().toLowerCase().replace(/\s+/g, '_');
+  const cleanName = String(name || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
 
   if (cleanCccd.length === 12 || cleanCccd.length === 9) {
     return `CUST_CCCD_${cleanCccd}`;
@@ -211,7 +218,7 @@ export const parseExcelRows = (
     staffList: any[];
     policies: any[];
     settings: any;
-    currentUserId?: string;
+    currentUserId?: string | undefined;
   }
 ): ParsedExcelResult => {
   const { defaultType, staffList, policies, settings, currentUserId } = options;

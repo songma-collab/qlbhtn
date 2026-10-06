@@ -178,7 +178,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-semibold text-gray-500 block">
-                        Hạn: {formatDateVN(r.nextPayment) || '---'}
+                        Hạn: {formatDateVN(r.next_payment || (r as any).nextPayment) || '---'}
                       </span>
                       <span className="text-[10px] font-bold text-emerald-600">
                         {r.status || 'Đang tham gia'}

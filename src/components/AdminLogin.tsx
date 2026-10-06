@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
 import { Lock, User, AlertCircle, CheckCircle2, Mail, ArrowLeft, Home } from 'lucide-react';
-import { supabase } from '../lib/supabase';
+import { authService, staffService } from '../services';
 
 const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
   const navigate = useNavigate();
@@ -36,7 +36,7 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
       setIsSettingNewPassword(true);
     }
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+    const { data: { subscription } } = authService.onAuthStateChange((event) => {
       if (event === 'PASSWORD_RECOVERY') {
         setIsSettingNewPassword(true);
       }
@@ -54,11 +54,8 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
     try {
       const cleanUsername = username.trim().toLowerCase();
 
-      // 1. Authenticate with Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email: cleanUsername,
-        password: password
-      });
+      // 1. Authenticate with authService
+      const { data: authData, error: authError } = await authService.signInWithPassword(cleanUsername, password);
 
       if (authError) {
         if (authError.message.includes('Email not confirmed')) {
@@ -77,36 +74,26 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         const userEmail = (authData.user.email || cleanUsername).trim().toLowerCase();
         let staffUser: any = null;
 
-        // Ưu tiên gọi RPC get_current_staff_profile (Chính xác 100%, tự động liên kết server-side)
+        // Ưu tiên gọi RPC get_current_staff_profile qua staffService
         try {
-          const { data: rpcRes } = await supabase.rpc('get_current_staff_profile');
-          if (rpcRes?.success && rpcRes?.profile) {
-            staffUser = rpcRes.profile;
+          const { profile } = await staffService.getCurrentStaffProfile();
+          if (profile) {
+            staffUser = profile;
           }
         } catch (e) {
           console.warn("RPC get_current_staff_profile fallback to direct query:", e);
         }
 
-        // Fallback sang truy vấn bảng staff nếu RPC chưa nạp
+        // Fallback sang tra cứu staff qua staffService nếu RPC chưa nạp
         if (!staffUser) {
-          const { data: byAuthId } = await supabase
-            .from('staff')
-            .select('id, name, cccd, phone, email, area, role, status, username, staffCode, auth_user_id')
-            .eq('auth_user_id', authData.user.id)
-            .maybeSingle();
-
+          const byAuthId = await staffService.getStaffByAuthId(authData.user.id);
           if (byAuthId) {
             staffUser = byAuthId;
           } else {
-            const { data: byEmail } = await supabase
-              .from('staff')
-              .select('id, name, cccd, phone, email, area, role, status, username, staffCode, auth_user_id')
-              .ilike('email', userEmail)
-              .maybeSingle();
-
+            const byEmail = await staffService.getStaffByEmail(userEmail);
             if (byEmail) {
               staffUser = byEmail;
-              await supabase.from('staff').update({ auth_user_id: authData.user.id }).eq('id', byEmail.id);
+              await staffService.bindStaffAuthUser(byEmail.id, authData.user.id);
             }
           }
         }
@@ -114,7 +101,7 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         if (staffUser) {
           if (staffUser.status === 'Tạm khóa') {
             setError('Tài khoản của bạn đã bị tạm khóa. Vui lòng liên hệ Admin.');
-            await supabase.auth.signOut();
+            await authService.signOut();
             setIsLoading(false);
             return;
           }
@@ -124,7 +111,7 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         } else {
           console.warn("User authenticated in Supabase Auth but not found in staff table:", authData.user);
           setError('Tài khoản email đã xác thực nhưng chưa được khai báo trong bảng Nhân sự (Staff). Vui lòng thêm hồ sơ nhân viên cho email này.');
-          await supabase.auth.signOut();
+          await authService.signOut();
         }
       }
     } catch (err: any) {
@@ -149,11 +136,8 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         return;
       }
 
-      // Check if email exists in public.staff first
-      const { data: staffUsers, error: staffError } = await supabase
-        .from('staff')
-        .select('id, name')
-        .eq('email', cleanEmail);
+      // Check if email exists in staffService first
+      const { exists: staffExists, error: staffError } = await staffService.checkStaffEmailExists(cleanEmail);
 
       if (staffError) {
         setError('Không thể kiểm tra thông tin nhân viên trong hệ thống.');
@@ -161,17 +145,14 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         return;
       }
 
-      if (!staffUsers || staffUsers.length === 0) {
+      if (!staffExists) {
         setError('Email này chưa được quản trị viên cấp phép/thêm vào danh sách nhân viên. Vui lòng liên hệ quản trị viên.');
         setIsLoading(false);
         return;
       }
 
-      // If exists, proceed to signup in Supabase Auth
-      const { error: authError } = await supabase.auth.signUp({
-        email: cleanEmail,
-        password: password
-      });
+      // If exists, proceed to signup in authService
+      const { error: authError } = await authService.signUp(cleanEmail, password);
 
       if (authError) {
         setError('Lỗi đăng ký tài khoản: ' + authError.message);
@@ -203,9 +184,7 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         return;
       }
       
-      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
-          redirectTo: window.location.origin + '/admin',
-      });
+      const { error } = await authService.resetPasswordForEmail(cleanEmail, window.location.origin + '/admin');
       
       if (error) {
         setError(error.message);
@@ -232,8 +211,8 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
         return;
       }
 
-      // Update password in Supabase Auth
-      const { error } = await supabase.auth.updateUser({
+      // Update password in authService
+      const { error } = await authService.updateUser({
         password: password
       });
 
@@ -244,7 +223,7 @@ const AdminLogin = ({ onLoginSuccess }: { onLoginSuccess: () => void }) => {
       setPassword('');
       
       // Let the user login again normally or automatically log them in
-      await supabase.auth.signOut();
+      await authService.signOut();
     } catch (err: any) {
       console.error("Update Password Error:", err);
       setError('Lỗi cập nhật mật khẩu: ' + err.message);

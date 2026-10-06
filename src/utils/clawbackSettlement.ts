@@ -22,19 +22,19 @@ export interface CreateClawbackPayloadOptions {
   originalRecord: RecordType;
   refundAmount: number;
   refundType: string;
-  decisionNumber?: string;
-  decisionDate?: string;
-  refundMethod?: string;
+  decisionNumber?: string | undefined;
+  decisionDate?: string | undefined;
+  refundMethod?: string | undefined;
   effectiveDate: string;
   reason: string;
-  fromMonth?: string;
-  toMonth?: string;
-  months?: number;
-  beneficiaryName?: string;
-  beneficiaryAccount?: string;
-  beneficiaryBank?: string;
-  policies?: Policy[];
-  settings?: any;
+  fromMonth?: string | undefined;
+  toMonth?: string | undefined;
+  months?: number | undefined;
+  beneficiaryName?: string | undefined;
+  beneficiaryAccount?: string | undefined;
+  beneficiaryBank?: string | undefined;
+  policies?: Policy[] | undefined;
+  settings?: any | undefined;
 }
 
 /**
@@ -49,8 +49,8 @@ export function calculateClawbackRatio(
 ): RefundRatioBreakdown {
   const origAmount = Number(originalRecord.amount) || 0;
   let origCommission = Number(originalRecord.commission) || 0;
-  const origNNSupport = Number(originalRecord.nnSupportAmount) || 0;
-  const origDPSupport = Number(originalRecord.dpSupportAmount) || 0;
+  const origNNSupport = Number(originalRecord.nn_support_amount ?? (originalRecord as any).nnSupportAmount) || 0;
+  const origDPSupport = Number(originalRecord.dp_support_amount ?? (originalRecord as any).dpSupportAmount) || 0;
 
   if (origAmount <= 0) {
     return {
@@ -65,8 +65,9 @@ export function calculateClawbackRatio(
 
   // Fallback: nếu hồ sơ gốc chưa lưu tĩnh trường commission, tính toán hoa hồng gốc mà nhân viên đã thực nhận
   if (origCommission === 0 && origAmount > 0) {
-    if (originalRecord.appliedRates?.commissionRate) {
-      origCommission = Math.round(origAmount * Number(originalRecord.appliedRates.commissionRate));
+    const applied = originalRecord.applied_rates || (originalRecord as any).appliedRates;
+    if (applied?.commissionRate || applied?.commission_rate) {
+      origCommission = Math.round(origAmount * Number(applied.commissionRate || applied.commission_rate));
     } else {
       const rate = getCommissionRateForRecord(originalRecord, policies, settings);
       origCommission = Math.round(origAmount * rate);
@@ -98,10 +99,12 @@ export function getRefundHistoryForRecord(originalRecordId: number, allRecords: 
   const originalRecord = originalRecordParam || allRecords.find(r => r.id === originalRecordId);
   const origAmount = Number(originalRecord?.amount) || 0;
 
-  const refundEntries = allRecords.filter(r => 
-    r.originalRecordId === originalRecordId && 
-    (r.isAdjustment === true || r.paymentStatus === 'Đã thoái thu')
-  );
+  const refundEntries = allRecords.filter(r => {
+    const origId = r.original_record_id ?? (r as any).originalRecordId;
+    const isAdj = r.is_adjustment ?? (r as any).isAdjustment;
+    const pStat = r.payment_status || (r as any).paymentStatus;
+    return origId === originalRecordId && (isAdj === true || pStat === 'Đã thoái thu');
+  });
 
   const alreadyRefunded = refundEntries.reduce((sum, r) => sum + Math.abs(Number(r.amount) || 0), 0);
   const remainingRefundable = Math.max(0, origAmount - alreadyRefunded);
@@ -133,7 +136,7 @@ export function validateRefundClawback(
   }
 
   // Hồ sơ gốc không được ở trạng thái Đã hủy
-  if (originalRecord.paymentStatus === 'Đã hủy') {
+  if ((originalRecord.payment_status || (originalRecord as any).paymentStatus) === 'Đã hủy') {
     return { isValid: false, errorMessage: `Hồ sơ "${originalRecord.name}" đã ở trạng thái Đã hủy, không thể thoái thu.` };
   }
 
@@ -204,58 +207,55 @@ export function buildClawbackRecordPayload(options: CreateClawbackPayloadOptions
     cccd: originalRecord.cccd,
     phone: originalRecord.phone,
     bhxh: originalRecord.bhxh,
-    oldBhxh: originalRecord.oldBhxh,
-    old_bhxh: originalRecord.old_bhxh,
+    old_bhxh: originalRecord.old_bhxh || (originalRecord as any).oldBhxh,
     address: originalRecord.address,
     dob: originalRecord.dob,
     gender: originalRecord.gender,
     type: originalRecord.type,
-    subType: originalRecord.subType,
+    sub_type: originalRecord.sub_type || (originalRecord as any).subType,
     months: months !== undefined ? months : (originalRecord.months || 1),
-    fromMonth: fromMonth || originalRecord.fromMonth || null,
-    toMonth: toMonth || originalRecord.toMonth || null,
+    from_month: fromMonth || originalRecord.from_month || (originalRecord as any).fromMonth || null,
+    to_month: toMonth || originalRecord.to_month || (originalRecord as any).toMonth || null,
     date: effectiveDate, // Ghi nhận tại kỳ mở hiện tại
-    targetDate: originalRecord.targetDate,
-    effectiveDate: originalRecord.effectiveDate,
+    target_date: originalRecord.target_date || (originalRecord as any).targetDate,
+    effective_date: originalRecord.effective_date || (originalRecord as any).effectiveDate,
     status: 'Hoạt động',
-    paymentStatus: 'Đã thoái thu',
-    actionType: 'Thoái thu hoàn trả',
-    staffId: originalRecord.staffId,
+    payment_status: 'Đã thoái thu',
+    action_type: 'Thoái thu hoàn trả',
+    staff_id: originalRecord.staff_id || (originalRecord as any).staffId,
     notes: reason ? `${reason} (QĐ: ${decisionNumber || 'N/A'})` : `Thoái thu hoàn trả cho hồ sơ #${originalRecord.id}`,
 
     // Ghi nhận dòng tiền âm và thu hồi hoa hồng nhân viên
     amount: -Math.abs(refundAmount),
     commission: -Math.abs(clawbackCommission),
-    nnSupportAmount: -Math.abs(clawbackNNSupport),
-    dpSupportAmount: -Math.abs(clawbackDPSupport),
+    nn_support_amount: -Math.abs(clawbackNNSupport),
+    dp_support_amount: -Math.abs(clawbackDPSupport),
 
     // Cờ và liên kết gốc
-    isAdjustment: true,
-    originalRecordId: originalRecord.id,
-    adjustmentReason: reason,
+    is_adjustment: true,
+    original_record_id: originalRecord.id,
+    adjustment_reason: reason,
 
     // Thông tin nghiệp vụ hoàn trả
-    refundType,
-    decisionNumber,
-    decisionDate,
-    refundMethod,
-    refundBeneficiaryName: beneficiaryName || originalRecord.name,
-    refundBeneficiaryAccount: beneficiaryAccount,
-    refundBeneficiaryBank: beneficiaryBank,
+    refund_type: refundType,
+    decision_number: decisionNumber,
+    decision_date: decisionDate,
+    refund_method: refundMethod,
+    refund_beneficiary_name: beneficiaryName || originalRecord.name,
+    refund_beneficiary_account: beneficiaryAccount,
+    refund_beneficiary_bank: beneficiaryBank,
 
     // Kế thừa snapshot chính sách từ giao dịch gốc
-    baseSalarySnapshot: originalRecord.baseSalarySnapshot,
-    povertyStandardSnapshot: originalRecord.povertyStandardSnapshot,
-    policyVersionId: originalRecord.policyVersionId,
-    appliedRates: originalRecord.appliedRates,
+    base_salary_snapshot: originalRecord.base_salary_snapshot ?? (originalRecord as any).baseSalarySnapshot,
+    poverty_standard_snapshot: originalRecord.poverty_standard_snapshot ?? (originalRecord as any).povertyStandardSnapshot,
+    policy_version_id: originalRecord.policy_version_id ?? (originalRecord as any).policyVersionId,
+    applied_rates: originalRecord.applied_rates ?? (originalRecord as any).appliedRates,
 
     // Kế thừa liên kết khách hàng Master Data và nơi KCB ban đầu
-    customerId: originalRecord.customerId || (originalRecord as any).customer_id,
-    customer_id: (originalRecord as any).customer_id || originalRecord.customerId,
-    customerKey: originalRecord.customerKey || (originalRecord as any).customer_key,
-    customer_key: (originalRecord as any).customer_key || originalRecord.customerKey,
-    hospitalCode: originalRecord.hospitalCode || (originalRecord as any).hospital_code,
-    hospitalName: originalRecord.hospitalName || (originalRecord as any).hospital_name
+    customer_id: originalRecord.customer_id || (originalRecord as any).customerId,
+    customer_key: originalRecord.customer_key || (originalRecord as any).customerKey,
+    hospital_code: originalRecord.hospital_code || (originalRecord as any).hospitalCode,
+    hospital_name: originalRecord.hospital_name || (originalRecord as any).hospitalName
   };
 }
 

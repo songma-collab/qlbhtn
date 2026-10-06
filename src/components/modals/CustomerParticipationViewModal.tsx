@@ -50,13 +50,13 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
     return records
       .filter(r => {
         if (!r || r.type !== 'BHXH') return false;
-        if (r.paymentStatus === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
-        if (r.isAdjustment || (r as any).is_adjustment) return false;
+        if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
+        if (r.is_adjustment || (r as any).isAdjustment) return false;
         return doesRecordMatchCustomer(r, customer);
       })
       .sort((a, b) => {
-        const dateA = new Date(a.date || a.effectiveDate || 0).getTime();
-        const dateB = new Date(b.date || b.effectiveDate || 0).getTime();
+        const dateA = new Date(a.date || a.effective_date || (a as any).effectiveDate || 0).getTime();
+        const dateB = new Date(b.date || b.effective_date || (b as any).effectiveDate || 0).getTime();
         return dateB - dateA;
       });
   }, [customer, records]);
@@ -380,7 +380,11 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {agencyRecords.map((r, idx) => {
-                    const sal = r.wage || r.income || (r.basePremium ? Math.round(Number(r.basePremium) / 0.22) : 1500000);
+                    const basePrem = r.base_premium ?? (r as any).basePremium;
+                    const sal = r.wage || r.income || (basePrem ? Math.round(Number(basePrem) / 0.22) : 1500000);
+                    const fMonth = r.from_month || (r as any).fromMonth;
+                    const tMonth = r.to_month || (r as any).toMonth;
+                    const nnSup = r.nn_support_amount ?? (r as any).nnSupportAmount;
                     return (
                       <tr key={r.id || idx} className="hover:bg-emerald-50/30 transition">
                         <td className="p-3 text-center text-gray-400 font-bold">{idx + 1}</td>
@@ -388,7 +392,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                           {r.date ? new Date(r.date).toLocaleDateString('vi-VN') : '-'}
                         </td>
                         <td className="p-3 text-center font-mono font-bold text-emerald-700">
-                          {r.fromMonth || '-'} {r.toMonth ? `→ ${r.toMonth}` : ''}
+                          {fMonth || '-'} {tMonth ? `→ ${tMonth}` : ''}
                         </td>
                         <td className="p-3 text-center font-black text-gray-900">
                           {r.months || 1} th
@@ -400,7 +404,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                           {r.amount ? new Intl.NumberFormat('vi-VN').format(r.amount) : 0} đ
                         </td>
                         <td className="p-3 text-right font-mono text-gray-600">
-                          {r.nnSupportAmount ? `${new Intl.NumberFormat('vi-VN').format(r.nnSupportAmount)} đ` : '-'}
+                          {nnSup ? `${new Intl.NumberFormat('vi-VN').format(nnSup)} đ` : '-'}
                         </td>
                         <td className="p-3">
                           <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">

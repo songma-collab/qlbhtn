@@ -11,7 +11,7 @@ interface VirtualizedRecordTableProps {
   onSelectRow: (id: number) => void;
   onSelectAll: (selected: boolean) => void;
   onStatusClick: (record: RecordType) => void;
-  onParticipationClick?: (record: RecordType) => void;
+  onParticipationClick?: ((record: RecordType) => void) | undefined;
   onViewHistory: (record: RecordType) => void;
   onVietQrClick: (record: RecordType) => void;
   onAssignClick: (id: number) => void;
@@ -19,7 +19,7 @@ interface VirtualizedRecordTableProps {
   onExtendClick: (record: RecordType) => void;
   onEditClick: (record: RecordType) => void;
   onDeleteClick: (id: number) => void;
-  currentUserRole?: string;
+  currentUserRole?: string | undefined;
 }
 
 export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
@@ -92,6 +92,7 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const r = records[virtualRow.index];
+            if (!r) return null;
             const isSelected = r.id ? selectedIds.includes(r.id) : false;
             const rawCccd = r.cccd || r.bhxh || '';
 
@@ -155,10 +156,10 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
                 {/* Date & Badge */}
                 <div className="col-span-2">
                   <span className="text-gray-600 font-medium block text-xs">
-                    {formatDateVN(r.nextPayment) || '---'}
+                    {formatDateVN(r.next_payment || (r as any).nextPayment) || '---'}
                   </span>
                   <div className="mt-1">
-                    <CustomerStatusBadge paymentStatus={r.paymentStatus} nextPayment={r.nextPayment} />
+                    <CustomerStatusBadge payment_status={r.payment_status} next_payment={r.next_payment} />
                   </div>
                 </div>
 

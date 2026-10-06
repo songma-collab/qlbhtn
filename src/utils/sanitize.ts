@@ -32,10 +32,10 @@ export const sanitizeString = (val?: string | null): string => {
 };
 
 /**
- * ADAPTER: Chuyển đổi từ Đối tượng Frontend (camelCase) sang Bản ghi CSDL PostgreSQL (100% snake_case)
- * Tương thích với bảng public.records sau khi đã loại bỏ toàn bộ alias cột nháy kép
+ * ADAPTER: Chuyển đổi từ Đối tượng Frontend sang Bản ghi CSDL PostgreSQL (100% snake_case)
+ * Tương thích với bảng public.records
  */
-export const recordToDb = (rec: Partial<RecordType>): Record<string, any> => {
+export const recordToDb = (rec: Partial<RecordType> | any): Record<string, any> => {
   const r: any = rec || {};
   const db: Record<string, any> = {};
 
@@ -48,7 +48,7 @@ export const recordToDb = (rec: Partial<RecordType>): Record<string, any> => {
   if (r.cccd !== undefined) db.cccd = sanitizeString(r.cccd);
   if (r.bhxh !== undefined) db.bhxh = sanitizeString(r.bhxh);
   
-  // Xử lý old_bhxh / oldBhxh / bhxhCu
+  // Xử lý old_bhxh
   const oldBhxhVal = r.old_bhxh !== undefined ? r.old_bhxh : (r.oldBhxh !== undefined ? r.oldBhxh : r.bhxhCu);
   if (oldBhxhVal !== undefined) db.old_bhxh = sanitizeString(oldBhxhVal) || null;
 
@@ -209,14 +209,13 @@ export const recordToDb = (rec: Partial<RecordType>): Record<string, any> => {
 };
 
 /**
- * ADAPTER: Chuyển đổi từ Bản ghi Database PostgreSQL sang Đối tượng RecordType trong ứng dụng
- * Đảm bảo giao diện và mọi hook tiếp tục hoạt động mượt mà với cả camelCase và snake_case
+ * ADAPTER: Chuyển đổi từ Bản ghi Database PostgreSQL sang Đối tượng RecordType trong ứng dụng (100% snake_case)
  */
 export const dbToRecord = (raw: Record<string, any>): RecordType => {
   if (!raw) return {} as RecordType;
   const d = raw;
 
-  const oldBhxh = d.old_bhxh || d.oldBhxh || d.bhxhCu || (d.bhxh && d.bhxh.length === 10 ? d.bhxh : undefined);
+  const old_bhxh = d.old_bhxh || d.oldBhxh || d.bhxhCu || (d.bhxh && d.bhxh.length === 10 ? d.bhxh : undefined);
 
   const record: RecordType = {
     id: d.id,
@@ -226,70 +225,64 @@ export const dbToRecord = (raw: Record<string, any>): RecordType => {
     phone: d.phone || '',
     address: d.address || '',
     bhxh: d.bhxh || '',
-    old_bhxh: oldBhxh,
-    oldBhxh: oldBhxh,
-    bhxhCu: oldBhxh,
+    old_bhxh,
     dob: d.dob || '',
     gender: d.gender || '',
     nation: d.nation || '',
     email: d.email || '',
     type: d.type || 'BHXH',
-    subType: d.sub_type !== undefined ? d.sub_type : d.subType,
+    sub_type: d.sub_type !== undefined ? d.sub_type : d.subType,
     wage: d.wage != null ? Number(d.wage) : undefined,
     income: d.income != null ? Number(d.income) : undefined,
     months: d.months != null ? Number(d.months) : 1,
-    fromMonth: d.from_month !== undefined ? d.from_month : d.fromMonth,
-    toMonth: d.to_month !== undefined ? d.to_month : d.toMonth,
+    from_month: d.from_month !== undefined ? d.from_month : d.fromMonth,
+    to_month: d.to_month !== undefined ? d.to_month : d.toMonth,
     amount: d.amount != null ? Number(d.amount) : 0,
-    basePremium: d.base_premium != null ? Number(d.base_premium) : (d.basePremium != null ? Number(d.basePremium) : undefined),
-    supportPct: d.support_pct != null ? Number(d.support_pct) : (d.supportPct != null ? Number(d.supportPct) : undefined),
-    nnSupportPct: d.nn_support_pct != null ? Number(d.nn_support_pct) : (d.nnSupportPct != null ? Number(d.nnSupportPct) : undefined),
-    dpSupportPct: d.dp_support_pct != null ? Number(d.dp_support_pct) : (d.dpSupportPct != null ? Number(d.dpSupportPct) : undefined),
-    nnSupportAmount: d.nn_support_amount != null ? Number(d.nn_support_amount) : (d.nnSupportAmount != null ? Number(d.nnSupportAmount) : undefined),
-    dpSupportAmount: d.dp_support_amount != null ? Number(d.dp_support_amount) : (d.dpSupportAmount != null ? Number(d.dpSupportAmount) : undefined),
-    discountAmount: d.discount_amount != null ? Number(d.discount_amount) : (d.discountAmount != null ? Number(d.discountAmount) : undefined),
-    penaltyAmount: d.penalty_amount != null ? Number(d.penalty_amount) : (d.penaltyAmount != null ? Number(d.penaltyAmount) : undefined),
+    base_premium: d.base_premium != null ? Number(d.base_premium) : (d.basePremium != null ? Number(d.basePremium) : undefined),
+    support_pct: d.support_pct != null ? Number(d.support_pct) : (d.supportPct != null ? Number(d.supportPct) : undefined),
+    nn_support_pct: d.nn_support_pct != null ? Number(d.nn_support_pct) : (d.nnSupportPct != null ? Number(d.nnSupportPct) : undefined),
+    dp_support_pct: d.dp_support_pct != null ? Number(d.dp_support_pct) : (d.dpSupportPct != null ? Number(d.dpSupportPct) : undefined),
+    nn_support_amount: d.nn_support_amount != null ? Number(d.nn_support_amount) : (d.nnSupportAmount != null ? Number(d.nnSupportAmount) : undefined),
+    dp_support_amount: d.dp_support_amount != null ? Number(d.dp_support_amount) : (d.dpSupportAmount != null ? Number(d.dpSupportAmount) : undefined),
+    discount_amount: d.discount_amount != null ? Number(d.discount_amount) : (d.discountAmount != null ? Number(d.discountAmount) : undefined),
+    penalty_amount: d.penalty_amount != null ? Number(d.penalty_amount) : (d.penaltyAmount != null ? Number(d.penaltyAmount) : undefined),
     commission: d.commission != null ? Number(d.commission) : undefined,
     support: d.support != null ? Number(d.support) : undefined,
     method: d.method || '',
     status: d.status || 'Đang tham gia',
-    paymentStatus: d.payment_status || d.paymentStatus || 'Chờ thu tiền',
-    staffId: d.staff_id || d.staffId,
+    payment_status: d.payment_status || d.paymentStatus || 'Chờ thu tiền',
     staff_id: d.staff_id || d.staffId,
-    actionType: d.action_type || d.actionType,
+    action_type: d.action_type || d.actionType,
     notes: d.notes || '',
     members: Array.isArray(d.members) ? d.members : [],
-    householdId: d.household_id || d.householdId,
-    effectiveDate: d.effective_date || d.effectiveDate,
-    targetDate: d.target_date || d.targetDate,
-    nextPayment: d.next_payment || d.nextPayment,
-    recvName: d.recv_name || d.recvName,
-    recvPhone: d.recv_phone || d.recvPhone,
-    recvAddress: d.recv_address || d.recvAddress,
-    isSubmittedBHXH: d.is_submitted_bhxh !== undefined ? d.is_submitted_bhxh : Boolean(d.isSubmittedBHXH),
-    submissionBatch: d.submission_batch || d.submissionBatch,
-    submittedDate: d.submitted_date || d.submittedDate,
-    baseSalarySnapshot: d.base_salary_snapshot != null ? Number(d.base_salary_snapshot) : (d.baseSalarySnapshot != null ? Number(d.baseSalarySnapshot) : undefined),
-    povertyStandardSnapshot: d.poverty_standard_snapshot != null ? Number(d.poverty_standard_snapshot) : (d.povertyStandardSnapshot != null ? Number(d.povertyStandardSnapshot) : undefined),
-    policyVersionId: d.policy_version_id || d.policyVersionId,
-    appliedRates: d.applied_rates || d.appliedRates,
-    isAdjustment: d.is_adjustment !== undefined ? d.is_adjustment : Boolean(d.isAdjustment),
-    originalRecordId: d.original_record_id != null ? Number(d.original_record_id) : (d.originalRecordId != null ? Number(d.originalRecordId) : undefined),
-    adjustmentReason: d.adjustment_reason || d.adjustmentReason,
-    refundType: d.refund_type || d.refundType,
-    decisionNumber: d.decision_number || d.decisionNumber,
-    decisionDate: d.decision_date || d.decisionDate,
-    refundMethod: d.refund_method || d.refundMethod,
-    refundBeneficiaryName: d.refund_beneficiary_name || d.refundBeneficiaryName,
-    refundBeneficiaryAccount: d.refund_beneficiary_account || d.refundBeneficiaryAccount,
-    refundBeneficiaryBank: d.refund_beneficiary_bank || d.refundBeneficiaryBank,
-    hospitalCode: d.hospital_code || d.hospitalCode,
-    hospitalName: d.hospital_name || d.hospitalName,
-    customerId: d.customer_id || d.customerId,
+    household_id: d.household_id || d.householdId,
+    effective_date: d.effective_date || d.effectiveDate,
+    target_date: d.target_date || d.targetDate,
+    next_payment: d.next_payment || d.nextPayment,
+    recv_name: d.recv_name || d.recvName,
+    recv_phone: d.recv_phone || d.recvPhone,
+    recv_address: d.recv_address || d.recvAddress,
+    is_submitted_bhxh: d.is_submitted_bhxh !== undefined ? d.is_submitted_bhxh : Boolean(d.isSubmittedBHXH),
+    submission_batch: d.submission_batch || d.submissionBatch,
+    submitted_date: d.submitted_date || d.submittedDate,
+    base_salary_snapshot: d.base_salary_snapshot != null ? Number(d.base_salary_snapshot) : (d.baseSalarySnapshot != null ? Number(d.baseSalarySnapshot) : undefined),
+    poverty_standard_snapshot: d.poverty_standard_snapshot != null ? Number(d.poverty_standard_snapshot) : (d.povertyStandardSnapshot != null ? Number(d.povertyStandardSnapshot) : undefined),
+    policy_version_id: d.policy_version_id || d.policyVersionId,
+    applied_rates: d.applied_rates || d.appliedRates,
+    is_adjustment: d.is_adjustment !== undefined ? d.is_adjustment : Boolean(d.isAdjustment),
+    original_record_id: d.original_record_id != null ? Number(d.original_record_id) : (d.originalRecordId != null ? Number(d.originalRecordId) : undefined),
+    adjustment_reason: d.adjustment_reason || d.adjustmentReason,
+    refund_type: d.refund_type || d.refundType,
+    decision_number: d.decision_number || d.decisionNumber,
+    decision_date: d.decision_date || d.decisionDate,
+    refund_method: d.refund_method || d.refundMethod,
+    refund_beneficiary_name: d.refund_beneficiary_name || d.refundBeneficiaryName,
+    refund_beneficiary_account: d.refund_beneficiary_account || d.refundBeneficiaryAccount,
+    refund_beneficiary_bank: d.refund_beneficiary_bank || d.refundBeneficiaryBank,
+    hospital_code: d.hospital_code || d.hospitalCode,
+    hospital_name: d.hospital_name || d.hospitalName,
     customer_id: d.customer_id || d.customerId,
-    customerKey: d.customer_key || d.customerKey,
     customer_key: d.customer_key || d.customerKey,
-    idempotencyKey: d.idempotency_key || d.idempotencyKey,
     idempotency_key: d.idempotency_key || d.idempotencyKey,
     created_at: d.created_at,
     updated_at: d.updated_at

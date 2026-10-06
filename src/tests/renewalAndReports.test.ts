@@ -86,24 +86,24 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
 
     expect(result.totalActionable).toBe(4);
     expect(result.overdue.length).toBe(1);
-    expect(result.overdue[0].record.name).toBe('Nguyễn Văn Quá Hạn');
-    expect(result.overdue[0].urgency).toBe('overdue');
+    expect(result.overdue[0]!.record.name).toBe('Nguyễn Văn Quá Hạn');
+    expect(result.overdue[0]!.urgency).toBe('overdue');
 
     expect(result.urgent.length).toBe(1);
-    expect(result.urgent[0].record.name).toBe('Trần Thị Khẩn Cấp');
-    expect(result.urgent[0].urgency).toBe('urgent');
+    expect(result.urgent[0]!.record.name).toBe('Trần Thị Khẩn Cấp');
+    expect(result.urgent[0]!.urgency).toBe('urgent');
 
     expect(result.warning.length).toBe(1);
-    expect(result.warning[0].record.name).toBe('Lê Văn Cận Hạn');
-    expect(result.warning[0].urgency).toBe('warning');
+    expect(result.warning[0]!.record.name).toBe('Lê Văn Cận Hạn');
+    expect(result.warning[0]!.urgency).toBe('warning');
 
     expect(result.upcoming.length).toBe(1);
-    expect(result.upcoming[0].record.name).toBe('Phạm Thị Sắp Đến');
-    expect(result.upcoming[0].urgency).toBe('upcoming');
+    expect(result.upcoming[0]!.record.name).toBe('Phạm Thị Sắp Đến');
+    expect(result.upcoming[0]!.urgency).toBe('upcoming');
   });
 
   it('sinh nội dung tin nhắn Zalo/SMS chuẩn nghiệp vụ cho BHYT với cảnh báo 5 năm liên tục', () => {
-    const record = sampleRecords[1]; // BHYT
+    const record = sampleRecords[1]!; // BHYT
     const staff = { name: 'Nguyễn Thị Mai', phone: '0988.123.456' };
     const msg = generateRenewalMessage(record, staff);
 

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { RecordType } from '../../context/types';
 import { formatMoney } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import { Bar } from 'react-chartjs-2';
@@ -63,16 +64,16 @@ const Reports = () => {
       setIsLoading(true);
 
       try {
-        let filteredRecords = (records || []).filter(r => r.paymentStatus === 'Đã thu tiền');
+        let filteredRecords: RecordType[] = ((records || []) as RecordType[]).filter((r: RecordType) => r.payment_status === 'Đã thu tiền');
 
         if (!canViewAll) {
-          filteredRecords = filteredRecords.filter(r => 
-            (r.staffId || r.staff_id) === currentUser.id || 
-            (currentUser.username && (r.staffId || r.staff_id) === currentUser.username) ||
-            (currentUser.staffCode && (r.staffId || r.staff_id) === currentUser.staffCode)
+          filteredRecords = filteredRecords.filter((r: RecordType) => 
+            r.staff_id === currentUser.id || 
+            (currentUser.username && r.staff_id === currentUser.username) ||
+            (currentUser.staffCode && r.staff_id === currentUser.staffCode)
           );
         } else if (staffReportFilter !== 'all') {
-          filteredRecords = filteredRecords.filter(r => (r.staffId || r.staff_id) === staffReportFilter);
+          filteredRecords = filteredRecords.filter((r: RecordType) => r.staff_id === staffReportFilter);
         }
 
         if (period !== 'all') {
@@ -105,17 +106,17 @@ const Reports = () => {
             endDate = new Date(now.getFullYear(), 11, 31, 23, 59, 59, 999);
           } else if (period === 'custom') {
             if (customStartDate) {
-              const [sy, sm, sd] = customStartDate.split('-').map(Number);
+              const [sy = 0, sm = 1, sd = 1] = customStartDate.split('-').map(Number);
               startDate = new Date(sy, sm - 1, sd, 0, 0, 0, 0);
             }
             if (customEndDate) {
-              const [ey, em, ed] = customEndDate.split('-').map(Number);
+              const [ey = 0, em = 1, ed = 1] = customEndDate.split('-').map(Number);
               endDate = new Date(ey, em - 1, ed, 23, 59, 59, 999);
             }
           }
 
           if (startDate && endDate) {
-            filteredRecords = filteredRecords.filter(r => {
+            filteredRecords = filteredRecords.filter((r: RecordType) => {
               const rawDate = r.date || (r as any).created_at || (r as any).registration_date;
               if (!rawDate) return false;
               const rDate = new Date(rawDate);
@@ -125,8 +126,8 @@ const Reports = () => {
           }
         }
 
-        const bhxhCount = filteredRecords.filter(r => r.type === 'BHXH').length;
-        const bhytCount = filteredRecords.filter(r => r.type === 'BHYT').length;
+        const bhxhCount = filteredRecords.filter((r: RecordType) => r.type === 'BHXH').length;
+        const bhytCount = filteredRecords.filter((r: RecordType) => r.type === 'BHYT').length;
 
         const staffToProcess = !canViewAll 
           ? (staff.filter((s: any) => s.id === currentUser.id).length > 0 
@@ -134,27 +135,27 @@ const Reports = () => {
               : [currentUser])
           : (staffReportFilter === 'all' ? (staff.length > 0 ? staff : [currentUser]) : staff.filter((s: any) => s.id === staffReportFilter));
 
-        const staffPerformance = staffToProcess.map(s => {
-          const sRecords = filteredRecords.filter(r => 
-            (r.staffId || r.staff_id) === s.id || 
-            (s.username && (r.staffId || r.staff_id) === s.username) ||
-            (s.staffCode && (r.staffId || r.staff_id) === s.staffCode)
+        const staffPerformance = staffToProcess.map((s: any) => {
+          const sRecords = filteredRecords.filter((r: RecordType) => 
+            r.staff_id === s.id || 
+            (s.username && r.staff_id === s.username) ||
+            (s.staffCode && r.staff_id === s.staffCode)
           );
           
-          const sBhxhRecords = sRecords.filter(r => r.type === 'BHXH');
-          const sBhytRecords = sRecords.filter(r => r.type === 'BHYT');
+          const sBhxhRecords = sRecords.filter((r: RecordType) => r.type === 'BHXH');
+          const sBhytRecords = sRecords.filter((r: RecordType) => r.type === 'BHYT');
 
-          const revBHXHNew = sBhxhRecords.filter(r => r.actionType === 'Đăng ký mới').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-          const revBHXHRenew = sBhxhRecords.filter(r => r.actionType === 'Gia hạn' || (r.actionType && r.actionType.toLowerCase().includes('gia hạn'))).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+          const revBHXHNew = sBhxhRecords.filter((r: RecordType) => r.action_type === 'Đăng ký mới').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const revBHXHRenew = sBhxhRecords.filter((r: RecordType) => r.action_type === 'Gia hạn' || (r.action_type && r.action_type.toLowerCase().includes('gia hạn'))).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
 
-          const revBHYTNew = sBhytRecords.filter(r => r.actionType === 'Đăng ký mới').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-          const revBHYTRenew = sBhytRecords.filter(r => r.actionType === 'Gia hạn' || (r.actionType && r.actionType.toLowerCase().includes('gia hạn'))).reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+          const revBHYTNew = sBhytRecords.filter((r: RecordType) => r.action_type === 'Đăng ký mới').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          const revBHYTRenew = sBhytRecords.filter((r: RecordType) => r.action_type === 'Gia hạn' || (r.action_type && r.action_type.toLowerCase().includes('gia hạn'))).reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
 
           const bhxhRev = revBHXHNew + revBHXHRenew;
           const bhytRev = revBHYTNew + revBHYTRenew;
 
-          const bhxhComm = sBhxhRecords.reduce((sum, r) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
-          const bhytComm = sBhytRecords.reduce((sum, r) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
+          const bhxhComm = sBhxhRecords.reduce((sum: number, r: RecordType) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
+          const bhytComm = sBhytRecords.reduce((sum: number, r: RecordType) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
 
           return {
             ...s,
@@ -170,16 +171,16 @@ const Reports = () => {
           };
         });
 
-        staffPerformance.sort((a, b) => b.revenue - a.revenue);
+        staffPerformance.sort((a: any, b: any) => b.revenue - a.revenue);
 
         let totalRev = 0;
         let totalComm = 0;
 
         if (staffReportFilter === 'all') {
-          totalRev = filteredRecords.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-          totalComm = filteredRecords.reduce((sum, r) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
+          totalRev = filteredRecords.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+          totalComm = filteredRecords.reduce((sum: number, r: RecordType) => sum + ((Number(r.amount) || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
         } else {
-          staffPerformance.forEach(p => {
+          staffPerformance.forEach((p: any) => {
             totalRev += p.revenue;
             totalComm += p.commission;
           });
@@ -329,7 +330,7 @@ const Reports = () => {
   const exportReport = async () => {
     const summaryData = [
       { "Chỉ tiêu": "Giai đoạn", "Giá trị": period === 'all' ? 'Toàn thời gian' : period === 'month' ? 'Tháng này' : period === 'quarter' ? 'Quý này' : 'Năm nay' },
-      { "Chỉ tiêu": "Nhân viên", "Giá trị": staffReportFilter === 'all' ? 'Tất cả' : staff.find(s => s.id === staffReportFilter)?.name || '' },
+      { "Chỉ tiêu": "Nhân viên", "Giá trị": staffReportFilter === 'all' ? 'Tất cả' : staff.find((s: any) => s.id === staffReportFilter)?.name || '' },
       { "Chỉ tiêu": "Tổng số hồ sơ BHXH", "Giá trị": stats.bhxhCount },
       { "Chỉ tiêu": "Tổng số hồ sơ BHYT", "Giá trị": stats.bhytCount },
       { "Chỉ tiêu": "Tổng doanh thu", "Giá trị": formatMoney(stats.totalRev) },
@@ -391,11 +392,13 @@ const Reports = () => {
         }
       }
 
-      const staffRecords = records.filter(r => {
-        if (r.staffId !== staffMember.id) return false;
-        if (r.paymentStatus !== 'Đã thu tiền') return false;
+      const staffRecords: RecordType[] = ((records || []) as RecordType[]).filter((r: RecordType) => {
+        if (r.staff_id !== staffMember.id) return false;
+        if (r.payment_status !== 'Đã thu tiền') return false;
         if (startDate && endDate) {
-          const rDate = new Date(r.date);
+          const rawDate = r.date || (r as any).created_at || (r as any).registration_date;
+          if (!rawDate) return false;
+          const rDate = new Date(rawDate);
           return rDate >= startDate && rDate <= endDate;
         }
         return true;
@@ -405,7 +408,7 @@ const Reports = () => {
         return;
       }
 
-      const data = staffRecords.map(r => {
+      const data = staffRecords.map((r: RecordType) => {
         const rate = getCommissionRateForRecord(r, policies, settings);
         
         return {
@@ -415,8 +418,8 @@ const Reports = () => {
           "Mã số BHXH": r.bhxh || "",
           "Loại": r.type,
           "Số tiền": r.amount,
-          "Trạng thái": r.paymentStatus,
-          "Hoa hồng": r.amount * rate
+          "Trạng thái": r.payment_status,
+          "Hoa hồng": (r.amount || 0) * rate
         };
       });
 

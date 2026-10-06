@@ -184,28 +184,28 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     const oldBHXHNewRecord: Partial<RecordType> = {
       id: 101,
       type: 'BHXH',
-      actionType: 'Tham gia mới',
+      action_type: 'Tham gia mới',
       date: '2026-08-15',
       amount: 1500000
     };
     const oldBHXHRenewRecord: Partial<RecordType> = {
       id: 102,
       type: 'BHXH',
-      actionType: 'Gia hạn đóng tiếp',
+      action_type: 'Gia hạn đóng tiếp',
       date: '2026-08-20',
       amount: 1500000
     };
     const oldBHYTNewRecord: Partial<RecordType> = {
       id: 103,
       type: 'BHYT',
-      actionType: 'Cấp mới',
+      action_type: 'Cấp mới',
       date: '2026-09-10',
       amount: 1263600
     };
     const oldBHYTRenewRecord: Partial<RecordType> = {
       id: 104,
       type: 'BHYT',
-      actionType: 'Tái tục thẻ',
+      action_type: 'Tái tục thẻ',
       date: '2026-09-15',
       amount: 1263600
     };
@@ -214,28 +214,28 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     const newBHXHNewRecord: Partial<RecordType> = {
       id: 201,
       type: 'BHXH',
-      actionType: 'Tham gia mới',
+      action_type: 'Tham gia mới',
       date: '2026-10-05',
       amount: 1800000
     };
     const newBHXHRenewRecord: Partial<RecordType> = {
       id: 202,
       type: 'BHXH',
-      actionType: 'Gia hạn tái tục',
+      action_type: 'Gia hạn tái tục',
       date: '2026-10-10',
       amount: 1800000
     };
     const newBHYTNewRecord: Partial<RecordType> = {
       id: 203,
       type: 'BHYT',
-      actionType: 'Cấp mới',
+      action_type: 'Cấp mới',
       date: '2026-10-12',
       amount: 1366200
     };
     const newBHYTRenewRecord: Partial<RecordType> = {
       id: 204,
       type: 'BHYT',
-      actionType: 'Đóng tiếp gia hạn',
+      action_type: 'Đóng tiếp gia hạn',
       date: '2026-10-15',
       amount: 1366200
     };
@@ -290,9 +290,9 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     // Người 2 (70%): 105.300 * 0.7 * 12 = 884.520đ
     // Người 3 (60%): 105.300 * 0.6 * 12 = 758.160đ
     // Tổng = 2.906.280đ
-    expect(oldBHYTResult.breakdown[0].amount).toBe(1263600);
-    expect(oldBHYTResult.breakdown[1].amount).toBe(884520);
-    expect(oldBHYTResult.breakdown[2].amount).toBe(758160);
+    expect(oldBHYTResult.breakdown[0]!.amount).toBe(1263600);
+    expect(oldBHYTResult.breakdown[1]!.amount).toBe(884520);
+    expect(oldBHYTResult.breakdown[2]!.amount).toBe(758160);
     expect(oldBHYTResult.amount).toBe(2906280);
 
     // 2. Mức lương cơ sở mới: 2.530.000đ (Dự thảo/Quyết định mới từ 01/10/2026)
@@ -304,9 +304,9 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     // Người 2 (70%): 113.850 * 0.7 * 12 = 956.340đ
     // Người 3 (60%): 113.850 * 0.6 * 12 = 819.720đ
     // Tổng = 3.142.260đ
-    expect(newBHYTResult.breakdown[0].amount).toBe(1366200);
-    expect(newBHYTResult.breakdown[1].amount).toBe(956340);
-    expect(newBHYTResult.breakdown[2].amount).toBe(819720);
+    expect(newBHYTResult.breakdown[0]!.amount).toBe(1366200);
+    expect(newBHYTResult.breakdown[1]!.amount).toBe(956340);
+    expect(newBHYTResult.breakdown[2]!.amount).toBe(819720);
     expect(newBHYTResult.amount).toBe(3142260);
 
     // 3. Kiểm tra tính BHYT Hộ gia đình đồng bộ thời hạn kết thúc (Coterminous Expiration)
@@ -322,9 +322,9 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     // Người 2: 105.300 * 0.7 * 6 = 442.260
     // Người 3: 105.300 * 0.6 * 3 = 189.540
     // Tổng = 1.895.400
-    expect(coterminousOld.breakdown[0].amount).toBe(1263600);
-    expect(coterminousOld.breakdown[1].amount).toBe(442260);
-    expect(coterminousOld.breakdown[2].amount).toBe(189540);
+    expect(coterminousOld.breakdown[0]!.amount).toBe(1263600);
+    expect(coterminousOld.breakdown[1]!.amount).toBe(442260);
+    expect(coterminousOld.breakdown[2]!.amount).toBe(189540);
     expect(coterminousOld.amount).toBe(1895400);
 
     const coterminousNew = calculateBHYTCoterminous(members, newBaseSalary);
@@ -332,9 +332,9 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
     // Người 2: 113.850 * 0.7 * 6 = 478.170
     // Người 3: 113.850 * 0.6 * 3 = 204.930
     // Tổng = 2.049.300
-    expect(coterminousNew.breakdown[0].amount).toBe(1366200);
-    expect(coterminousNew.breakdown[1].amount).toBe(478170);
-    expect(coterminousNew.breakdown[2].amount).toBe(204930);
+    expect(coterminousNew.breakdown[0]!.amount).toBe(1366200);
+    expect(coterminousNew.breakdown[1]!.amount).toBe(478170);
+    expect(coterminousNew.breakdown[2]!.amount).toBe(204930);
     expect(coterminousNew.amount).toBe(2049300);
 
     // 4. BẢO TOÀN DỮ LIỆU:
@@ -485,13 +485,13 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
   describe('6. Cập nhật Hệ Số Trượt Giá CPI', () => {
     it('Lấy đúng bảng hệ số trượt giá theo ngày snapshot giao dịch', () => {
       // Giao dịch lập trước ngày 01/10/2026 -> áp dụng bảng CPI thông tư 2025
-      const cpiOld = getPolicyValueForDate(mockPolicies, 'cpi_index', '2026-05-15', defaultSettings.cpiIndex);
+      const cpiOld: any = getPolicyValueForDate(mockPolicies, 'cpi_index', '2026-05-15', defaultSettings.cpiIndex);
       expect(cpiOld).toBeDefined();
       expect(cpiOld['2024']).toBe(1.03);
       expect(cpiOld['2023']).toBe(1.07);
 
       // Giao dịch lập sau ngày 01/10/2026 -> áp dụng bảng CPI mới cập nhật
-      const cpiNew = getPolicyValueForDate(mockPolicies, 'cpi_index', '2026-10-15', defaultSettings.cpiIndex);
+      const cpiNew: any = getPolicyValueForDate(mockPolicies, 'cpi_index', '2026-10-15', defaultSettings.cpiIndex);
       expect(cpiNew).toBeDefined();
       expect(cpiNew['2027']).toBe(1.0);
       expect(cpiNew['2026']).toBe(1.02);
@@ -530,7 +530,7 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
       expect(povertyFallback).toBe(1500000);
 
       const commRateFallback = getCommissionRateForRecord(
-        { type: 'BHXH', actionType: 'Tham gia mới', date: '2026-09-15' },
+        { type: 'BHXH', action_type: 'Tham gia mới', date: '2026-09-15' },
         emptyPolicies,
         defaultSettings
       );
@@ -568,7 +568,7 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
       // Nhóm 2: Chuẩn nghèo nông thôn 1.500.000đ
       const povertyPolicies = DEFAULT_SYSTEM_POLICIES.filter(p => p.parameter_type === 'poverty_standard');
       expect(povertyPolicies).toHaveLength(1);
-      expect(povertyPolicies[0].value).toBe(1500000);
+      expect(povertyPolicies[0]!.value).toBe(1500000);
 
       // Nhóm 3: Hoa hồng đại lý (2 quyết định: QĐ 11 cũ và QĐ điều chỉnh 2026)
       const commissionPolicies = DEFAULT_SYSTEM_POLICIES.filter(p => p.parameter_type === 'commission');
@@ -582,7 +582,7 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
       // Nhóm 4: Lãi suất đầu tư quỹ (0.31%/tháng)
       const investPolicies = DEFAULT_SYSTEM_POLICIES.filter(p => p.parameter_type === 'investment_rate');
       expect(investPolicies).toHaveLength(1);
-      expect(investPolicies[0].value).toBe(0.31);
+      expect(investPolicies[0]!.value).toBe(0.31);
 
       // Nhóm 5: Hệ số trượt giá (2 mốc: TT 01/2025 và CV 340/2026)
       const cpiPolicies = DEFAULT_SYSTEM_POLICIES.filter(p => p.parameter_type === 'cpi_index');

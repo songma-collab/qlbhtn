@@ -59,16 +59,16 @@ export const isDateLocked = (dateStr: string | undefined | null, lockedKeys: str
   if (s.includes('/')) {
     const parts = s.split('/');
     if (parts.length === 3) {
-      m = parts[1]; y = parts[2];
+      m = parts[1] ?? ''; y = parts[2] ?? '';
     } else if (parts.length === 2) {
-      m = parts[0]; y = parts[1];
+      m = parts[0] ?? ''; y = parts[1] ?? '';
     }
   } else if (s.includes('-')) {
     const parts = s.split('-');
     if (parts.length >= 3) {
-      y = parts[0]; m = parts[1];
+      y = parts[0] ?? ''; m = parts[1] ?? '';
     } else if (parts.length === 2) {
-      y = parts[0]; m = parts[1];
+      y = parts[0] ?? ''; m = parts[1] ?? '';
     }
   }
 
@@ -83,8 +83,8 @@ export const isDateLocked = (dateStr: string | undefined | null, lockedKeys: str
   if (!y || !m) return false;
 
   // Clean trailing timestamp info if present
-  if (y.includes('T')) y = y.split('T')[0];
-  if (y.includes(' ')) y = y.split(' ')[0];
+  if (y.includes('T')) y = y.split('T')[0] ?? y;
+  if (y.includes(' ')) y = y.split(' ')[0] ?? y;
 
   const yNum = parseInt(y, 10);
   const mNum = parseInt(m, 10);
@@ -125,12 +125,12 @@ export const formatPeriodKeyToLabel = (key: string | undefined | null): string =
     const raw = s.replace(/^(month_|month:)/, '');
     if (raw.includes('/')) {
       const parts = raw.split('/');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         return `Tháng ${parts[0].padStart(2, '0')}/${parts[1]}`;
       }
     } else if (raw.includes('-')) {
       const parts = raw.split('-');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         if (parts[0].length === 4) {
           return `Tháng ${parts[1].padStart(2, '0')}/${parts[0]}`;
         }
@@ -138,7 +138,7 @@ export const formatPeriodKeyToLabel = (key: string | undefined | null): string =
       }
     } else if (raw.includes('_')) {
       const parts = raw.split('_');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         return `Tháng ${parts[0].padStart(2, '0')}/${parts[1]}`;
       }
     }
@@ -149,7 +149,7 @@ export const formatPeriodKeyToLabel = (key: string | undefined | null): string =
     const raw = s.replace(/^(quarter_|quarter:)/, '');
     if (raw.includes('-')) {
       const parts = raw.split('-');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         if (parts[0].length === 4) {
           return `Quý ${parts[1]}/${parts[0]}`;
         }
@@ -157,12 +157,12 @@ export const formatPeriodKeyToLabel = (key: string | undefined | null): string =
       }
     } else if (raw.includes('_')) {
       const parts = raw.split('_');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         return `Quý ${parts[0]}/${parts[1]}`;
       }
     } else if (raw.includes('/')) {
       const parts = raw.split('/');
-      if (parts.length === 2) {
+      if (parts.length === 2 && parts[0] && parts[1]) {
         return `Quý ${parts[0]}/${parts[1]}`;
       }
     }
@@ -181,29 +181,30 @@ export const FINANCIAL_FIELDS: (keyof RecordType)[] = [
   'amount',
   'months',
   'wage',
-  'supportPct',
-  'nnSupportPct',
-  'nnSupportAmount',
-  'dpSupportPct',
-  'dpSupportAmount',
-  'basePremium',
-  'discountAmount',
-  'penaltyAmount',
+  'support_pct',
+  'nn_support_pct',
+  'nn_support_amount',
+  'dp_support_pct',
+  'dp_support_amount',
+  'base_premium',
+  'discount_amount',
+  'penalty_amount',
   'commission',
   'income',
-  'fromMonth',
-  'toMonth',
+  'from_month',
+  'to_month',
   'date',
-  'effectiveDate',
-  'targetDate',
-  'nextPayment',
+  'effective_date',
+  'target_date',
+  'next_payment',
   'type',
-  'subType',
+  'sub_type',
   'method',
-  'paymentStatus',
+  'payment_status',
   'status',
   'members'
 ];
+
 
 export const checkFinancialLockViolation = (
   originalRecord: RecordType,
@@ -238,15 +239,20 @@ export const getHistoryForCustomer = (customer: any, records: any[]) => {
 
   let historyRecords = (records || []).filter(rec => {
     // 1. Loại bỏ bản ghi đã hủy hoặc đã thoái thu toàn phần
-    if (rec.paymentStatus === 'Đã hủy' || rec.paymentStatus === 'Đã thoái thu') return false;
+    const paymentStatus = rec.payment_status || rec.paymentStatus;
+    if (paymentStatus === 'Đã hủy' || paymentStatus === 'Đã thoái thu') return false;
     // Nếu bản ghi có bút toán thoái thu hoàn trả toàn phần thì cũng không tính là đã đóng
     const isFullyClawedBack = (records || []).some(
-      adj => adj.isAdjustment && adj.originalRecordId === rec.id && Math.abs(Number(adj.amount) || 0) >= (Number(rec.amount) || 0)
+      adj => (adj.is_adjustment ?? adj.isAdjustment) && 
+             (adj.original_record_id ?? adj.originalRecordId) === rec.id && 
+             Math.abs(Number(adj.amount) || 0) >= (Number(rec.amount) || 0)
     );
     if (isFullyClawedBack) return false;
 
     // 2. Loại bỏ các bản ghi khởi tạo ảo (phải có ĐỦ từ tháng & đến tháng OR số tiền đóng > 0)
-    const hasFullPeriod = Boolean(rec.fromMonth && rec.toMonth);
+    const fromMonth = rec.from_month || rec.fromMonth;
+    const toMonth = rec.to_month || rec.toMonth;
+    const hasFullPeriod = Boolean(fromMonth && toMonth);
     const hasAmount = Number(rec.amount) > 0;
     if (!hasFullPeriod && !hasAmount) return false;
 
@@ -282,7 +288,10 @@ export const getHistoryForCustomer = (customer: any, records: any[]) => {
   const uniqueRecords: any[] = [];
   
   historyRecords.forEach(rec => {
-    const key = rec.id || `${rec.type}-${rec.fromMonth}-${rec.toMonth}-${rec.amount}-${rec.nextPayment}`;
+    const fromMonth = rec.from_month || rec.fromMonth;
+    const toMonth = rec.to_month || rec.toMonth;
+    const nextPayment = rec.next_payment || rec.nextPayment;
+    const key = rec.id || `${rec.type}-${fromMonth}-${toMonth}-${rec.amount}-${nextPayment}`;
     if (!seen.has(key)) {
       seen.add(key);
       uniqueRecords.push(rec);
@@ -297,8 +306,10 @@ export const getHistoryForCustomer = (customer: any, records: any[]) => {
 export const getInitials = (name: string): string => {
   if (!name) return 'AD';
   const parts = name.trim().split(/\s+/);
-  if (parts.length >= 2) {
-    return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+  if (parts.length >= 2 && parts[0] && parts[parts.length - 1]) {
+    const firstChar = parts[0][0] ?? '';
+    const lastChar = parts[parts.length - 1]?.[0] ?? '';
+    return (firstChar + lastChar).toUpperCase();
   }
   return name.slice(0, 2).toUpperCase();
 };
@@ -371,10 +382,12 @@ export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterT
   if (!allRecords || allRecords.length === 0) return [];
 
   const validRecords = allRecords.filter(r => {
-    if (r.paymentStatus === 'Đã hủy' || r.paymentStatus === 'Đã thoái thu') return false;
-    if (r.isAdjustment) return false;
+    const pStatus = r.payment_status || (r as any).paymentStatus;
+    if (pStatus === 'Đã hủy' || pStatus === 'Đã thoái thu') return false;
+    const isAdj = r.is_adjustment !== undefined ? r.is_adjustment : (r as any).isAdjustment;
+    if (isAdj) return false;
     const isFullyClawedBack = allRecords.some(
-      adj => adj.isAdjustment && adj.originalRecordId === r.id && Math.abs(Number(adj.amount) || 0) >= (Number(r.amount) || 0)
+      adj => ((adj.is_adjustment ?? (adj as any).isAdjustment)) && ((adj.original_record_id ?? (adj as any).originalRecordId)) === r.id && Math.abs(Number(adj.amount) || 0) >= (Number(r.amount) || 0)
     );
     if (isFullyClawedBack) return false;
     if (filterType && filterType !== 'ALL' && r.type !== filterType) return false;

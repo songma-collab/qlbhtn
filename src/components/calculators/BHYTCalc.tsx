@@ -15,7 +15,7 @@ const BHYTCalc: React.FC<BHYTCalcProps> = ({ onRegister }) => {
   const [duration, setDuration] = useState(12);
 
   // Get base salary effective today
-  const dateStr = new Date().toISOString().split('T')[0];
+  const dateStr = new Date().toISOString().split('T')[0] ?? '';
   const baseSalary = policies && policies.length > 0
     ? Number(getPolicyValueForDate(policies, 'base_salary', dateStr, settings?.baseSalary || CONSTANTS.BHYT_BASE))
     : (settings?.baseSalary || CONSTANTS.BHYT_BASE);

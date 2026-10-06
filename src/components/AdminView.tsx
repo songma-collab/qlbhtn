@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppContext } from '../context/AppContext';
-import { supabase } from '../lib/supabase';
+import { authService } from '../services';
 import { PieChart, Wallet, BadgeCheck, FileText, LogOut, Shield, HeartPulse, Menu, X, ChevronDown, ChevronRight, Home, Bell, User, Search, Users, UserCheck, Sliders, Trophy, TrendingUp, Send, History } from 'lucide-react';
 import AdminLogin from './AdminLogin';
 import { UserProfileModal } from './modals/UserProfileModal';
@@ -226,7 +226,7 @@ const AdminView = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await authService.signOut();
     setCurrentUser(null);
     setIsAuthenticated(false);
     localStorage.removeItem('vss_current_user');
@@ -1261,7 +1261,7 @@ const AdminView = () => {
                       <UserCheck className="text-green-600" size={16} /> Nhân viên phụ trách
                     </h4>
                     {(() => {
-                      const assigned = staff.find(s => s.id === selectedRecordDetail.staffId);
+                      const assigned = staff.find((s: any) => s.id === (selectedRecordDetail.staff_id || (selectedRecordDetail as any).staffId));
                       if (assigned) {
                         return (
                           <div className="space-y-1 bg-green-50/50 p-3 rounded-xl border border-green-100">

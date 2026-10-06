@@ -18,18 +18,18 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
     months: 12,
     status: 'Hoạt động',
     type: 'BHXH',
-    actionType: 'Đăng ký mới',
+    action_type: 'Đăng ký mới',
     amount: 10000000, // 10 triệu
     commission: 1500000, // 15% rate gốc tại thời điểm thu
-    nnSupportAmount: 660000, // NSNN hỗ trợ 6.6%
-    dpSupportAmount: 330000, // NSĐP hỗ trợ 3.3%
+    nn_support_amount: 660000, // NSNN hỗ trợ 6.6%
+    dp_support_amount: 330000, // NSĐP hỗ trợ 3.3%
     date: '2026-07-15', // Thuộc kỳ 07/2026 đã khóa sổ
-    staffId: 'NV01',
-    paymentStatus: 'Đã thu tiền',
-    appliedRates: {
-      commissionRate: 0.15,
-      nnSupportPct: 0.066,
-      dpSupportPct: 0.033
+    staff_id: 'NV01',
+    payment_status: 'Đã thu tiền',
+    applied_rates: {
+      commission_rate: 0.15,
+      nn_support_pct: 0.066,
+      dp_support_pct: 0.033
     }
   };
 
@@ -55,18 +55,18 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
       expect(payload.commission).toBeLessThan(0);
 
       // 3. NSNN & NSĐP hỗ trợ âm
-      expect(payload.nnSupportAmount).toBe(-330000);
-      expect(payload.dpSupportAmount).toBe(-165000);
+      expect(payload.nn_support_amount).toBe(-330000);
+      expect(payload.dp_support_amount).toBe(-165000);
 
       // 4. Flags & liên kết gốc
-      expect(payload.isAdjustment).toBe(true);
-      expect(payload.originalRecordId).toBe(1001);
-      expect(payload.actionType).toBe('Thoái thu hoàn trả');
-      expect(payload.paymentStatus).toBe('Đã thoái thu');
-      expect(payload.refundType).toBe('THOAI_THU_MOT_PHAN');
-      expect(payload.decisionNumber).toBe('QĐ-88/BHXH');
-      expect(payload.refundMethod).toBe('CHUYEN_KHOAN');
-      expect(payload.staffId).toBe('NV01');
+      expect(payload.is_adjustment).toBe(true);
+      expect(payload.original_record_id).toBe(1001);
+      expect(payload.action_type).toBe('Thoái thu hoàn trả');
+      expect(payload.payment_status).toBe('Đã thoái thu');
+      expect(payload.refund_type).toBe('THOAI_THU_MOT_PHAN');
+      expect(payload.decision_number).toBe('QĐ-88/BHXH');
+      expect(payload.refund_method).toBe('CHUYEN_KHOAN');
+      expect(payload.staff_id).toBe('NV01');
     });
 
     it('Toàn bộ thông tin định danh khách hàng được bảo toàn nguyên vẹn từ đơn gốc', () => {
@@ -113,8 +113,8 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
         type: 'BHYT',
         amount: 2000000,
         commission: 140000, // 7%
-        staffId: 'NV02',
-        paymentStatus: 'Đã thu tiền'
+        staff_id: 'NV02',
+        payment_status: 'Đã thu tiền'
       };
 
       const breakdown = calculateRefundRatios(legacyRecord, 1000000);
@@ -143,7 +143,7 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
       const existingClawbacks: RecordType[] = [
         {
           id: 5001,
-          originalRecordId: 1001,
+          original_record_id: 1001,
           name: 'Nguyễn Văn An',
           phone: '0901234567',
           date: '2026-08-20',
@@ -152,8 +152,8 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
           type: 'BHXH',
           amount: -6000000,
           commission: -900000,
-          isAdjustment: true,
-          paymentStatus: 'Đã thoái thu'
+          is_adjustment: true,
+          payment_status: 'Đã thoái thu'
         }
       ];
 
@@ -231,10 +231,10 @@ describe('Kiểm Thử Nghiệp Vụ Bút Toán Thoái Thu & Hoàn Trả (Clawba
       // 1 hồ sơ bị hủy: 638.000 đ (hoa hồng nếu thu là 95.700 đ)
       // 0 bút toán thoái thu thực tế được lập
       const paidRecords = [
-        { id: 1, amount: 25311000, commission: 2806650, paymentStatus: 'Đã thu tiền', isAdjustment: false }
+        { id: 1, amount: 25311000, commission: 2806650, payment_status: 'Đã thu tiền', is_adjustment: false }
       ];
       const cancelledRecords = [
-        { id: 2, amount: 638000, commission: 95700, paymentStatus: 'Đã hủy', isAdjustment: false }
+        { id: 2, amount: 638000, commission: 95700, payment_status: 'Đã hủy', is_adjustment: false }
       ];
       const clawbackRecords: any[] = []; // 0 bút toán thoái thu thực tế
 

@@ -65,7 +65,7 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
     if (!isOpen || !customer) return;
 
     const existingPeriods: CustomerParticipationPeriod[] = customer.prior_periods && Array.isArray(customer.prior_periods) && customer.prior_periods.length > 0
-      ? customer.prior_periods.map(p => normalizePeriod({
+      ? customer.prior_periods.map((p: any) => normalizePeriod({
           ...p,
           id: p.id || (Date.now() + Math.random())
         }))
@@ -409,6 +409,7 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
     // Validate periods using Zod schema
     for (let i = 0; i < periods.length; i++) {
       const p = periods[i];
+      if (!p) continue;
       const fromM = p.fromMonth || `${String(p.sm || 1).padStart(2, '0')}/${p.sy || new Date().getFullYear()}`;
       const toM = p.toMonth || `${String(p.em || 12).padStart(2, '0')}/${p.ey || p.sy || new Date().getFullYear()}`;
       const periodValidation = participationPeriodDateSchema.safeParse({

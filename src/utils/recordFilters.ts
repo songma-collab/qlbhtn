@@ -61,7 +61,9 @@ export function isDateInPeriod(
   if (!rIso) return false;
 
   const todayStr = referenceDateStr || getLocalYYYYMMDD();
-  const [currentYearStr, currentMonthStr] = todayStr.split('-');
+  const dateParts = todayStr.split('-');
+  const currentYearStr = dateParts[0] || '2026';
+  const currentMonthStr = dateParts[1] || '01';
   const curYear = parseInt(currentYearStr, 10);
   const curMonth = parseInt(currentMonthStr, 10); // 1-12
 

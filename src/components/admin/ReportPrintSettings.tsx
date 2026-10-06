@@ -61,14 +61,14 @@ export const ReportPrintSettings: React.FC = () => {
     setIsSaving(true);
     try {
       const payload: Required<ReportPrintConfig> = {
-        parentAgencyName: formData.parentAgencyName.trim() || DEFAULT_REPORT_PRINT_CONFIG.parentAgencyName,
-        agencyName: formData.agencyName.trim() || DEFAULT_REPORT_PRINT_CONFIG.agencyName,
-        managerName: formData.managerName.trim() || DEFAULT_REPORT_PRINT_CONFIG.managerName,
-        reportLocation: formData.reportLocation.trim() || DEFAULT_REPORT_PRINT_CONFIG.reportLocation,
-        controllerName: formData.controllerName.trim(),
-        managerTitle: formData.managerTitle.trim() || DEFAULT_REPORT_PRINT_CONFIG.managerTitle,
-        creatorTitle: formData.creatorTitle.trim() || DEFAULT_REPORT_PRINT_CONFIG.creatorTitle,
-        controllerTitle: formData.controllerTitle.trim() || DEFAULT_REPORT_PRINT_CONFIG.controllerTitle
+        parentAgencyName: formData.parentAgencyName?.trim() || DEFAULT_REPORT_PRINT_CONFIG.parentAgencyName,
+        agencyName: formData.agencyName?.trim() || DEFAULT_REPORT_PRINT_CONFIG.agencyName,
+        managerName: formData.managerName?.trim() || DEFAULT_REPORT_PRINT_CONFIG.managerName,
+        reportLocation: formData.reportLocation?.trim() || DEFAULT_REPORT_PRINT_CONFIG.reportLocation,
+        controllerName: formData.controllerName?.trim() || '',
+        managerTitle: formData.managerTitle?.trim() || DEFAULT_REPORT_PRINT_CONFIG.managerTitle,
+        creatorTitle: formData.creatorTitle?.trim() || DEFAULT_REPORT_PRINT_CONFIG.creatorTitle,
+        controllerTitle: formData.controllerTitle?.trim() || DEFAULT_REPORT_PRINT_CONFIG.controllerTitle
       };
 
       if (updateSettings) {

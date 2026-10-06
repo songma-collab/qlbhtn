@@ -154,7 +154,9 @@ export const getPeriodDisplayLabel = (
  * Tiến hoặc lùi 1 tháng
  */
 export const stepMonth = (monthStr: string, direction: 'prev' | 'next'): string => {
-  const [yStr, mStr] = monthStr.split('-');
+  const parts = monthStr.split('-');
+  const yStr = parts[0] || '2026';
+  const mStr = parts[1] || '01';
   let y = parseInt(yStr, 10);
   let m = parseInt(mStr, 10);
   if (isNaN(y) || isNaN(m)) {
@@ -202,16 +204,19 @@ export const groupRecordsIntoBatches = (
   }>();
 
   records.forEach(r => {
-    if (r.paymentStatus === 'Đã hủy') return;
+    if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy') return;
 
     // Lọc theo loại BHXH / BHYT
     if (typeFilter !== 'ALL' && r.type !== typeFilter) return;
 
     // Xác định tên đợt nộp
-    const hasBatch = Boolean(r.submissionBatch && r.submissionBatch.trim());
-    const batchName = hasBatch ? r.submissionBatch!.trim() : (r.isSubmittedBHXH ? 'Đợt chưa đặt tên' : 'Chưa gán đợt nộp');
-    const submittedDate = r.submittedDate || (r.isSubmittedBHXH ? r.date : 'Chưa nộp');
-    const isSubmitted = Boolean(r.isSubmittedBHXH);
+    const subBatch = r.submission_batch || (r as any).submissionBatch;
+    const isSub = Boolean(r.is_submitted_bhxh ?? (r as any).isSubmittedBHXH);
+    const sDate = r.submitted_date || (r as any).submittedDate;
+    const hasBatch = Boolean(subBatch && subBatch.trim());
+    const batchName = hasBatch ? subBatch!.trim() : (isSub ? 'Đợt chưa đặt tên' : 'Chưa gán đợt nộp');
+    const submittedDate = sDate || (isSub ? r.date : 'Chưa nộp');
+    const isSubmitted = isSub;
 
     // Key gom nhóm dựa trên tên đợt + ngày chuyển
     const groupKey = `${batchName}___${submittedDate}`;
@@ -236,7 +241,8 @@ export const groupRecordsIntoBatches = (
     b.totalAmount += (Number(r.amount) || 0);
     if (r.type === 'BHXH') b.bhxhCount += 1;
     else if (r.type === 'BHYT') b.bhytCount += 1;
-    if (r.staffId) b.staffIds.add(r.staffId);
+    const stId = r.staff_id || (r as any).staffId;
+    if (stId) b.staffIds.add(stId);
     b.records.push(r);
   });
 

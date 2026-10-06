@@ -13,28 +13,33 @@ Hệ thống được phát triển chuyên biệt nhằm số hóa toàn diện
 1. **Quản lý Hồ sơ & Gom cụm Định danh (Identity Unification Cluster):**
    - Thuật toán BFS gom cụm đa tầng theo CCCD (12 số), Mã số BHXH (10 số), Số điện thoại, Mã hộ gia đình.
    - Tự động phát hiện và liên kết hồ sơ biến động, giải quyết triệt để vấn đề trùng lặp hoặc phân mảnh dữ liệu.
-2. **Kế toán & Khóa kỳ Tài chính Động (Financial Lock & Settlement):**
-   - Chốt sổ kế toán theo chu kỳ tháng/quý/năm, ngăn chặn chỉnh sửa hồ sơ sau khi đã nộp tiền hoặc khóa kỳ.
-   - Lưu trữ snapshot chính sách (`baseSalary`, `povertyStandard`, tỷ lệ hỗ trợ) tại thời điểm lập giao dịch.
-   - Cơ chế Thoái thu bù trừ (Clawback) tự động cho các hồ sơ giảm trừ, thoái trả tiền hoặc trùng thẻ BHYT.
-3. **Tuân thủ Pháp luật & Cập nhật Chính sách:**
+2. **Kế toán Sổ cái Tài chính & Bút toán Bất biến (Financial Ledger Single Source of Truth):**
+   - Thiết kế chuẩn kế toán: Bảng `financial_ledger` bất biến (Append-Only), nghiêm cấm UPDATE / DELETE / TRUNCATE qua trigger CSDL.
+   - Bút toán ghi nhận đa dòng: Thu tiền (`THU_TIEN`), Hoàn tiền (`HOAN_TIEN`), Điều chỉnh (`DIEU_CHINH`), Chi hoa hồng (`CHI_HOA_HONG`).
+   - Khóa kỳ tài chính động tháng/quý/năm, snapshot chính sách tại thời điểm lập giao dịch và thoái thu bù trừ (Clawback).
+3. **Kiến trúc Phân tầng Anti-Corruption Layer & Modular UI:**
+   - Service Layer (`recordService`, `customerService`, `financeService`, `policyService`) cắt đứt liên kết trực tiếp giữa UI và Supabase DB.
+   - UI phân rã rõ ràng với Domain Custom Hooks (`useRecordsState`, `useCustomersState`) và Sub-components theo miền nghiệp vụ.
+4. **Tuân thủ Pháp luật & Cập nhật Chính sách:**
    - Hỗ trợ công thức tính theo **Luật BHXH 2024** (Nhà nước hỗ trợ 50% Hộ nghèo, 40% Cận nghèo, 20% Đối tượng khác).
    - Cơ chế tính BHYT hộ gia đình giảm trừ bậc thang và BHYT Đồng hạn (Coterminous BHYT).
    - Xuất biểu mẫu chuẩn quốc gia **Mẫu D05-TS** (BHXH) và **Mẫu D03-TS** (BHYT) có cơ chế phòng chống mã độc Formula Injection (CWE-1236).
-4. **Bảo mật Đa tầng & Bảo vệ Dữ liệu Cá nhân:**
+5. **Bảo mật Đa tầng & Bảo vệ Dữ liệu Cá nhân:**
    - Tuân thủ Nghị định 13/2023/NĐ-CP về bảo vệ dữ liệu cá nhân (Masking PII: ẩn số CCCD, SĐT, địa chỉ trên cổng tra cứu công khai).
    - Row Level Security (RLS) phân quyền 4 cấp: Quản trị viên (Admin), Kế toán (Accountant), Nhân viên thu (Staff), Cổng tra cứu công cộng (Anon/Rate-limited).
-5. **Thanh toán VietQR NAPAS 247:**
+   - Bảo mật RPC với xác thực quyền `is_manager_or_admin()` và kiểm soát tần suất IP (`enforce_public_rpc_rate_limit`).
+6. **Thanh toán VietQR NAPAS 247:**
    - Tạo mã QR động tự động điền số tài khoản, tên đơn vị thụ hưởng, số tiền và nội dung chuyển khoản chuẩn hóa.
 
 ---
 
 ## 🛠️ Công nghệ Sử dụng (Tech Stack)
 
-- **Frontend:** React 19, TypeScript, Vite, Tailwind CSS, Lucide React, Chart.js.
-- **Backend & Database:** Supabase PostgreSQL, Row Level Security (RLS), PL/pgSQL Stored Procedures, Triggers, Realtime Subscriptions.
+- **Frontend:** React 19, TypeScript 5.8 (Strict Mode khắt khe 100%: `strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`), Vite 6, Tailwind CSS 4, Lucide React, Chart.js.
+- **Backend & Database:** Supabase PostgreSQL (100% `snake_case`), Row Level Security (RLS), PL/pgSQL Stored Procedures, Financial Ledger Triggers, Realtime Subscriptions.
 - **Xử lý Dữ liệu & Biểu mẫu:** XLSX-js-style, PDFMake, HTML2Canvas, Zod.
-- **Kiểm thử tự động:** Vitest (25 test suites, 251 tests passed, 100% baseline).
+- **Kiểm thử tự động:** Vitest (50 test suites, 461 tests passed, 100% baseline).
+- **CI/CD Pipeline:** GitHub Actions (`.github/workflows/production.yml`) kiểm duyệt tự động Typecheck, Unit/Integration Tests và Production Build.
 
 ---
 

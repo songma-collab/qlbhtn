@@ -100,27 +100,27 @@ describe('Excel Import & Standardization Suite', () => {
     expect(result.records.length).toBe(1);
     expect(result.hasTransactionData).toBe(true);
 
-    const rec = result.records[0];
+    const rec = result.records[0]!;
     expect(rec.name).toBe('Lò Văn Thơm');
     expect(rec.cccd).toBe('014075009471');
     expect(rec.bhxh).toBe('014075009471');
-    expect(rec.oldBhxh).toBe('1421086846');
+    expect(rec.old_bhxh || (rec as any).oldBhxh).toBe('1421086846');
     expect(rec.gender).toBe('Nam');
     expect(rec.nation).toBe('Thiểu_số');
     expect(rec.income).toBe(1500000);
-    expect(rec.fromMonth).toBe('09/2026');
-    expect(rec.toMonth).toBe('09/2026');
+    expect(rec.from_month || (rec as any).fromMonth).toBe('09/2026');
+    expect(rec.to_month || (rec as any).toMonth).toBe('09/2026');
     expect(rec.amount).toBe(231000);
-    expect(rec.nnSupportAmount).toBe(99000);
-    expect(rec.staffId).toBe('stf-trang'); // Tự động khớp nhân viên 'Nguyễn Thị Trang'
-    expect(rec.isSubmittedBHXH).toBe(true);
-    expect(rec.submissionBatch).toBe('Đợt 2');
-    expect(rec.nextPayment).toBe('2026-10-15'); // Tính chính xác hạn nộp tiếp, không hardcode 1 năm
+    expect(rec.nn_support_amount ?? (rec as any).nnSupportAmount).toBe(99000);
+    expect(rec.staff_id || (rec as any).staffId).toBe('stf-trang'); // Tự động khớp nhân viên 'Nguyễn Thị Trang'
+    expect(rec.is_submitted_bhxh ?? (rec as any).isSubmittedBHXH).toBe(true);
+    expect(rec.submission_batch || (rec as any).submissionBatch).toBe('Đợt 2');
+    expect(rec.next_payment || (rec as any).nextPayment).toBe('2026-10-15'); // Tính chính xác hạn nộp tiếp, không hardcode 1 năm
     expect(rec.commission).toBeGreaterThan(0); // Đã tính hoa hồng
 
     // Kiểm tra hồ sơ danh bạ khách hàng
     expect(result.customerProfiles.length).toBe(1);
-    const profile = result.customerProfiles[0];
+    const profile = result.customerProfiles[0]!;
     expect(profile.customer_key).toBe('CUST_CCCD_014075009471');
     expect(profile.name).toBe('Lò Văn Thơm');
     expect(profile.next_payment).toBe('2026-10-15');

@@ -26,7 +26,7 @@ export const getCommissionRateForRecord = (
     }
   }
 
-  const actionStr = String(r?.actionType || '').toLowerCase();
+  const actionStr = String(r?.action_type || (r as any)?.actionType || '').toLowerCase();
   const isRenew = actionStr.includes('gia hạn') || actionStr.includes('renew') || actionStr.includes('đóng tiếp') || actionStr.includes('tái tục');
 
   if (r?.type === 'BHXH') {
@@ -48,16 +48,20 @@ export const getPolicyValueForDate = <T = any>(
   let normalizedDate = '';
   const s = String(dateStr || '').trim();
   if (s.match(/^\d{4}-\d{1,2}-\d{1,2}/)) {
-    const parts = s.split('T')[0].split('-');
-    normalizedDate = `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+    const raw = s.split('T')[0] ?? '';
+    const parts = raw.split('-');
+    const p0 = parts[0] ?? '2026';
+    const p1 = (parts[1] ?? '01').padStart(2, '0');
+    const p2 = (parts[2] ?? '01').padStart(2, '0');
+    normalizedDate = `${p0}-${p1}-${p2}`;
   } else if (s.match(/^\d{4}-\d{1,2}$/)) {
-    const [y, m] = s.split('-');
+    const [y = '2026', m = '01'] = s.split('-');
     normalizedDate = `${y}-${m.padStart(2, '0')}-01`;
   } else if (s.match(/^\d{1,2}\/\d{4}$/)) {
-    const [m, y] = s.split('/');
+    const [m = '01', y = '2026'] = s.split('/');
     normalizedDate = `${y}-${m.padStart(2, '0')}-01`;
   } else if (s.match(/^\d{1,2}\/\d{1,2}\/\d{4}$/)) {
-    const [d, m, y] = s.split('/');
+    const [d = '01', m = '01', y = '2026'] = s.split('/');
     normalizedDate = `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
   } else {
     const d = new Date(s);
@@ -82,7 +86,7 @@ export const getPolicyValueForDate = <T = any>(
       return (Number(b.id) || 0) - (Number(a.id) || 0);
     });
 
-  if (matching.length > 0) {
+  if (matching.length > 0 && matching[0]) {
     return matching[0].value;
   }
 
@@ -92,7 +96,7 @@ export const getPolicyValueForDate = <T = any>(
 
   // 4. Nếu không có activePolicy, lấy chính sách có ngày hiệu lực sớm nhất
   const allOfType = policies.filter(p => p.parameter_type === type).sort((a, b) => a.effective_date.localeCompare(b.effective_date));
-  if (allOfType.length > 0) return allOfType[0].value;
+  if (allOfType.length > 0 && allOfType[0]) return allOfType[0].value;
 
   return defaultValue;
 };
@@ -238,7 +242,7 @@ export const calculateBHXH = (
     months = customMonths;
     mode = 'penalty';
   } else {
-    months = method.startsWith('pre_') ? parseInt(method.split('_')[1]) : parseInt(method);
+    months = method.startsWith('pre_') ? parseInt(method.split('_')[1] || '1', 10) : parseInt(method, 10);
     mode = method.startsWith('pre_') ? 'discount' : 'normal';
   }
 
@@ -345,14 +349,17 @@ export const calculateBHXH = (
  */
 export const calculateMonthsFromPeriods = (
   periods: Array<{
-    type?: string;
-    fromMonth?: string;
-    toMonth?: string;
-    months?: number;
-    sm?: number;
-    sy?: number;
-    em?: number;
-    ey?: number;
+    type?: string | undefined;
+    fromMonth?: string | undefined;
+    toMonth?: string | undefined;
+    from_month?: string | undefined;
+    to_month?: string | undefined;
+    months?: number | undefined;
+    sm?: number | undefined;
+    sy?: number | undefined;
+    em?: number | undefined;
+    ey?: number | undefined;
+    [key: string]: any;
   }> | null | undefined
 ): {
   compulsoryMonths: number;
@@ -547,8 +554,8 @@ export const calculateBHYT = (duration: number, memberCount: number, baseSalary:
   const breakdown = [];
   
   for (let i = 0; i < memberCount; i++) {
-    let rate = i < 4 ? rates[i] : 0.4;
-    let label = i < 4 ? rateLabels[i] : '40%';
+    let rate = i < 4 ? (rates[i] ?? 0.4) : 0.4;
+    let label = i < 4 ? (rateLabels[i] ?? '40%') : '40%';
     let amount = Math.round(basePremium * rate);
     total += amount;
     breakdown.push({
@@ -578,7 +585,7 @@ export interface BHYTCoterminousResult {
     durationMonths: number;
     monthlyPremium: number;
     amount: number;
-    name?: string;
+    name?: string | undefined;
   }>;
 }
 
@@ -601,9 +608,10 @@ export const calculateBHYTCoterminous = (
 
   for (let i = 0; i < members.length; i++) {
     const m = members[i];
+    if (!m) continue;
     const duration = Number(m.durationMonths) || 12;
-    const rate = i < 4 ? rates[i] : 0.4;
-    const label = i < 4 ? rateLabels[i] : '40%';
+    const rate = i < 4 ? (rates[i] ?? 0.4) : 0.4;
+    const label = i < 4 ? (rateLabels[i] ?? '40%') : '40%';
     const memberMonthly = baseMonthly * rate;
     const memberAmount = Math.round(memberMonthly * duration);
 

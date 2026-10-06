@@ -161,7 +161,7 @@ export const PolicyTimelineVisualizer: React.FC<PolicyTimelineVisualizerProps> =
 
                     {isAdmin && !isActive && onActivatePolicy && (
                       <button
-                        onClick={() => onActivatePolicy(policy.id, policy.parameter_type)}
+                        onClick={() => policy.id && onActivatePolicy(policy.id, policy.parameter_type)}
                         className="text-xs bg-white border border-blue-600 text-blue-600 hover:bg-blue-600 hover:text-white px-2.5 py-1 rounded-lg font-bold transition shadow-xs cursor-pointer"
                       >
                         Kích hoạt mốc này

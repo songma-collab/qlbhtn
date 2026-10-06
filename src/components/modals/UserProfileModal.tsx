@@ -60,7 +60,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
               </div>
               <div className="min-w-0 flex-1">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Mã Nhân Viên</span>
-                <span className="text-sm font-bold text-slate-800 break-all">{user.staffCode || user.username || user.id || '---'}</span>
+                <span className="text-sm font-bold text-slate-800 break-all">{user.staff_code || (user as any).staffCode || user.username || user.id || '---'}</span>
               </div>
             </div>
 

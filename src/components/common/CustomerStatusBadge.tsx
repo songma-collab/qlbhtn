@@ -3,17 +3,19 @@ import { AlertTriangle, Clock, CheckCircle2, PauseCircle, UserCheck } from 'luci
 import { getLocalYYYYMMDD } from '../../utils/helpers';
 
 export interface CustomerStatusBadgeProps {
-  customerStatus?: string | null;
-  paymentStatus?: string | null;
-  nextPayment?: string | null;
-  slaStatus?: 'overdue' | 'urgent' | 'warning' | 'safe' | string | null;
-  daysRemaining?: number | null;
-  isExpired?: boolean;
-  isExpiring?: boolean;
-  mode?: 'auto' | 'payment' | 'expiry' | 'sla' | 'customer_status';
-  className?: string;
-  size?: 'xs' | 'sm' | 'md';
-  onClick?: () => void;
+  customerStatus?: string | null | undefined;
+  paymentStatus?: string | null | undefined;
+  payment_status?: string | null | undefined;
+  nextPayment?: string | null | undefined;
+  next_payment?: string | null | undefined;
+  slaStatus?: 'overdue' | 'urgent' | 'warning' | 'safe' | string | null | undefined;
+  daysRemaining?: number | null | undefined;
+  isExpired?: boolean | undefined;
+  isExpiring?: boolean | undefined;
+  mode?: 'auto' | 'payment' | 'expiry' | 'sla' | 'customer_status' | undefined;
+  className?: string | undefined;
+  size?: 'xs' | 'sm' | 'md' | undefined;
+  onClick?: (() => void) | undefined;
 }
 
 /**
@@ -22,10 +24,10 @@ export interface CustomerStatusBadgeProps {
  * - "Đã dừng đóng": Amber/Gray Badge
  */
 export const CustomerParticipationBadge: React.FC<{
-  status?: string | null;
-  className?: string;
-  onClick?: () => void;
-  interactive?: boolean;
+  status?: string | null | undefined;
+  className?: string | undefined;
+  onClick?: (() => void) | undefined;
+  interactive?: boolean | undefined;
 }> = ({ status, className = '', onClick, interactive = false }) => {
   const isStopped = status === 'Đã dừng đóng';
   const isPending = status === 'Chờ duyệt';
@@ -71,7 +73,9 @@ export const CustomerParticipationBadge: React.FC<{
 export const CustomerStatusBadge: React.FC<CustomerStatusBadgeProps> = ({
   customerStatus,
   paymentStatus,
+  payment_status,
   nextPayment,
+  next_payment,
   slaStatus,
   daysRemaining,
   isExpired: propIsExpired,
@@ -116,31 +120,34 @@ export const CustomerStatusBadge: React.FC<CustomerStatusBadgeProps> = ({
     );
   }
 
+  const effectivePaymentStatus = payment_status ?? paymentStatus;
+  const effectiveNextPayment = next_payment ?? nextPayment;
+
   // Mode Payment only
   if (mode === 'payment') {
-    if (paymentStatus === 'Chờ thanh toán') {
+    if (effectivePaymentStatus === 'Chờ thanh toán') {
       return <span className={`bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold ${className}`}>Chờ thanh toán</span>;
     }
-    if (paymentStatus === 'Đã hủy') {
+    if (effectivePaymentStatus === 'Đã hủy') {
       return <span className={`bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold ${className}`}>Đã hủy</span>;
     }
-    if (paymentStatus === 'Khách hàng cũ') {
+    if (effectivePaymentStatus === 'Khách hàng cũ') {
       return <span className={`bg-gray-100 text-gray-700 px-2 py-1 rounded text-xs font-bold ${className}`}>Khách hàng cũ</span>;
     }
-    return <span className={`bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold ${className}`}>{paymentStatus || 'Đã thu tiền'}</span>;
+    return <span className={`bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold ${className}`}>{effectivePaymentStatus || 'Đã thu tiền'}</span>;
   }
 
   // Calculate auto expiry from nextPayment
   const todayStr = getLocalYYYYMMDD();
   const thirtyDaysLaterStr = getLocalYYYYMMDD(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
   
-  const isExpired = propIsExpired ?? (Boolean(nextPayment && nextPayment < todayStr));
-  const isExpiring = propIsExpiring ?? (Boolean(nextPayment && nextPayment >= todayStr && nextPayment <= thirtyDaysLaterStr));
+  const isExpired = propIsExpired ?? (Boolean(effectiveNextPayment && effectiveNextPayment < todayStr));
+  const isExpiring = propIsExpiring ?? (Boolean(effectiveNextPayment && effectiveNextPayment >= todayStr && effectiveNextPayment <= thirtyDaysLaterStr));
 
-  if (paymentStatus === 'Chờ thanh toán') {
+  if (effectivePaymentStatus === 'Chờ thanh toán') {
     return <span className={`bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold ${className}`}>Chờ thanh toán</span>;
   }
-  if (paymentStatus === 'Đã hủy') {
+  if (effectivePaymentStatus === 'Đã hủy') {
     return <span className={`bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold ${className}`}>Đã hủy</span>;
   }
   if (isExpired) {

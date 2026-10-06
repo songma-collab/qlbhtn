@@ -17,7 +17,7 @@ import {
 } from '../../utils/dateFormatter';
 import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths } from '../../utils/calculations';
 import { X, Check, Clock } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { recordService, customerService } from '../../services';
 import { callPublicPortal } from '../../utils/publicPortal';
 import TurnstileCaptcha from '../TurnstileCaptcha';
 import { generateIdempotencyKey, dbToRecord } from '../../utils/sanitize';
@@ -412,11 +412,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
     if (!isRenew && !record) {
       if (type === 'BHXH') {
         if (formData.cccd) {
-          const { data } = await supabase.from('records').select('name, dob, cccd').eq('cccd', formData.cccd).limit(1);
-          const existing = data?.[0];
+          const existing = await recordService.findRecordByCccd(formData.cccd);
           if (existing) {
             const existingDobStr = existing.dob ? dateISOToVN(existing.dob) : '';
-            const existingName = existing.name ? formatTitleCase(existing.name.split(' (+')[0]) : '';
+            const existingName = existing.name ? formatTitleCase(existing.name.split(' (+')[0] || '') : '';
             const newName = formatTitleCase(formData.name) || '';
             if ((newName && existingName !== newName) || (formData.dob && formData.dob.length === 10 && existingDobStr !== formData.dob)) {
               showToast('Cảnh báo: Số CCCD đã tồn tại trong hệ thống nhưng Họ tên hoặc Ngày sinh không khớp!');
@@ -427,11 +426,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       } else if (type === 'BHYT') {
         for (const m of bhytMembers) {
           if (m.cccd) {
-            const { data } = await supabase.from('records').select('name, dob, cccd').eq('cccd', m.cccd).limit(1);
-            const existing = data?.[0];
+            const existing = await recordService.findRecordByCccd(m.cccd);
             if (existing) {
               const existingDobStr = existing.dob ? dateISOToVN(existing.dob) : '';
-              const existingName = existing.name ? formatTitleCase(existing.name.split(' (+')[0]) : '';
+              const existingName = existing.name ? formatTitleCase(existing.name.split(' (+')[0] || '') : '';
               const newName = formatTitleCase(m.name) || '';
               if ((newName && existingName !== newName) || (m.dob && m.dob.length === 10 && existingDobStr !== m.dob)) {
                 showToast(`Cảnh báo: Số CCCD ${m.cccd} đã tồn tại nhưng Họ tên hoặc Ngày sinh không khớp!`);
@@ -758,13 +756,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       // 1. TÌM KIẾM TRONG BỘ NHỚ CỤC BỘ (records từ AppContext) - Tốc độ tức thì (0ms)
       if (records && records.length > 0) {
         // Ưu tiên các bản ghi không bị hủy, sắp xếp mới nhất
-        const activeRecords = records.filter(r => r.paymentStatus !== 'Đã hủy');
+        const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
         
         // 1a. Khớp trên hồ sơ chính
         const found = activeRecords.find(r => {
           const rCccd = (r.cccd || '').replace(/\D/g, '');
           const rBhxh = (r.bhxh || '').replace(/\D/g, '');
-          const rOldBhxh = (r.oldBhxh || (r as any).bhxhCu || (r as any).old_bhxh || '').replace(/\D/g, '');
+          const rOldBhxh = (r.old_bhxh || (r as any).oldBhxh || (r as any).bhxhCu || '').replace(/\D/g, '');
           return rCccd === cleanCode || rBhxh === cleanCode || rOldBhxh === cleanCode;
         });
 
@@ -780,11 +778,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             address: found.address,
             notes: found.notes,
             bhxh: found.bhxh,
-            oldBhxh: found.oldBhxh || (found as any).bhxhCu || (found as any).old_bhxh || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
+            oldBhxh: found.old_bhxh || ((found as any).oldBhxh) || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
+            old_bhxh: found.old_bhxh || ((found as any).oldBhxh) || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
             income: found.income,
             method: found.method,
-            nnSupportPct: found.nnSupportPct,
-            dpSupportPct: found.dpSupportPct,
+            nnSupportPct: found.nn_support_pct || (found as any).nnSupportPct,
+            dpSupportPct: found.dp_support_pct || (found as any).dpSupportPct,
             source: 'Bộ nhớ CSDL cục bộ'
           };
         }
@@ -817,17 +816,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         }
       }
 
-      // 2. TRUY VẤN TRỰC TIẾP TỪ BẢNG records SUPABASE (trường hợp record chưa kịp tải về Context)
+      // 2. TRUY VẤN TỪ BẢNG records QUA SERVICE (trường hợp record chưa kịp tải về Context)
       try {
-        const { data: dbRecords, error: dbErr } = await supabase
-          .from('records')
-          .select('*')
-          .or(`cccd.eq.${cleanCode},bhxh.eq.${cleanCode},old_bhxh.eq.${cleanCode}`)
-          .order('date', { ascending: false })
-          .limit(1);
-
-        if (!dbErr && dbRecords && dbRecords.length > 0) {
-          const r = dbToRecord(dbRecords[0]);
+        const r = await recordService.findLatestRecordByCode(cleanCode);
+        if (r) {
           return {
             name: r.name,
             dob: r.dob,
@@ -839,22 +831,22 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             address: r.address,
             notes: r.notes,
             bhxh: r.bhxh,
-            old_bhxh: r.old_bhxh || r.oldBhxh || (r.bhxh && r.bhxh.length === 10 ? r.bhxh : ''),
-            oldBhxh: r.old_bhxh || r.oldBhxh || (r.bhxh && r.bhxh.length === 10 ? r.bhxh : ''),
+            old_bhxh: r.old_bhxh || (r.bhxh && r.bhxh.length === 10 ? r.bhxh : ''),
+            oldBhxh: r.old_bhxh || (r.bhxh && r.bhxh.length === 10 ? r.bhxh : ''),
             income: r.income,
             method: r.method,
-            nnSupportPct: r.nnSupportPct,
-            dpSupportPct: r.dpSupportPct,
+            nnSupportPct: r.nn_support_pct || (r as any).nnSupportPct,
+            dpSupportPct: r.dp_support_pct || (r as any).dpSupportPct,
             source: 'Máy chủ CSDL'
           };
         }
       } catch (e) {
-        console.warn('Tra cứu bảng records Supabase không thành công:', e);
+        console.warn('Tra cứu bảng records không thành công:', e);
       }
 
       // 3. NẾU CÓ RPC lookup_customer_profile (cán bộ/nhân viên đã đăng nhập)
       if (currentUser) {
-        const { data: rpcData, error: rpcError } = await supabase.rpc('lookup_customer_profile', { p_code: cleanCode });
+        const { data: rpcData, error: rpcError } = await customerService.lookupCustomerProfileRpc(cleanCode);
         if (!rpcError && rpcData && rpcData.length > 0) {
           return {
             ...rpcData[0],

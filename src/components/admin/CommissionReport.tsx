@@ -27,16 +27,18 @@ const CommissionReport = () => {
       try {
         const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'admin' || currentUser.role === 'Quản lý';
         
-        let filteredRecords = records.filter(r => r.paymentStatus === 'Đã thu tiền');
+        let filteredRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền');
 
         if (!isAdmin) {
-          filteredRecords = filteredRecords.filter(r => 
-            (r.staffId || r.staff_id) === currentUser.id || 
-            (currentUser.username && (r.staffId || r.staff_id) === currentUser.username) ||
-            (currentUser.staffCode && (r.staffId || r.staff_id) === currentUser.staffCode)
-          );
+          const userStaffCode = (currentUser as any).staff_code || (currentUser as any).staffCode;
+          filteredRecords = filteredRecords.filter(r => {
+            const sId = r.staff_id || (r as any).staffId;
+            return sId === currentUser.id || 
+              (currentUser.username && sId === currentUser.username) ||
+              (userStaffCode && sId === userStaffCode);
+          });
         } else if (staffReportFilter !== 'all') {
-          filteredRecords = filteredRecords.filter(r => (r.staffId || r.staff_id) === staffReportFilter);
+          filteredRecords = filteredRecords.filter(r => (r.staff_id || (r as any).staffId) === staffReportFilter);
         }
 
         if (period !== 'all') {
@@ -84,16 +86,18 @@ const CommissionReport = () => {
           : (staffReportFilter === 'all' ? (staff.length > 0 ? staff : [currentUser]) : staff.filter(s => s.id === staffReportFilter));
 
         const staffPerformance = staffToProcess.map(s => {
-          const sRecords = filteredRecords.filter(r => 
-            (r.staffId || r.staff_id) === s.id || 
-            (s.username && (r.staffId || r.staff_id) === s.username) ||
-            (s.staffCode && (r.staffId || r.staff_id) === s.staffCode)
-          );
+          const sStaffCode = (s as any).staff_code || (s as any).staffCode;
+          const sRecords = filteredRecords.filter(r => {
+            const sId = r.staff_id || (r as any).staffId;
+            return sId === s.id || 
+              (s.username && sId === s.username) ||
+              (sStaffCode && sId === sStaffCode);
+          });
           
           const sBhxhRecords = sRecords.filter(r => r.type === 'BHXH');
           const sBhytRecords = sRecords.filter(r => r.type === 'BHYT');
 
-          const isRenewRec = (r: any) => String(r.actionType || '').toLowerCase().includes('gia hạn');
+          const isRenewRec = (r: any) => String(r.action_type || r.actionType || '').toLowerCase().includes('gia hạn');
 
           const bhxhNewComm = sBhxhRecords.filter(r => !isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
           const bhxhRenewComm = sBhxhRecords.filter(r => isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
@@ -220,8 +224,10 @@ const CommissionReport = () => {
       }
 
       const staffRecords = records.filter(r => {
-        if (r.staffId !== staffMember.id) return false;
-        if (r.paymentStatus !== 'Đã thu tiền') return false;
+        const sId = r.staff_id || (r as any).staffId;
+        const pStatus = r.payment_status || (r as any).paymentStatus;
+        if (sId !== staffMember.id) return false;
+        if (pStatus !== 'Đã thu tiền') return false;
         if (startDate && endDate) {
           const rDate = new Date(r.date);
           return rDate >= startDate && rDate <= endDate;
@@ -242,7 +248,7 @@ const CommissionReport = () => {
           "Khách hàng": r.name || "",
           "Mã số BHXH": r.bhxh || "",
           "Loại": r.type,
-          "Loại đăng ký": r.actionType,
+          "Loại đăng ký": r.action_type || (r as any).actionType,
           "Số tiền": r.amount,
           "Tỷ lệ hoa hồng": `${(rate * 100).toFixed(1)}%`,
           "Hoa hồng": r.amount * rate

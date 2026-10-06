@@ -92,7 +92,9 @@ const BHXH1LanCalc = () => {
         setPeriods(extracted);
         const firstP = extracted[0];
         const lastP = extracted[extracted.length - 1];
-        showToast(`Đã nhận diện thành công ${extracted.length} giai đoạn đóng BHXH (Từ ${firstP.fromMonth || `T${firstP.sm}/${firstP.sy}`} đến ${lastP.toMonth || `T${lastP.em}/${lastP.ey}`})!`);
+        if (firstP && lastP) {
+          showToast(`Đã nhận diện thành công ${extracted.length} giai đoạn đóng BHXH (Từ ${firstP.fromMonth || `T${firstP.sm}/${firstP.sy}`} đến ${lastP.toMonth || `T${lastP.em}/${lastP.ey}`})!`);
+        }
       } else {
         showToast('Không tìm thấy dữ liệu quá trình đóng BHXH hợp lệ trong tài liệu này.');
       }
@@ -279,7 +281,7 @@ const BHXH1LanCalc = () => {
       let compulsoryMonths = 0;
       let voluntaryMonths = 0;
 
-      let resolvedDate = new Date().toISOString().split('T')[0];
+      let resolvedDate = new Date().toISOString().split('T')[0] ?? '';
       if (benefitMonth && benefitMonth.trim()) {
         const { month, year } = parseMonthAndYear(benefitMonth);
         resolvedDate = `${year}-${String(month).padStart(2, '0')}-01`;

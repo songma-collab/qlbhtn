@@ -43,7 +43,7 @@ export function isCustomerActive(recordOrStatus: RecordType | string | null | un
  * KHÁCH HÀNG "ĐÃ DỪNG ĐÓNG" BỊ LOẠI TRỪ 100%
  */
 export function isCustomerEligibleForRenewalAlert(
-  recordOrCustomer: { status?: string; paymentStatus?: string; isAdjustment?: boolean } | null | undefined
+  recordOrCustomer: { status?: string | undefined; paymentStatus?: string | undefined; isAdjustment?: boolean | undefined } | null | undefined
 ): boolean {
   if (!recordOrCustomer) return false;
   if (recordOrCustomer.status === 'Đã dừng đóng') return false;
@@ -82,9 +82,9 @@ export function countActiveAndStoppedParticipants<T extends { status?: string }>
  * TUÂN THỦ NGHIỆP VỤ: Khách hàng có trạng thái "Đã dừng đóng" BẮT BUỘC bị loại trừ
  * khỏi danh sách đôn đốc tái tục, cảnh báo SLA và các chỉ số thống kê đôn đốc.
  */
-export function filterRenewalDispatchCustomers<T extends { status?: string; paymentStatus?: string; isAdjustment?: boolean }>(
+export function filterRenewalDispatchCustomers<T extends { status?: string | undefined; paymentStatus?: string | undefined; isAdjustment?: boolean | undefined }>(
   customers: T[],
-  options?: { includeSuspended?: boolean }
+  options?: { includeSuspended?: boolean | undefined }
 ): T[] {
   if (!Array.isArray(customers)) return [];
 
@@ -158,7 +158,7 @@ export function lookupCustomerProfileMemory(
 
   // Lọc các bản ghi hợp lệ (không phân biệt Đang tham gia hay Đã dừng đóng)
   const matching = records.filter(r => {
-    if (r.paymentStatus === 'Đã hủy') return false;
+    if (r.payment_status === 'Đã hủy') return false;
     const matchCccd = r.cccd && r.cccd.trim() === cleanCode;
     const matchBhxh = r.bhxh && r.bhxh.trim() === cleanCode;
     return matchCccd || matchBhxh;
@@ -174,5 +174,5 @@ export function lookupCustomerProfileMemory(
     return (Number(b.id) || 0) - (Number(a.id) || 0);
   });
 
-  return matching[0];
+  return matching[0] ?? null;
 }

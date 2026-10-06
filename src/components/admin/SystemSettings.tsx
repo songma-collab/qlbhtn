@@ -125,7 +125,7 @@ const SystemSettings = () => {
         commBHXHRenew: String(fb.commBHXHRenew ?? 9),
         commBHYTNew: String(fb.commBHYTNew ?? 9),
         commBHYTRenew: String(fb.commBHYTRenew ?? 5),
-        effective_date: new Date().toISOString().split('T')[0],
+        effective_date: new Date().toISOString().split('T')[0] ?? '',
         description: 'Cài đặt Tỷ lệ Hoa hồng đại lý'
       });
     } else {
@@ -147,7 +147,7 @@ const SystemSettings = () => {
         commBHXHRenew: '',
         commBHYTNew: '',
         commBHYTRenew: '',
-        effective_date: new Date().toISOString().split('T')[0],
+        effective_date: new Date().toISOString().split('T')[0] ?? '',
         description: ''
       });
     }

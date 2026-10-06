@@ -15,11 +15,11 @@ describe('Kiểm thử Đồng Thời & Khóa Ngăn Chặn Xung Đột Dữ Li�
     type: 'BHXH',
     amount: 5000000,
     commission: 500000,
-    staffId: 'staff-01',
-    paymentStatus: 'Đã thanh toán',
+    staff_id: 'staff-01',
+    payment_status: 'Đã thanh toán',
     status: 'Đang tham gia',
-    fromMonth: '2026-08',
-    toMonth: '2027-07',
+    from_month: '2026-08',
+    to_month: '2027-07',
     months: 12,
     updated_at: '2026-08-15T10:00:00.000Z'
   };
@@ -76,12 +76,12 @@ describe('Kiểm thử Đồng Thời & Khóa Ngăn Chặn Xung Đột Dữ Li�
         if (!target) throw new Error('Hồ sơ không tồn tại.');
 
         // Kiểm tra xem đã có bút toán bù trừ âm nào cho hồ sơ này chưa
-        const existingClawback = recordLedger.find(r => r.isAdjustment && r.originalRecordId === targetRecordId);
+        const existingClawback = recordLedger.find(r => r.is_adjustment && r.original_record_id === targetRecordId);
         if (existingClawback) {
           throw new Error('ALREADY_CLAWED_BACK: Hồ sơ này đã được bù trừ hoàn tất trước đó. Không thể bù trừ lần thứ 2!');
         }
 
-        if (target.paymentStatus === 'Đã hủy') {
+        if (target.payment_status === 'Đã hủy') {
           throw new Error('INVALID_STATUS: Hồ sơ đã ở trạng thái Đã hủy.');
         }
 
@@ -91,21 +91,21 @@ describe('Kiểm thử Đồng Thời & Khóa Ngăn Chặn Xung Đột Dữ Li�
           date: '2026-09-16',
           name: `${target.name} (Bù trừ thu hồi)`,
           type: target.type,
-          actionType: 'Điều chỉnh thu hồi',
+          action_type: 'Điều chỉnh thu hồi',
           amount: -(Number(target.amount) || 0),
           commission: -(Number(target.commission) || 0),
-          staffId: target.staffId,
-          paymentStatus: 'Đã thu tiền',
+          staff_id: target.staff_id,
+          payment_status: 'Đã thu tiền',
           status: 'Hoàn tất',
           phone: target.phone,
-          isAdjustment: true,
-          originalRecordId: target.id,
-          adjustmentReason: reason,
+          is_adjustment: true,
+          original_record_id: target.id,
+          adjustment_reason: reason,
           months: target.months
         };
 
         // Cập nhật trạng thái bản ghi gốc
-        target.paymentStatus = 'Đã hủy';
+        target.payment_status = 'Đã hủy';
         recordLedger.push(clawbackEntry);
 
         return clawbackEntry;
@@ -121,12 +121,12 @@ describe('Kiểm thử Đồng Thời & Khóa Ngăn Chặn Xung Đột Dữ Li�
       expect(() => executeClawbackSafe(501, 'Yêu cầu trùng lặp')).toThrow('ALREADY_CLAWED_BACK');
 
       // Xác minh trong sổ cái chỉ có duy nhất 1 bút toán bù trừ âm
-      const clawbackEntries = recordLedger.filter(r => r.originalRecordId === 501);
+      const clawbackEntries = recordLedger.filter(r => r.original_record_id === 501);
       expect(clawbackEntries).toHaveLength(1);
 
       // Tổng hoa hồng của nhân viên staff-01 sau khi hủy: 500k - 500k = 0đ (không bị âm do trừ 2 lần)
       const staffTotalCommission = recordLedger
-        .filter(r => r.staffId === 'staff-01')
+        .filter(r => r.staff_id === 'staff-01')
         .reduce((sum, r) => sum + (Number(r.commission) || 0), 0);
       expect(staffTotalCommission).toBe(0);
     });
@@ -168,7 +168,7 @@ describe('Kiểm thử Đồng Thời & Khóa Ngăn Chặn Xung Đột Dữ Li�
         { amount: 6000000 },
         { commission: 700000 },
         { date: '2026-08-10' },
-        { paymentStatus: 'Đã hủy' }
+        { payment_status: 'Đã hủy' }
       ];
 
       concurrentAttempts.forEach(attempt => {

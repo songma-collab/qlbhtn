@@ -146,8 +146,8 @@ describe('Bộ kiểm thử tính toán tài chính BHXH & BHYT (Financial Calcu
       const result = calculateBHYT(12, 1, 2340000);
       expect(result.amount).toBe(1263600);
       expect(result.breakdown).toHaveLength(1);
-      expect(result.breakdown[0].label).toBe('100%');
-      expect(result.breakdown[0].amount).toBe(1263600);
+      expect(result.breakdown[0]!.label).toBe('100%');
+      expect(result.breakdown[0]!.amount).toBe(1263600);
     });
 
     it('Tính đúng 1 người tham gia 3 tháng và 6 tháng', () => {
@@ -166,11 +166,11 @@ describe('Bộ kiểm thử tính toán tài chính BHXH & BHYT (Financial Calcu
       // Tổng: 4.043.520đ
       const result = calculateBHYT(12, 5, 2340000);
       expect(result.breakdown).toHaveLength(5);
-      expect(result.breakdown[0].amount).toBe(1263600);
-      expect(result.breakdown[1].amount).toBe(884520);
-      expect(result.breakdown[2].amount).toBe(758160);
-      expect(result.breakdown[3].amount).toBe(631800);
-      expect(result.breakdown[4].amount).toBe(505440);
+      expect(result.breakdown[0]!.amount).toBe(1263600);
+      expect(result.breakdown[1]!.amount).toBe(884520);
+      expect(result.breakdown[2]!.amount).toBe(758160);
+      expect(result.breakdown[3]!.amount).toBe(631800);
+      expect(result.breakdown[4]!.amount).toBe(505440);
       expect(result.amount).toBe(4043520);
     });
   });
@@ -259,9 +259,9 @@ describe('Bộ kiểm thử tính toán tài chính BHXH & BHYT (Financial Calcu
       const result = calculateBHYTCoterminous(members, 2340000);
       expect(result.amount).toBe(1969110);
       expect(result.breakdown).toHaveLength(3);
-      expect(result.breakdown[0].amount).toBe(1263600);
-      expect(result.breakdown[1].amount).toBe(515970);
-      expect(result.breakdown[2].amount).toBe(189540);
+      expect(result.breakdown[0]!.amount).toBe(1263600);
+      expect(result.breakdown[1]!.amount).toBe(515970);
+      expect(result.breakdown[2]!.amount).toBe(189540);
     });
 
     it('Tính đúng cho hộ 5 người với người thứ 5 áp dụng tỷ lệ 40%', () => {
@@ -280,8 +280,8 @@ describe('Bộ kiểm thử tính toán tài chính BHXH & BHYT (Financial Calcu
       ];
       const result = calculateBHYTCoterminous(members, 2340000);
       expect(result.amount).toBe(2021760);
-      expect(result.breakdown[4].ratePct).toBe(40);
-      expect(result.breakdown[4].amount).toBe(252720);
+      expect(result.breakdown[4]!.ratePct).toBe(40);
+      expect(result.breakdown[4]!.amount).toBe(252720);
     });
   });
 

@@ -412,8 +412,8 @@ export const CustomerParticipationManagement: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {paginatedCustomers.map((c, index) => {
-                const recentWorkplace = c.prior_periods?.find(p => p.workplace)?.workplace || '';
-                const recentPosition = c.prior_periods?.find(p => p.position)?.position || '';
+                const recentWorkplace = c.prior_periods?.find((p: any) => p.workplace)?.workplace || '';
+                const recentPosition = c.prior_periods?.find((p: any) => p.position)?.position || '';
 
                 return (
                   <tr key={c.id || c.customer_key || index} className="hover:bg-slate-50/80 transition border-b border-slate-100">

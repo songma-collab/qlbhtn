@@ -66,9 +66,10 @@ export const UserPermissionsManagement: React.FC = () => {
 
   // Tự động chọn nhân viên đầu tiên nếu chưa chọn
   useEffect(() => {
-    if (!selectedStaffId && assignableStaffList.length > 0) {
-      setSelectedStaffId(assignableStaffList[0].id);
-    }
+      const first = assignableStaffList[0];
+      if (first) {
+        setSelectedStaffId(first.id);
+      }
   }, [assignableStaffList, selectedStaffId]);
 
   // Đồng bộ khi settings từ server/context thay đổi
@@ -87,7 +88,7 @@ export const UserPermissionsManagement: React.FC = () => {
       const matchQuery = !q || 
         (s.name && s.name.toLowerCase().includes(q)) ||
         (s.phone && s.phone.includes(q)) ||
-        (s.staffCode && s.staffCode.toLowerCase().includes(q)) ||
+        ((s.staff_code || (s as any).staffCode) && (s.staff_code || (s as any).staffCode).toLowerCase().includes(q)) ||
         (s.email && s.email.toLowerCase().includes(q));
       return matchRole && matchQuery;
     });
@@ -135,7 +136,7 @@ export const UserPermissionsManagement: React.FC = () => {
       const existing = prev[selectedStaffId] || {
         staffId: selectedStaffId,
         staffName: currentStaff.name,
-        staffCode: currentStaff.staffCode,
+        staffCode: currentStaff.staff_code || (currentStaff as any).staffCode,
         role: currentStaff.role,
         granted: [],
         revoked: []
@@ -162,7 +163,7 @@ export const UserPermissionsManagement: React.FC = () => {
         [selectedStaffId]: {
           ...existing,
           staffName: currentStaff.name,
-          staffCode: currentStaff.staffCode,
+          staffCode: currentStaff.staff_code || (currentStaff as any).staffCode,
           role: currentStaff.role,
           granted: newGranted,
           revoked: newRevoked,
@@ -232,7 +233,7 @@ export const UserPermissionsManagement: React.FC = () => {
       return {
         id,
         name: st?.name || ov.staffName || id,
-        staffCode: st?.staffCode || ov.staffCode || 'N/A',
+        staffCode: st?.staff_code || (st as any)?.staffCode || ov.staffCode || 'N/A',
         role: st?.role || ov.role || 'Nhân viên',
         grantedCount: ov.granted?.length || 0,
         revokedCount: ov.revoked?.length || 0,
@@ -380,7 +381,7 @@ export const UserPermissionsManagement: React.FC = () => {
                         </span>
                       </div>
                       <div className="text-[11px] text-gray-400 truncate mt-0.5">
-                        {st.staffCode || st.phone || st.email || 'Chưa có mã'}
+                        {st.staff_code || (st as any).staffCode || st.phone || st.email || 'Chưa có mã'}
                       </div>
                     </div>
 
@@ -424,7 +425,7 @@ export const UserPermissionsManagement: React.FC = () => {
                     )}
                   </div>
                   <p className="text-xs text-gray-500 mt-0.5">
-                    Mã NV: <strong>{currentStaff.staffCode || 'N/A'}</strong> • SĐT: <strong>{currentStaff.phone || 'N/A'}</strong> • Khu vực: <strong>{currentStaff.area || 'Toàn đại lý'}</strong>
+                    Mã NV: <strong>{currentStaff.staff_code || (currentStaff as any).staffCode || 'N/A'}</strong> • SĐT: <strong>{currentStaff.phone || 'N/A'}</strong> • Khu vực: <strong>{currentStaff.area || 'Toàn đại lý'}</strong>
                   </p>
                 </div>
               </div>

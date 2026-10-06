@@ -65,10 +65,10 @@ describe('Kiểm thử Khớp nối định danh đa tầng & Stress-test gom c�
       // 4 bản ghi phân mảnh phải được gom thành ĐÚNG 1 khách hàng
       expect(clustered).toHaveLength(1);
 
-      const customer = clustered[0];
+      const customer = clustered[0]!;
       // Bản ghi đại diện phải là giao dịch mới nhất (ID 104, nextPayment 2027-01-10)
       expect(customer.id).toBe(104);
-      expect(customer.nextPayment).toBe('2027-01-10');
+      expect(customer.next_payment || (customer as any).nextPayment).toBe('2027-01-10');
       expect(customer.phone).toBe('0988776655');
       // Tổng số lần đóng / lịch sử tham gia = 4
       expect(customer.totalHistoryCount).toBe(4);
@@ -137,7 +137,7 @@ describe('Kiểm thử Khớp nối định danh đa tầng & Stress-test gom c�
       const clustered = groupRecordsByCustomer(records, 'BHXH');
       // Chỉ bản ghi 301 hợp lệ, 302 (Đã hủy) và 303 (Bút toán âm) bị loại trừ
       expect(clustered).toHaveLength(1);
-      expect(clustered[0].id).toBe(301);
+      expect(clustered[0]!.id).toBe(301);
     });
   });
 

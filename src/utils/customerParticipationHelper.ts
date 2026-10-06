@@ -17,8 +17,8 @@ export const doesRecordMatchCustomer = (r: RecordType, customer: CustomerType): 
 
   const rCccd = (r.cccd || (r as any).citizenId || '').trim().toLowerCase();
   const rBhxh = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').trim().toLowerCase();
-  const rCustId = r.customerId ? String(r.customerId) : ((r as any).customer_id ? String((r as any).customer_id) : '');
-  const rCustKey = (r.customerKey || (r as any).customer_key || '').trim().toLowerCase();
+  const rCustId = r.customer_id ? String(r.customer_id) : ((r as any).customerId ? String((r as any).customerId) : '');
+  const rCustKey = (r.customer_key || (r as any).customerKey || '').trim().toLowerCase();
 
   if (cCccd && rCccd && cCccd === rCccd) return true;
   if (cBhxh && rBhxh && cBhxh === rBhxh) return true;
@@ -48,8 +48,8 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
   // Lọc các bản ghi BHXH hợp lệ của khách hàng tại đại lý
   const matchingRecords = records.filter(r => {
     if (!r || r.type !== 'BHXH') return false;
-    if (r.paymentStatus === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
-    if (r.isAdjustment || (r as any).is_adjustment) return false;
+    if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
+    if (r.is_adjustment || (r as any).isAdjustment) return false;
     return doesRecordMatchCustomer(r, customer);
   });
 
@@ -60,15 +60,15 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
 
     // 1. Phân tích tháng/năm bắt đầu
     const { month: sm, year: sy } = parseMonthAndYear(
-      r.fromMonth || (r as any).from_month,
-      r.date || r.effectiveDate || (r as any).effective_date
+      r.from_month || (r as any).fromMonth,
+      r.date || r.effective_date || (r as any).effectiveDate
     );
 
     // 2. Phân tích tháng/năm kết thúc
     let em = sm;
     let ey = sy;
 
-    const toMonthStr = r.toMonth || (r as any).to_month;
+    const toMonthStr = r.to_month || (r as any).toMonth;
     if (toMonthStr && typeof toMonthStr === 'string' && toMonthStr.trim()) {
       const parsedTo = parseMonthAndYear(toMonthStr);
       em = parsedTo.month;
@@ -83,12 +83,13 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
 
     // 3. Mức lương / thu nhập đóng
     let salaryNum = 1500000;
+    const basePrem = r.base_premium !== undefined ? r.base_premium : (r as any).basePremium;
     if (r.wage && Number(r.wage) > 0) {
       salaryNum = Number(r.wage);
     } else if (r.income && Number(r.income) > 0) {
       salaryNum = Number(r.income);
-    } else if (r.basePremium && Number(r.basePremium) > 0) {
-      salaryNum = Math.round(Number(r.basePremium) / 0.22);
+    } else if (basePrem && Number(basePrem) > 0) {
+      salaryNum = Math.round(Number(basePrem) / 0.22);
     } else if (r.amount && Number(r.amount) > 0) {
       salaryNum = Math.round(Number(r.amount) / 0.22);
     }
@@ -146,8 +147,8 @@ export const buildCompleteParticipationPeriods = (
       completeList.push(normalizePeriod({
         id: p.id ? Number(p.id) : (Date.now() + Math.random()),
         type: p.type || 'batbuoc',
-        fromMonth: p.fromMonth,
-        toMonth: p.toMonth,
+        from_month: p.from_month || (p as any).fromMonth,
+        to_month: p.to_month || (p as any).toMonth,
         months: p.months,
         sm: Number(p.sm) || 1,
         sy: Number(p.sy) || 2020,
@@ -156,7 +157,7 @@ export const buildCompleteParticipationPeriods = (
         salary: salStr,
         workplace: p.workplace || '',
         position: p.position || ''
-      }));
+      }) as unknown as PeriodItem);
     }
   }
 

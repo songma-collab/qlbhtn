@@ -97,7 +97,7 @@ const RolePermissionsManagement: React.FC = () => {
   const handleResetToDefault = () => {
     setPermissionsState(prev => ({
       ...prev,
-      [selectedRole]: [...DEFAULT_ROLE_PERMISSIONS[selectedRole]]
+      [selectedRole]: [...(DEFAULT_ROLE_PERMISSIONS[selectedRole] ?? [])]
     }));
     setHasChanges(true);
     showToast(`Đã khôi phục quyền mặc định cho vai trò ${selectedRole}!`, 'info');

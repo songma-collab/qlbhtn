@@ -131,7 +131,7 @@ describe('Reports Calculation & Stats Integrity Suite', () => {
     });
 
     expect(staffPerformance.length).toBe(2);
-    expect(staffPerformance[0].revenue).toBe(2300000);
-    expect(staffPerformance[1].revenue).toBe(2000000);
+    expect(staffPerformance[0]!.revenue).toBe(2300000);
+    expect(staffPerformance[1]!.revenue).toBe(2000000);
   });
 });

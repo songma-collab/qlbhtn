@@ -120,9 +120,9 @@ describe('Supabase Master Persistence Suite: Hồ Sơ Tham Gia & Phân Quyền R
 
       const overrides = extractUserOverridesFromPolicies(mockPolicies as any);
       expect(overrides['staff-sung']).toBeDefined();
-      expect(overrides['staff-sung'].granted).toContain('reports.export_excel');
-      expect(overrides['staff-sung'].granted).toContain('finance.collect');
-      expect(overrides['staff-sung'].revoked).toContain('customers.delete');
+      expect(overrides['staff-sung']!.granted).toContain('reports.export_excel');
+      expect(overrides['staff-sung']!.granted).toContain('finance.collect');
+      expect(overrides['staff-sung']!.revoked).toContain('customers.delete');
     });
 
     it('Đảm bảo sanitizeUserOverrides và sanitizeRolePermissions bảo vệ dữ liệu sạch trước khi ghi vào Supabase', () => {
@@ -135,18 +135,18 @@ describe('Supabase Master Persistence Suite: Hồ Sơ Tham Gia & Phân Quyền R
       };
 
       const cleaned = sanitizeUserOverrides(rawOverrides);
-      expect(cleaned['staff-01'].granted).toContain('customers.create');
-      expect(cleaned['staff-01'].granted).toContain('finance.view');
-      expect(cleaned['staff-01'].granted).not.toContain('invalid_permission');
-      expect(cleaned['staff-01'].revoked).toEqual(['customers.delete']);
+      expect(cleaned['staff-01']!.granted).toContain('customers.create');
+      expect(cleaned['staff-01']!.granted).toContain('finance.view');
+      expect(cleaned['staff-01']!.granted).not.toContain('invalid_permission');
+      expect(cleaned['staff-01']!.revoked).toEqual(['customers.delete']);
 
       const rawRoles = {
         'Nhân viên': ['customers.create', 'finance.view', 'xyz_bad_perm']
       };
       const cleanedRoles = sanitizeRolePermissions(rawRoles);
-      expect(cleanedRoles['Nhân viên']).toContain('customers.create');
-      expect(cleanedRoles['Nhân viên']).toContain('finance.view');
-      expect(cleanedRoles['Nhân viên']).not.toContain('xyz_bad_perm');
+      expect(cleanedRoles['Nhân viên']!).toContain('customers.create');
+      expect(cleanedRoles['Nhân viên']!).toContain('finance.view');
+      expect(cleanedRoles['Nhân viên']!).not.toContain('xyz_bad_perm');
     });
   });
 });

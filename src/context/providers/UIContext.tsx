@@ -8,21 +8,21 @@ export interface AlertModalConfig {
   isOpen: boolean;
   title: string;
   message: string;
-  onConfirm?: () => void;
-  type?: AlertType;
+  onConfirm?: (() => void) | undefined;
+  type?: AlertType | undefined;
 }
 
 export interface PromptModalConfig {
   isOpen: boolean;
   title: string;
   message: string;
-  defaultValue?: string;
-  placeholder?: string;
-  confirmText?: string;
-  cancelText?: string;
-  inputType?: 'text' | 'textarea';
+  defaultValue?: string | undefined;
+  placeholder?: string | undefined;
+  confirmText?: string | undefined;
+  cancelText?: string | undefined;
+  inputType?: 'text' | 'textarea' | undefined;
   onConfirm: (value: string) => void | Promise<void>;
-  onCancel?: () => void;
+  onCancel?: (() => void) | undefined;
 }
 
 export interface ToastAction {
@@ -31,20 +31,20 @@ export interface ToastAction {
 }
 
 export interface ToastConfig {
-  id?: string;
+  id?: string | undefined;
   message: string;
-  title?: string;
+  title?: string | undefined;
   type: ToastType;
-  duration?: number;
-  timestamp?: number;
+  duration?: number | undefined;
+  timestamp?: number | undefined;
 }
 
 export interface GlobalRegisterModalState {
   isOpen: boolean;
   type: 'BHXH' | 'BHYT';
-  record?: any;
-  isRenew?: boolean;
-  initialData?: any;
+  record?: any | undefined;
+  isRenew?: boolean | undefined;
+  initialData?: any | undefined;
 }
 
 export interface UIContextType {

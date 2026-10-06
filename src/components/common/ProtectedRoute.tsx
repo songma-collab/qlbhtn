@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Loader2, ShieldAlert, ArrowLeft, LogOut } from 'lucide-react';
 import AdminLogin from '../AdminLogin';
-import { supabase } from '../../lib/supabase';
+import { authService } from '../../services';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -12,7 +12,7 @@ interface ProtectedRouteProps {
 
 /**
  * ProtectedRoute - Chốt chặn bảo mật phân quyền Zero-Trust
- * - Đảm bảo chỉ người dùng có chữ ký số JWT hợp lệ từ Supabase Auth Server mới được xem giao diện
+ * - Đảm bảo chỉ người dùng có chữ ký số JWT hợp lệ từ Auth Server mới được xem giao diện
  * - Ngăn chặn triệt để tấn công giả mạo quyền trên client (Client-side Role Tampering)
  */
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -22,13 +22,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   const { currentUser, isAdmin, isAuthReady, setCurrentUser } = useAppContext();
   const navigate = useNavigate();
 
-  // 1. Chờ kiểm tra chữ ký số JWT và Session trực tiếp từ Supabase Server
+  // 1. Chờ kiểm tra chữ ký số JWT và Session trực tiếp từ Server
   if (!isAuthReady) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC] gap-3">
         <Loader2 className="w-9 h-9 animate-spin text-[#004182]" />
         <p className="text-sm font-semibold text-gray-700 tracking-tight">Đang thẩm định phiên bảo mật...</p>
-        <p className="text-xs text-gray-400">Xác thực chứng thư số với Supabase Server</p>
+        <p className="text-xs text-gray-400">Xác thực chứng thư số với Auth Server</p>
       </div>
     );
   }
@@ -41,7 +41,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // 3. Nếu yêu cầu quyền Admin tối cao mà tài khoản hiện tại không có quyền
   if (requireAdmin && !isAdmin) {
     const handleLogout = async () => {
-      await supabase.auth.signOut();
+      await authService.signOut();
       setCurrentUser(null);
       navigate('/');
     };

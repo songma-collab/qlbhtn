@@ -11,6 +11,7 @@
 
 | Phiên bản | Ngày cập nhật | Người thực hiện | Nội dung cập nhật |
 | :--- | :--- | :--- | :--- |
+| **v2.0.0** | 05/10/2026 | Ban Kỹ thuật / Đội phát triển | **Nâng cấp Toàn diện 5 Giai đoạn Kiến trúc (Enterprise Grade):**<br>1. Chuẩn hóa 100% Database `snake_case` & Hợp nhất Master Setup.<br>2. Xây dựng Service Layer (Anti-Corruption Layer).<br>3. Phân rã God Context & Modular UI Component.<br>4. Thiết lập Sổ cái Tài chính Bất biến (`financial_ledger`) Single Source of Truth.<br>5. Siết chặt TypeScript Strict Mode khắt khe 100%, Security Audit RPC và thiết lập GitHub Actions CI/CD Pipeline. |
 | **v1.1.0** | 28/09/2026 | Ban Kỹ thuật / Đội phát triển | Bổ sung Mục 7.6: Sổ tay chuẩn hóa nhập liệu Excel (Phân tách Sổ quỹ & Danh bạ CRM, bộ parser thông minh chống lỗi Unicode NFD tiếng Việt, tính hạn đóng chính xác, hướng dẫn dọn dẹp bản ghi rác) |
 | **v1.0.0** | 28/09/2026 | Ban Kỹ thuật / Đội phát triển | Khởi tạo tài liệu triển khai chuẩn: Supabase DB + GitHub + Cloudflare Pages + CI/CD tự động |
 
@@ -45,7 +46,8 @@ Hệ thống được thiết kế theo mô hình **JAMstack Enterprise & Server
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │               CLOUDFLARE PAGES (Frontend SPA)               │
-│  - React 19 + Vite 6 + Tailwind CSS 4                       │
+│  - React 19 + TypeScript 5.8 (Strict Mode 100%)             │
+│  - Service Layer (Anti-Corruption Layer)                    │
 │  - Phân phối toàn cầu qua Cloudflare Edge Network           │
 │  - public/_redirects: SPA routing chống lỗi 404             │
 │  - public/_headers: CSP cho phép kết nối Supabase, VietQR   │
@@ -54,10 +56,11 @@ Hệ thống được thiết kế theo mô hình **JAMstack Enterprise & Server
                                ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                   SUPABASE (Backend BaaS)                   │
-│  - PostgreSQL Database (10 bảng chuẩn hóa + GIN Trigram)    │
+│  - PostgreSQL 15+ (100% snake_case)                         │
+│  - Financial Ledger (Bút toán sổ cái kép bất biến)          │
 │  - Supabase Auth (Quản lý đăng nhập cán bộ thu)             │
 │  - Row Level Security (RLS) 4 cấp + Triggers tài chính      │
-│  - Stored Procedures / RPCs tìm kiếm máy chủ                │
+│  - Stored Procedures / RPCs tìm kiếm & Rate-limit an toàn   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -74,21 +77,26 @@ Hệ thống được thiết kế theo mô hình **JAMstack Enterprise & Server
    - **Region**: Chọn `Southeast Asia (Singapore)` để có độ trễ kết nối thấp nhất tại Việt Nam.
 3. Bấm **Create new project** và chờ khoảng 1 - 2 phút để hệ thống khởi tạo.
 
-### 2.2. Nạp Cấu Trúc Bảng Dữ Liệu (Schema, RLS, Triggers, RPCs)
-Toàn bộ kiến trúc dữ liệu chuẩn hóa của dự án đã được tổng hợp trong file:
+### 2.2. Nạp Cấu Trúc Bảng Dữ Liệu (Schema, RLS, Triggers, RPCs & Financial Ledger)
+Toàn bộ kiến trúc dữ liệu chuẩn hóa của dự án đã được tổng hợp hoàn chỉnh trong file:
 👉 **`MASTER_SETUP_ALL_IN_ONE.sql`** *(ngay tại thư mục gốc của dự án)*.
 
-**Cách thực hiện:**
+**Cách thực hiện (Khuyến nghị 1-Click Setup):**
 1. Tại giao diện quản trị Supabase, chọn mục **SQL Editor** ở thanh điều hướng bên trái.
 2. Nhấn **New query**.
 3. Mở file `MASTER_SETUP_ALL_IN_ONE.sql` trên máy tính của bạn, sao chép toàn bộ nội dung và dán vào cửa sổ SQL Editor.
 4. Nhấn nút **Run** (hoặc nhấn tổ hợp phím `Ctrl + Enter`).
-5. Kết quả báo `Success. No rows returned` nghĩa là toàn bộ 10 bảng dữ liệu, 3 Views, RLS 4 cấp, Triggers tính toán & khóa tài chính, GIN Trigram và 23 RPCs đã được thiết lập thành công.
+5. Kết quả báo `Success. No rows returned` nghĩa là toàn bộ 11 bảng dữ liệu (bao gồm `financial_ledger`), 3 Views, RLS 4 cấp, Triggers tính toán & khóa tài chính, GIN Trigram và 25+ RPCs đã được thiết lập thành công.
 
-> [!NOTE]
-> **Trường hợp đã có CSDL cũ và muốn nâng cấp an toàn:**  
-> Nếu bạn đã có CSDL với dữ liệu lịch sử và chỉ muốn nâng cấp đồng bộ theo tiêu chuẩn Giai đoạn 1 & 2 (chuẩn hóa `snake_case`, bổ sung chỉ mục GIN Trigram, phân trang server), hãy mở và chạy file:  
-> 👉 `supabase/migrations/20260928000001_phase1_database_standardization.sql`
+> [!TIP]
+> **Bộ Migration Module hóa (dành cho Supabase CLI):**  
+> Thư mục `supabase/migrations/` được phân tách khoa học theo chuẩn:  
+> - `0001_baseline_schema.sql`: Lược đồ bảng 100% `snake_case`, kiểu dữ liệu và ràng buộc.  
+> - `0002_security_rls.sql`: Chính sách RLS 4 cấp và helper phân quyền.  
+> - `0003_rpc_and_functions.sql`: Stored Procedures, Rate-limiting, logic nghiệp vụ.  
+> - `0004_triggers_and_audit.sql`: Triggers kiểm toán, tự động tính toán và date healing.  
+> - `20261005000001_create_financial_ledger.sql`: Bảng sổ cái kép, trigger bất biến, logic bù trừ thoái thu.  
+> - `archive/`: Chứa các bản vá cũ đã được hợp nhất an toàn.
 
 ### 2.3. Lấy Thông Tin API Key Kết Nối
 1. Trên Supabase Dashboard, bấm vào biểu tượng bánh răng **Project Settings** (góc dưới bên trái) $\rightarrow$ chọn **API**.
@@ -216,7 +224,7 @@ Dự án đã tích hợp sẵn 2 tệp tin cấu hình tự động trong thư 
 
 ---
 
-## 6. QUY TRÌNH CẬP NHẬT & CI/CD TỰ ĐỘNG (ZERO DOWNTIME)
+## 6. QUY TRÌNH CẬP NHẬT & CI/CD TỰ ĐỘNG (ZERO DOWNTIME & QUALITY GATE)
 
 Mỗi khi bạn phát triển thêm tính năng hoặc sửa lỗi mã nguồn ở máy tính cục bộ:
 
@@ -224,18 +232,26 @@ Mỗi khi bạn phát triển thêm tính năng hoặc sửa lỗi mã nguồn �
 # 1. Kiểm tra trạng thái các file thay đổi
 git status
 
-# 2. Thêm file và commit nội dung
+# 2. Kiểm thử chất lượng cục bộ trước khi push (Khuyên nghị)
+npm run verify-baseline
+
+# 3. Thêm file và commit nội dung
 git add .
 git commit -m "feat: bổ sung tính năng mới / fix: khắc phục giao diện"
 
-# 3. Đẩy lên nhánh main
+# 4. Đẩy lên nhánh main
 git push origin main
 ```
 
-**Cơ chế hoạt động:**
-- Cloudflare Pages sẽ tự động bắt tín hiệu webhook từ GitHub.
-- Cloudflare tự động khởi tạo máy ảo build phiên bản mới ngầm trong nền.
-- Sau khi build thành công, Cloudflare tự động chuyển hướng lưu lượng truy cập sang phiên bản mới mà **không có thời gian chết (Zero Downtime)**.
+**Cơ chế hoạt động của Hàng rào Chất lượng (Quality Gate):**
+1. **GitHub Actions (`.github/workflows/production.yml`):**
+   - Tự động kích hoạt khi có lệnh `push` hoặc `pull_request` vào nhánh `main` hoặc `master`.
+   - **Bước 1:** Cài đặt môi trường Node.js 20 LTS.
+   - **Bước 2 (Strict Typecheck):** Chạy `npm run typecheck` (`tsc --noEmit`) dưới chế độ kiểm tra nghiêm ngặt nhất (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`).
+   - **Bước 3 (Test Suite):** Chạy toàn bộ 50 Test Suites (461 bài kiểm thử Vitest) xác thực toàn vẹn tài chính, RLS và nghiệp vụ.
+   - **Bước 4 (Production Build):** Biên dịch gói phân phối Vite (`dist/`).
+2. **Cloudflare Pages Deployment:**
+   - Sau khi CI vượt qua 100% kiểm thử, Cloudflare Pages tự động triển khai phiên bản mới ngầm trên mạng lưới Edge toàn cầu mà **không có bất kỳ thời gian gián đoạn nào (Zero Downtime)**.
 
 ---
 

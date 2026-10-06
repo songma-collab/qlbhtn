@@ -56,7 +56,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
     const set = new Set<number>();
     set.add(currentYear);
     records.forEach(r => {
-      const d = r.submittedDate || r.date;
+      const d = r.submitted_date || (r as any).submittedDate || r.date;
       if (d && d.length >= 4) {
         const y = parseInt(d.substring(0, 4), 10);
         if (!isNaN(y)) set.add(y);
@@ -72,14 +72,14 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
     if (selectedMonth) set.add(selectedMonth);
 
     records.forEach(r => {
-      const d = r.submittedDate || r.date;
+      const d = r.submitted_date || (r as any).submittedDate || r.date;
       if (d && d.length >= 7) {
         set.add(d.substring(0, 7));
       }
     });
 
     // Bổ sung đầy đủ 12 tháng của năm hiện tại và năm đang duyệt để dễ chọn
-    const [selY] = selectedMonth.split('-');
+    const [selY = ''] = selectedMonth.split('-');
     const activeYears = new Set([currentYear, parseInt(selY, 10) || currentYear]);
     activeYears.forEach(y => {
       for (let m = 1; m <= 12; m++) {
@@ -149,7 +149,8 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
       const detailRows: any[] = [];
       filteredBatches.forEach(b => {
         b.records.forEach((r, rIdx) => {
-          const staffObj = staff.find(s => s.id === r.staffId || s.username === r.staffId);
+          const rStaffId = r.staff_id || (r as any).staffId;
+          const staffObj = staff.find(s => s.id === rStaffId || s.username === rStaffId);
           detailRows.push({
             "Đợt chuyển": b.batchName,
             "Ngày chuyển": b.submittedDate,
@@ -157,12 +158,12 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
             "Họ và tên người tham gia": r.name,
             "Số CCCD": r.cccd || '',
             "Số điện thoại": r.phone || '',
-            "Mã số BHXH": r.bhxh || r.old_bhxh || r.oldBhxh || '',
+            "Mã số BHXH": r.bhxh || r.old_bhxh || (r as any).oldBhxh || '',
             "Loại hình": r.type,
             "Phương thức/Thời hạn (tháng)": r.months,
             "Số tiền đóng (VNĐ)": r.amount,
             "Ngày thu tiền": r.date,
-            "Cán bộ thu": staffObj ? staffObj.name : (r.staffId || 'N/A')
+            "Cán bộ thu": staffObj ? staffObj.name : (rStaffId || 'N/A')
           });
         });
       });
@@ -187,19 +188,20 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
       const wb = XLSX.utils.book_new();
 
       const detailRows = batch.records.map((r, idx) => {
-        const staffObj = staff.find(s => s.id === r.staffId || s.username === r.staffId);
+        const rStaffId = r.staff_id || (r as any).staffId;
+        const staffObj = staff.find(s => s.id === rStaffId || s.username === rStaffId);
         return {
           "STT": idx + 1,
           "Họ và tên người tham gia": r.name,
           "Số CCCD / CMND": r.cccd || '',
-          "Mã số BHXH": r.bhxh || r.old_bhxh || r.oldBhxh || '',
+          "Mã số BHXH": r.bhxh || r.old_bhxh || (r as any).oldBhxh || '',
           "Số điện thoại": r.phone || '',
           "Địa chỉ": r.address || '',
           "Loại hình": r.type,
           "Số tháng đóng": r.months,
           "Số tiền thực đóng (VNĐ)": r.amount,
           "Ngày biên lai": r.date,
-          "Cán bộ thu": staffObj ? staffObj.name : (r.staffId || 'N/A')
+          "Cán bộ thu": staffObj ? staffObj.name : (rStaffId || 'N/A')
         };
       });
 
@@ -584,7 +586,8 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                     </tr>
                   ) : (
                     modalFilteredRecords.map((r, rIdx) => {
-                      const staffObj = staff.find(s => s.id === r.staffId || s.username === r.staffId);
+                      const rStaffId = r.staff_id || (r as any).staffId;
+                      const staffObj = staff.find(s => s.id === rStaffId || s.username === rStaffId);
                       return (
                         <tr key={r.id} className="hover:bg-blue-50/30 transition">
                           <td className="p-3 text-center text-gray-400 font-mono">{rIdx + 1}</td>
@@ -594,7 +597,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                             <div className="text-[11px] text-gray-400 font-mono">{r.phone || ''}</div>
                           </td>
                           <td className="p-3 font-mono font-semibold text-[#004182]">
-                            {r.bhxh || r.old_bhxh || r.oldBhxh || 'N/A'}
+                            {r.bhxh || r.old_bhxh || (r as any).oldBhxh || 'N/A'}
                           </td>
                           <td className="p-3 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -606,7 +609,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                           <td className="p-3 text-center font-bold text-gray-600">{r.months}T</td>
                           <td className="p-3 text-right font-bold text-amber-700">{formatMoney(r.amount)}</td>
                           <td className="p-3 text-gray-700">
-                            {staffObj ? staffObj.name : (r.staffId || 'N/A')}
+                            {staffObj ? staffObj.name : (rStaffId || 'N/A')}
                           </td>
                           <td className="p-3 text-center font-mono text-gray-500">{r.date}</td>
                         </tr>

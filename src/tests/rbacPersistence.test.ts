@@ -48,7 +48,7 @@ describe('RBAC Persistence & Supabase Policies Integration Suite', () => {
     expect(extracted['Nhân viên']).toEqual(['customers.create']);
     expect(extracted['Quản lý']).toEqual(['customers.view_all', 'reports.view_all']);
     // Admin always retains all permissions
-    expect(extracted['Admin'].length).toBe(ALL_PERMISSIONS.length);
+    expect(extracted['Admin']!.length).toBe(ALL_PERMISSIONS.length);
 
     // Test when value is a stringified JSON
     const mockStringPolicies: Policy[] = [
@@ -93,7 +93,7 @@ describe('RBAC Persistence & Supabase Policies Integration Suite', () => {
     const loaded = getStoredRolePermissions();
     expect(loaded['Nhân viên']).toEqual(['customers.create', 'finance.view']);
     // Admin must never be empty
-    expect(loaded['Admin'].length).toBe(ALL_PERMISSIONS.length);
+    expect(loaded['Admin']!.length).toBe(ALL_PERMISSIONS.length);
   });
 
   it('4. mergeSettingsWithVietQR injects rolePermissions extracted from policies into settings', () => {
@@ -117,7 +117,7 @@ describe('RBAC Persistence & Supabase Policies Integration Suite', () => {
     expect(merged.rolePermissions).toBeDefined();
     expect(merged.rolePermissions?.['Nhân viên']).toContain('customers.create');
     expect(merged.rolePermissions?.['Nhân viên']).toContain('customers.export');
-    expect(merged.rolePermissions?.['Admin'].length).toBe(ALL_PERMISSIONS.length);
+    expect(merged.rolePermissions?.['Admin']!.length).toBe(ALL_PERMISSIONS.length);
   });
 
   it('5. sanitizeSettingsForDb excludes rolePermissions from settings table payload to prevent PGRST204 errors', () => {

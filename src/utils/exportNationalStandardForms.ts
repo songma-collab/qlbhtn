@@ -37,7 +37,7 @@ export const exportD03TSStandardExcel = async ({
   const finalPeriodLabel = periodText || periodLabel;
   const XLSX = (await import('xlsx-js-style')).default;
 
-  const validRecords = records.filter(r => (r.type ? r.type === 'BHYT' : true) && r.paymentStatus !== 'Đã hủy');
+  const validRecords = records.filter(r => (r.type ? r.type === 'BHYT' : true) && (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
   if (validRecords.length === 0) {
     throw new Error('Không có bản ghi hợp lệ để xuất biểu mẫu D03-TS (hồ sơ phải thuộc loại BHYT và chưa bị hủy).');
   }
@@ -460,7 +460,7 @@ export const exportD05TSStandardExcel = async ({
   const finalPeriodLabel = periodText || periodLabel;
   const XLSX = (await import('xlsx-js-style')).default;
 
-  const validRecords = records.filter(r => (r.type ? r.type === 'BHXH' : true) && r.paymentStatus !== 'Đã hủy');
+  const validRecords = records.filter(r => (r.type ? r.type === 'BHXH' : true) && (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
   if (validRecords.length === 0) {
     throw new Error('Không có bản ghi hợp lệ để xuất biểu mẫu D05-TS (hồ sơ phải thuộc loại BHXH và chưa bị hủy).');
   }

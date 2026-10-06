@@ -84,14 +84,16 @@ const Leaderboard: React.FC = () => {
       if (s.username) {
         staffStatsMap[s.username] = entry;
       }
-      if (s.staffCode) {
-        staffStatsMap[s.staffCode] = entry;
+      const sCode = s.staff_code || (s as any).staffCode;
+      if (sCode) {
+        staffStatsMap[sCode] = entry;
       }
     });
 
     // Process records
     (records || []).forEach(r => {
-      if (r.paymentStatus === 'Đã hủy') return;
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      if (pStatus === 'Đã hủy') return;
 
       // Check month filter
       if (selectedMonth !== 'all' && r.date && !r.date.startsWith(selectedMonth)) {
@@ -99,13 +101,13 @@ const Leaderboard: React.FC = () => {
       }
 
       // Check assigned staff
-      const staffId = r.staff_id || r.staffId;
+      const staffId = r.staff_id || (r as any).staffId;
       if (staffId && staffStatsMap[staffId]) {
         const targetStaff = staffStatsMap[staffId];
         const amount = Number(r.amount) || 0;
         const comm = Number(r.commission) || 0;
 
-        if (r.isAdjustment) {
+        if (r.is_adjustment || (r as any).isAdjustment) {
           if (r.type === 'BHXH') {
             targetStaff.bhxhCount = Math.max(0, targetStaff.bhxhCount - 1);
           } else if (r.type === 'BHYT') {

@@ -67,7 +67,7 @@ describe('Role-Based Access Control (RBAC) Permissions Suite', () => {
     const customSettings = {
       rolePermissions: {
         'Nhân viên': [
-          ...DEFAULT_ROLE_PERMISSIONS['Nhân viên'],
+          ...(DEFAULT_ROLE_PERMISSIONS['Nhân viên'] || []),
           'customers.delete',
           'reports.view_all'
         ]
@@ -102,11 +102,11 @@ describe('Role-Based Access Control (RBAC) Permissions Suite', () => {
     });
 
     // Admin should be restored to all permissions
-    expect(sanitized['Admin'].length).toBe(ALL_PERMISSIONS.length);
+    expect(sanitized['Admin']!.length).toBe(ALL_PERMISSIONS.length);
 
     // Staff should have valid permissions preserved and invalid stripped
-    expect(sanitized['Nhân viên']).toContain('customers.create');
-    expect(sanitized['Nhân viên']).not.toContain('invalid_permission_xyz');
+    expect(sanitized['Nhân viên']!).toContain('customers.create');
+    expect(sanitized['Nhân viên']!).not.toContain('invalid_permission_xyz');
   });
 
   it('getPermissionsForRole returns clean list of permissions with fallback', () => {

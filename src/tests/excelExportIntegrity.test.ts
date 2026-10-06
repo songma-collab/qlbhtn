@@ -27,13 +27,13 @@ describe('Kiểm thử Toàn vẹn & Bảo mật Biểu Mẫu Xuất Excel Chu�
       phone: '0912345678',
       email: 'an.nguyen@gmail.com',
       months: 6,
-      fromMonth: '2026-07',
-      toMonth: '2026-12',
+      from_month: '2026-07',
+      to_month: '2026-12',
       income: 1500000,
       amount: 1980000, // 22% * 1.500.000 * 6 = 1.980.000đ
       date: '2026-07-02',
-      paymentStatus: 'Đã thanh toán',
-      nnSupportPct: 50, // Hộ nghèo theo Luật BHXH 2024: 50% của 22% chuẩn nghèo (1.500.000 * 0.22 * 0.5 * 6 = 990.000đ)
+      payment_status: 'Đã thanh toán',
+      nn_support_pct: 50, // Hộ nghèo theo Luật BHXH 2024: 50% của 22% chuẩn nghèo (1.500.000 * 0.22 * 0.5 * 6 = 990.000đ)
       status: 'Mới'
     },
     {
@@ -49,13 +49,13 @@ describe('Kiểm thử Toàn vẹn & Bảo mật Biểu Mẫu Xuất Excel Chu�
       phone: '0987654321',
       email: 'mai.lo@gmail.com',
       months: 12,
-      fromMonth: '2026-07',
-      toMonth: '2027-06',
+      from_month: '2026-07',
+      to_month: '2027-06',
       income: 2000000,
       amount: 5280000, // 22% * 2.000.000 * 12 = 5.280.000đ
       date: '2026-07-05',
-      paymentStatus: 'Đã thanh toán',
-      nnSupportPct: 30, // Dân tộc thiểu số 30%: 1.500.000 * 0.22 * 0.3 * 12 = 1.188.000đ
+      payment_status: 'Đã thanh toán',
+      nn_support_pct: 30, // Dân tộc thiểu số 30%: 1.500.000 * 0.22 * 0.3 * 12 = 1.188.000đ
       status: 'Gia hạn'
     }
   ];
@@ -72,14 +72,14 @@ describe('Kiểm thử Toàn vẹn & Bảo mật Biểu Mẫu Xuất Excel Chu�
       address: 'Tổ 5, Thị trấn Sông Mã, Huyện Sông Mã',
       phone: '0933112233',
       months: 12,
-      fromMonth: '2026-07',
-      toMonth: '2027-06',
+      from_month: '2026-07',
+      to_month: '2027-06',
       amount: 1263600, // Người thứ nhất: 4.5% * 2.340.000 * 12 = 1.263.600đ
       date: '2026-07-01',
-      paymentStatus: 'Đã thanh toán',
+      payment_status: 'Đã thanh toán',
       status: 'Mới',
-      hospitalCode: '14-015',
-      hospitalName: 'BVĐK Huyện Sông Mã'
+      hospital_code: '14-015',
+      hospital_name: 'BVĐK Huyện Sông Mã'
     },
     {
       id: 202,
@@ -92,14 +92,14 @@ describe('Kiểm thử Toàn vẹn & Bảo mật Biểu Mẫu Xuất Excel Chu�
       address: 'Tổ 5, Thị trấn Sông Mã, Huyện Sông Mã',
       phone: '0933112234',
       months: 12,
-      fromMonth: '2026-07',
-      toMonth: '2027-06',
+      from_month: '2026-07',
+      to_month: '2027-06',
       amount: 884520, // Người thứ 2: 70% * 1.263.600 = 884.520đ
       date: '2026-07-01',
-      paymentStatus: 'Đã thanh toán',
+      payment_status: 'Đã thanh toán',
       status: 'Mới',
-      hospitalCode: '14-015',
-      hospitalName: 'BVĐK Huyện Sông Mã'
+      hospital_code: '14-015',
+      hospital_name: 'BVĐK Huyện Sông Mã'
     }
   ];
 
@@ -128,7 +128,7 @@ describe('Kiểm thử Toàn vẹn & Bảo mật Biểu Mẫu Xuất Excel Chu�
     sampleBHXHRecords.forEach(r => {
       const income = Number(r.income || 0);
       const months = Number(r.months || 1);
-      const nnPct = Number(r.nnSupportPct || 0);
+      const nnPct = Number(r.nn_support_pct || 0);
       const totalTienDong = Math.round(income * 0.22 * months);
       const tienNSNN = Math.round(1500000 * 0.22 * (nnPct / 100) * months);
       const tienTuDong = totalTienDong - tienNSNN;

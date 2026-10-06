@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, getLocalYYYYMMDD, groupRecordsByCustomer } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
-import { supabase } from '../../lib/supabase';
 import {
   ResponsiveContainer,
   BarChart,
@@ -165,7 +164,8 @@ const Dashboard: React.FC = () => {
     // 1. Phân loại records theo quyền hạn: Admin xem toàn bộ, Nhân viên xem đúng hồ sơ của mình
     const staffRecords = (records || []).filter((r: RecordType) => {
       if (isAdmin) return true;
-      return !r.staffId || r.staffId === currentUser?.id;
+      const sId = r.staff_id || (r as any).staffId;
+      return !sId || sId === currentUser?.id;
     });
 
     // 2. Gom cụm khách hàng duy nhất (Unification Cluster) để tính Tổng Khách Hàng thực tế
@@ -182,10 +182,12 @@ const Dashboard: React.FC = () => {
 
     // 3. Tính số lượng Hồ Sơ Sắp Hết Hạn (< 30 ngày)
     const expiringRecordsCount = activeUniqueCustomers.filter((c: any) => {
-      if (!c.nextPayment || c.paymentStatus === 'Đã hủy') return false;
+      const nextPay = c.next_payment || c.nextPayment;
+      const payStatus = c.payment_status || c.paymentStatus;
+      if (!nextPay || payStatus === 'Đã hủy') return false;
       const amt = Number(c.amount) || 0;
       if (amt <= 0) return false;
-      const nextTs = new Date(c.nextPayment).getTime();
+      const nextTs = new Date(nextPay).getTime();
       const diffDays = Math.ceil((nextTs - todayTs) / (1000 * 60 * 60 * 24));
       return diffDays >= 0 && diffDays <= 30;
     }).length;
@@ -200,7 +202,7 @@ const Dashboard: React.FC = () => {
       periodEndDate = todayStr;
     } else if (selectedPeriod === 'month') {
       periodStartDate = `${selectedMonth}-01`;
-      const [y, m] = selectedMonth.split('-').map(Number);
+      const [y = 2026, m = 1] = selectedMonth.split('-').map(Number);
       const lastDay = new Date(y, m, 0).getDate();
       periodEndDate = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`;
     } else if (selectedPeriod === 'quarter') {
@@ -216,9 +218,12 @@ const Dashboard: React.FC = () => {
     }
 
     const periodPaidRecords = staffRecords.filter((r: RecordType) => {
-      if (r.paymentStatus !== 'Đã thu tiền') return false;
-      if (r.actionType === 'Nhập từ Excel') return false;
-      if (r.isAdjustment) return false;
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      const aType = r.action_type || (r as any).actionType;
+      const isAdj = r.is_adjustment || (r as any).isAdjustment;
+      if (pStatus !== 'Đã thu tiền') return false;
+      if (aType === 'Nhập từ Excel') return false;
+      if (isAdj) return false;
       if (selectedPeriod === 'all') return true;
 
       const rDate = (r.date || r.created_at || '').slice(0, 10);
@@ -237,13 +242,15 @@ const Dashboard: React.FC = () => {
     // THỐNG KÊ CHI TIẾT TRONG THÁNG (SELECTED MONTH)
     // ==========================================
     const isRenew = (r: RecordType) => {
-      const act = String(r.actionType || '').toLowerCase();
+      const act = String(r.action_type || (r as any).actionType || '').toLowerCase();
       return act.includes('gia hạn') || act.includes('tái tục') || act.includes('đóng tiếp');
     };
 
     const monthAllRecords = staffRecords.filter((r: RecordType) => {
-      if (r.actionType === 'Nhập từ Excel') return false;
-      if (r.isAdjustment) return false;
+      const aType = r.action_type || (r as any).actionType;
+      const isAdj = r.is_adjustment || (r as any).isAdjustment;
+      if (aType === 'Nhập từ Excel') return false;
+      if (isAdj) return false;
       const rDate = (r.date || r.created_at || '').slice(0, 10);
       return rDate.startsWith(selectedMonth);
     });
@@ -264,13 +271,16 @@ const Dashboard: React.FC = () => {
     let countCancelled = 0;
 
     monthAllRecords.forEach((r: RecordType) => {
-      if (r.paymentStatus === 'Đã hủy' || r.status === 'Đã hủy') {
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      const isSub = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : (r as any).isSubmittedBHXH;
+      const subBatch = r.submission_batch || (r as any).submissionBatch;
+      if (pStatus === 'Đã hủy' || r.status === 'Đã hủy') {
         countCancelled++;
-      } else if (r.paymentStatus === 'Chờ thanh toán' || r.paymentStatus === 'Chưa thu tiền') {
+      } else if (pStatus === 'Chờ thanh toán' || pStatus === 'Chưa thu tiền') {
         countPendingPayment++;
-      } else if (r.status === 'Đã hoàn thành' || r.status === 'Đã duyệt' || r.isSubmittedBHXH) {
+      } else if (r.status === 'Đã hoàn thành' || r.status === 'Đã duyệt' || isSub) {
         countCompleted++;
-      } else if (r.status === 'Chờ nộp' || (!r.isSubmittedBHXH && r.submissionBatch)) {
+      } else if (r.status === 'Chờ nộp' || (!isSub && subBatch)) {
         countPendingSubmit++;
       } else {
         countProcessing++;
@@ -310,8 +320,10 @@ const Dashboard: React.FC = () => {
 
     const newVsRenewMonthly = last6MonthsList.map(item => {
       const mRecords = staffRecords.filter((r: RecordType) => {
-        if (r.actionType === 'Nhập từ Excel') return false;
-        if (r.isAdjustment) return false;
+        const aType = r.action_type || (r as any).actionType;
+        const isAdj = r.is_adjustment || (r as any).isAdjustment;
+        if (aType === 'Nhập từ Excel') return false;
+        if (isAdj) return false;
         const rDate = (r.date || r.created_at || '').slice(0, 10);
         return rDate.startsWith(item.key);
       });
@@ -319,8 +331,8 @@ const Dashboard: React.FC = () => {
       const newRecs = mRecords.filter((r: RecordType) => !isRenew(r));
       const renewRecs = mRecords.filter((r: RecordType) => isRenew(r));
 
-      const newPaidRecs = newRecs.filter((r: RecordType) => r.paymentStatus === 'Đã thu tiền');
-      const renewPaidRecs = renewRecs.filter((r: RecordType) => r.paymentStatus === 'Đã thu tiền');
+      const newPaidRecs = newRecs.filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền');
+      const renewPaidRecs = renewRecs.filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền');
 
       const newRev = newPaidRecs.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
       const renewRev = renewPaidRecs.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
@@ -340,7 +352,7 @@ const Dashboard: React.FC = () => {
     // ==========================================
     // BIỂU ĐỒ DÒNG TIẾP NHẬN HÀNG NGÀY TRONG THÁNG (DAILY INTAKE)
     // ==========================================
-    const [selY, selM] = selectedMonth.split('-').map(Number);
+    const [selY = 2026, selM = 1] = selectedMonth.split('-').map(Number);
     const daysInSelMonth = new Date(selY, selM, 0).getDate();
     const dailyIntakeTrend: any[] = [];
 
@@ -373,7 +385,7 @@ const Dashboard: React.FC = () => {
         name: 'BHXH Tự Nguyện',
         count: bhxhMonthRecords.length,
         revenue: bhxhMonthRecords
-          .filter((r: RecordType) => r.paymentStatus === 'Đã thu tiền')
+          .filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
           .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0),
         fill: COLORS.primaryNavy
       },
@@ -381,7 +393,7 @@ const Dashboard: React.FC = () => {
         name: 'BHYT Hộ Gia Đình',
         count: bhytMonthRecords.length,
         revenue: bhytMonthRecords
-          .filter((r: RecordType) => r.paymentStatus === 'Đã thu tiền')
+          .filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
           .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0),
         fill: COLORS.skyBlue
       }

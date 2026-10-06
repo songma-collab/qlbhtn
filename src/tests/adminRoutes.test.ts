@@ -28,7 +28,7 @@ describe('Kiểm thử Hệ thống Định tuyến Phân hệ Quản trị (Adm
 
     for (const mod of expectedModules) {
       expect(ADMIN_TAB_ROUTES[mod]).toBeDefined();
-      expect(ADMIN_TAB_ROUTES[mod].startsWith('/admin/')).toBe(true);
+      expect(ADMIN_TAB_ROUTES[mod]!.startsWith('/admin/')).toBe(true);
     }
   });
 

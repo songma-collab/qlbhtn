@@ -88,10 +88,10 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
     });
 
     it('khớp theo customerId / customerKey', () => {
-      const rec1 = { id: 3, customerId: 'cust-101', type: 'BHXH' } as RecordType;
+      const rec1 = { id: 3, customer_id: 'cust-101', type: 'BHXH' } as unknown as RecordType;
       expect(doesRecordMatchCustomer(rec1, customer)).toBe(true);
 
-      const rec2 = { id: 4, customerKey: 'KEY-101', type: 'BHXH' } as RecordType;
+      const rec2 = { id: 4, customer_key: 'KEY-101', type: 'BHXH' } as unknown as RecordType;
       expect(doesRecordMatchCustomer(rec2, customer)).toBe(true);
     });
 
@@ -163,19 +163,19 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(periods.length).toBe(2);
 
       // Period 1
-      expect(periods[0].sm).toBe(1);
-      expect(periods[0].sy).toBe(2024);
-      expect(periods[0].em).toBe(6);
-      expect(periods[0].ey).toBe(2024);
-      expect(periods[0].salary).toBe('5.000.000');
-      expect(periods[0].type).toBe('tunguyen');
+      expect(periods[0]!.sm).toBe(1);
+      expect(periods[0]!.sy).toBe(2024);
+      expect(periods[0]!.em).toBe(6);
+      expect(periods[0]!.ey).toBe(2024);
+      expect(periods[0]!.salary).toBe('5.000.000');
+      expect(periods[0]!.type).toBe('tunguyen');
 
       // Period 2 (tự động tính toMonth từ số tháng nếu toMonth không có)
-      expect(periods[1].sm).toBe(7);
-      expect(periods[1].sy).toBe(2024);
-      expect(periods[1].em).toBe(12);
-      expect(periods[1].ey).toBe(2024);
-      expect(periods[1].salary).toBe('6.000.000');
+      expect(periods[1]!.sm).toBe(7);
+      expect(periods[1]!.sy).toBe(2024);
+      expect(periods[1]!.em).toBe(12);
+      expect(periods[1]!.ey).toBe(2024);
+      expect(periods[1]!.salary).toBe('6.000.000');
     });
   });
 
@@ -232,13 +232,13 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(fullPeriods.length).toBe(3);
 
       // Thứ tự tăng dần thời gian: 2018-2020 -> 2021-2022 -> 2023
-      expect(fullPeriods[0].sy).toBe(2018);
-      expect(fullPeriods[0].type).toBe('batbuoc');
-      expect(fullPeriods[1].sy).toBe(2021);
-      expect(fullPeriods[1].type).toBe('tunguyen');
-      expect(fullPeriods[2].sy).toBe(2023);
-      expect(fullPeriods[2].type).toBe('tunguyen');
-      expect(fullPeriods[2].salary).toBe('3.000.000');
+      expect(fullPeriods[0]!.sy).toBe(2018);
+      expect(fullPeriods[0]!.type).toBe('batbuoc');
+      expect(fullPeriods[1]!.sy).toBe(2021);
+      expect(fullPeriods[1]!.type).toBe('tunguyen');
+      expect(fullPeriods[2]!.sy).toBe(2023);
+      expect(fullPeriods[2]!.type).toBe('tunguyen');
+      expect(fullPeriods[2]!.salary).toBe('3.000.000');
     });
   });
 
@@ -351,7 +351,7 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
           bhxh: '1418800001',
           type: 'BHXH',
           status: 'Hoạt động',
-          paymentStatus: 'Đã thu tiền',
+          payment_status: 'Đã thu tiền',
           months: 12,
           date: '2025-01-01',
           amount: 2000000
@@ -364,7 +364,7 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
           bhxh: '1418800001',
           type: 'BHXH',
           status: 'Hoạt động',
-          paymentStatus: 'Đã thu tiền',
+          payment_status: 'Đã thu tiền',
           months: 6,
           date: '2026-01-01',
           amount: 1000000
@@ -377,7 +377,7 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
           bhxh: '1418800002',
           type: 'BHYT',
           status: 'Hoạt động',
-          paymentStatus: 'Đã thu tiền',
+          payment_status: 'Đã thu tiền',
           months: 12,
           date: '2025-06-01',
           amount: 1200000

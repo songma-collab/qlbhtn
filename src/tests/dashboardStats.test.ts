@@ -80,10 +80,12 @@ describe('Kiểm thử Thống kê Dashboard & Hồ sơ sắp hết hạn (Dashb
     expect(uniqueCustomers.length).toBe(2); // Chỉ có Khách A và Khách B (Khách C đã hủy)
 
     const accurateExpiringCount = uniqueCustomers.filter(c => {
-      if (!c.nextPayment || c.paymentStatus === 'Đã hủy') return false;
+      const nextPay = c.next_payment || (c as any).nextPayment;
+      const pStatus = c.payment_status || (c as any).paymentStatus;
+      if (!nextPay || pStatus === 'Đã hủy') return false;
       const amt = Number(c.amount) || 0;
       if (amt <= 0) return false;
-      const nextTs = new Date(c.nextPayment).getTime();
+      const nextTs = new Date(nextPay).getTime();
       const diff = Math.ceil((nextTs - todayTs) / (1000 * 60 * 60 * 24));
       return diff >= 0 && diff <= 30;
     }).length;

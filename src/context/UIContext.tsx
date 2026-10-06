@@ -5,7 +5,7 @@ interface AlertModalConfig {
   isOpen: boolean;
   title: string;
   message: string;
-  onConfirm?: () => void;
+  onConfirm?: (() => void) | undefined;
 }
 
 interface UIContextType {
@@ -18,8 +18,8 @@ interface UIContextType {
   alertModalConfig: AlertModalConfig | null;
   showAlert: (title: string, message: string, onConfirmOrType?: (() => void) | string) => void;
   closeAlert: () => void;
-  globalRegisterModal: { isOpen: boolean; type: 'BHXH' | 'BHYT'; record?: any; isRenew?: boolean; initialData?: any };
-  setGlobalRegisterModal: React.Dispatch<React.SetStateAction<{ isOpen: boolean; type: 'BHXH' | 'BHYT'; record?: any; isRenew?: boolean; initialData?: any }>>;
+  globalRegisterModal: { isOpen: boolean; type: 'BHXH' | 'BHYT'; record?: any | undefined; isRenew?: boolean | undefined; initialData?: any | undefined };
+  setGlobalRegisterModal: React.Dispatch<React.SetStateAction<{ isOpen: boolean; type: 'BHXH' | 'BHYT'; record?: any | undefined; isRenew?: boolean | undefined; initialData?: any | undefined }>>;
 }
 
 const UIContext = createContext<UIContextType | undefined>(undefined);
@@ -37,9 +37,9 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [globalRegisterModal, setGlobalRegisterModal] = useState<{
     isOpen: boolean;
     type: 'BHXH' | 'BHYT';
-    record?: any;
-    isRenew?: boolean;
-    initialData?: any;
+    record?: any | undefined;
+    isRenew?: boolean | undefined;
+    initialData?: any | undefined;
   }>({
     isOpen: false,
     type: 'BHXH',

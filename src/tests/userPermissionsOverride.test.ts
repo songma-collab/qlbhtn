@@ -247,8 +247,8 @@ describe('Bộ Kiểm Thử Phân Quyền Đặc Cách Riêng Theo Nhân Viên (
 
       const sanitized = sanitizeUserOverrides(rawOverrides);
       expect(sanitized['staff-001']).toBeDefined();
-      expect(sanitized['staff-001'].granted).toEqual(['customers.create']);
-      expect(sanitized['staff-001'].revoked).toEqual([]);
+      expect(sanitized['staff-001']!.granted).toEqual(['customers.create']);
+      expect(sanitized['staff-001']!.revoked).toEqual([]);
       expect(sanitized['staff-002']).toBeUndefined();
     });
 
@@ -274,7 +274,7 @@ describe('Bộ Kiểm Thử Phân Quyền Đặc Cách Riêng Theo Nhân Viên (
 
       const extracted = extractUserOverridesFromPolicies(mockPolicies);
       expect(extracted['staff-001']).toBeDefined();
-      expect(extracted['staff-001'].granted).toContain('customers.view_all');
+      expect(extracted['staff-001']!.granted).toContain('customers.view_all');
     });
 
     it('storeUserOverrides & getStoredUserOverrides đồng bộ an toàn qua localStorage', () => {
@@ -289,7 +289,7 @@ describe('Bộ Kiểm Thử Phân Quyền Đặc Cách Riêng Theo Nhân Viên (
       storeUserOverrides(map);
       const stored = getStoredUserOverrides();
       expect(stored['staff-001']).toBeDefined();
-      expect(stored['staff-001'].granted).toContain('customers.delete');
+      expect(stored['staff-001']!.granted).toContain('customers.delete');
     });
   });
 });

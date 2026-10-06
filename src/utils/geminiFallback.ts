@@ -1,53 +1,11 @@
 import { supabase } from '../lib/supabase';
 
 /**
- * Secure Utility for Gemini OCR Sổ BHXH / VssID / PDF scanning.
- * Calls server-side endpoint `/api/gemini-ocr` powered by @google/genai SDK.
- * The client browser NEVER holds API keys nor calls public CORS proxies.
+ * Tiện ích OCR Sổ BHXH / VssID / File PDF.
+ * Giao tiếp DUY NHẤT với Supabase Edge Function `gemini-ocr` từ frontend để đảm bảo an ninh (JWT validation).
+ * Tuyệt đối không gọi qua express route nội bộ hay lưu trữ API key tại browser client.
  */
 export async function callGeminiOcrClientSide(imageBase64: string, mimeType: string): Promise<any[]> {
-  // 1. Primary: Call the server-side full-stack proxy route `/api/gemini-ocr`
-  try {
-    const response = await fetch('/api/gemini-ocr', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ imageBase64, mimeType }),
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data?.periods)) {
-        return data.periods;
-      }
-      if (Array.isArray(data)) {
-        return data;
-      }
-      if (data?.error) {
-        throw new Error(data.message || 'Không thể bóc tách dữ liệu từ tài liệu.');
-      }
-    } else {
-      let serverErrMessage = '';
-      try {
-        const errJson = await response.json();
-        serverErrMessage = errJson?.message || errJson?.error;
-      } catch {
-        // Ignored
-      }
-      if (serverErrMessage && response.status !== 404 && response.status !== 502) {
-        throw new Error(serverErrMessage);
-      }
-    }
-  } catch (apiErr: any) {
-    console.warn('[Gemini OCR] Local server route error, trying edge function fallback:', apiErr.message);
-    if (apiErr.message && !apiErr.message.includes('Failed to fetch') && !apiErr.message.includes('NetworkError')) {
-      // If server returned specific business error, rethrow
-      throw apiErr;
-    }
-  }
-
-  // 2. Secondary Fallback: Supabase Edge Function 'gemini-ocr'
   try {
     const { data, error } = await supabase.functions.invoke('gemini-ocr', {
       body: { imageBase64, mimeType }
