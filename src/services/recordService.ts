@@ -261,6 +261,39 @@ export const recordService = {
       }
 
       if (error) throw error;
+
+      // Tự động đồng bộ các trường thông tin nhân khẩu mới nhất sang các giao dịch khác của cùng khách hàng
+      const profileFields = [
+        'name', 'phone', 'address', 'dob', 'gender', 'nation', 'email',
+        'recv_name', 'recv_phone', 'recv_address'
+      ];
+      const profileUpdates: Record<string, any> = {};
+      profileFields.forEach(f => {
+        if (payload[f] !== undefined) {
+          profileUpdates[f] = payload[f];
+        }
+      });
+
+      const targetCccd = payload.cccd || (updates as any).cccd;
+      const targetBhxh = payload.bhxh || (updates as any).bhxh;
+
+      if (Object.keys(profileUpdates).length > 0 && (targetCccd || targetBhxh)) {
+        profileUpdates.updated_at = new Date().toISOString();
+        try {
+          let syncQuery = supabase.from('records').update(profileUpdates).neq('id', id);
+          if (targetCccd && targetBhxh) {
+            syncQuery = syncQuery.or(`cccd.eq.${targetCccd},bhxh.eq.${targetBhxh}`);
+          } else if (targetCccd) {
+            syncQuery = syncQuery.eq('cccd', targetCccd);
+          } else if (targetBhxh) {
+            syncQuery = syncQuery.eq('bhxh', targetBhxh);
+          }
+          await syncQuery;
+        } catch (syncErr) {
+          console.warn('[RecordService] Đồng bộ thông tin nhân thân hồ sơ khác:', syncErr);
+        }
+      }
+
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[RecordService] Lỗi khi cập nhật hồ sơ:', err);
@@ -452,6 +485,9 @@ export const recordService = {
         .from('records')
         .select('name, dob, cccd')
         .eq('cccd', cccd)
+        .order('updated_at', { ascending: false })
+        .order('date', { ascending: false })
+        .order('id', { ascending: false })
         .limit(1);
 
       if (error) throw error;
@@ -464,6 +500,7 @@ export const recordService = {
 
   /**
    * Tra cứu bản ghi hồ sơ mới nhất theo mã (cccd, bhxh, hoặc old_bhxh)
+   * Luôn ưu tiên bản ghi có thời điểm cập nhật gần nhất (updated_at)
    */
   async findLatestRecordByCode(code: string): Promise<RecordType | null> {
     if (!code) return null;
@@ -475,6 +512,7 @@ export const recordService = {
         .select('*')
         .or(`cccd.eq.${clean},bhxh.eq.${clean},old_bhxh.eq.${clean}`)
         .neq('payment_status', 'Đã hủy')
+        .order('updated_at', { ascending: false })
         .order('date', { ascending: false })
         .order('id', { ascending: false })
         .limit(1);

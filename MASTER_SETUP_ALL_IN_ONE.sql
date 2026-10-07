@@ -2013,7 +2013,7 @@ BEGIN
       (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
       (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
     )
-  ORDER BY r.date DESC, r.id DESC
+  ORDER BY COALESCE(r.updated_at, r.created_at, r.date) DESC, r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -2774,7 +2774,7 @@ BEGIN
       (r.cccd = v_clean AND r.cccd IS NOT NULL AND r.cccd != '') OR
       (r.old_bhxh = v_clean AND r.old_bhxh IS NOT NULL AND r.old_bhxh != '')
     )
-  ORDER BY r.date DESC, r.id DESC
+  ORDER BY COALESCE(r.updated_at, r.created_at, r.date) DESC, r.date DESC, r.id DESC
   LIMIT 1;
 END;
 $$;

@@ -241,7 +241,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         });
 
         if (matched.length > 0) {
-          matched.sort((a, b) => {
+          // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
+          const sortedByContract = [...matched].sort((a, b) => {
             const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
             const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
             if (nextB !== nextA) return nextB - nextA;
@@ -253,24 +254,50 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             if (dateB !== dateA) return dateB - dateA;
             return (Number(b.id) || 0) - (Number(a.id) || 0);
           });
-          const newest = matched[0];
-          if (newest) {
+          const newestByContract = sortedByContract[0];
+
+          // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
+          const sortedByUpdate = [...matched].sort((a, b) => {
+            const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
+            const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
+            if (upB !== upA) return upB - upA;
+            const dateA = new Date(a.date || a.created_at || 0).getTime();
+            const dateB = new Date(b.date || b.created_at || 0).getTime();
+            if (dateB !== dateA) return dateB - dateA;
+            return (Number(b.id) || 0) - (Number(a.id) || 0);
+          });
+          const newestByUpdate = sortedByUpdate[0];
+
+          if (newestByContract && newestByUpdate) {
+            const targetRecordId = typeof effectiveRec.id === 'number' && !isNaN(effectiveRec.id)
+              ? effectiveRec.id
+              : (Number(effectiveRec.latest_record_id) || newestByContract.id || newestByUpdate.id);
+
             resolvedRec = {
-              ...newest,
+              ...newestByContract,
+              ...newestByUpdate,
               ...effectiveRec,
-              income: effectiveRec.income ?? newest.income,
-              method: effectiveRec.method || newest.method,
-              fromMonth: effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month || newest.from_month || (newest as any).fromMonth,
-              toMonth: effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month || newest.to_month || (newest as any).toMonth,
-              nextPayment: effectiveRec.nextPayment || (effectiveRec as any).next_payment || newest.next_payment || (newest as any).nextPayment,
-              months: effectiveRec.months ?? newest.months,
-              wage: effectiveRec.wage ?? newest.wage,
-              nnSupportPct: effectiveRec.nnSupportPct ?? effectiveRec.nn_support_pct ?? newest.nn_support_pct ?? (newest as any).nnSupportPct,
-              dpSupportPct: effectiveRec.dpSupportPct ?? effectiveRec.dp_support_pct ?? newest.dp_support_pct ?? (newest as any).dpSupportPct,
-              recvName: effectiveRec.recvName || (effectiveRec as any).recvname || effectiveRec.recv_name || newest.recv_name || (newest as any).recvName,
-              recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || newest.recv_phone || (newest as any).recvPhone,
-              recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || newest.recv_address || (newest as any).recvAddress,
-              members: (effectiveRec.members && effectiveRec.members.length > 0) ? effectiveRec.members : newest.members
+              id: targetRecordId,
+              name: effectiveRec.name || newestByUpdate.name || newestByContract.name,
+              phone: effectiveRec.phone || newestByUpdate.phone || newestByContract.phone,
+              address: effectiveRec.address || newestByUpdate.address || newestByContract.address,
+              dob: effectiveRec.dob || newestByUpdate.dob || newestByContract.dob,
+              gender: effectiveRec.gender || newestByUpdate.gender || newestByContract.gender,
+              nation: effectiveRec.nation || newestByUpdate.nation || newestByContract.nation,
+              email: effectiveRec.email || newestByUpdate.email || newestByContract.email,
+              recvName: effectiveRec.recvName || (effectiveRec as any).recvname || effectiveRec.recv_name || newestByUpdate.recv_name || (newestByUpdate as any).recvName || newestByContract.recv_name || (newestByContract as any).recvName,
+              recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
+              recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
+              income: effectiveRec.income ?? newestByContract.income,
+              method: effectiveRec.method || newestByContract.method,
+              fromMonth: effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month || newestByContract.from_month || (newestByContract as any).fromMonth,
+              toMonth: effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month || newestByContract.to_month || (newestByContract as any).toMonth,
+              nextPayment: effectiveRec.nextPayment || (effectiveRec as any).next_payment || newestByContract.next_payment || (newestByContract as any).nextPayment,
+              months: effectiveRec.months ?? newestByContract.months,
+              wage: effectiveRec.wage ?? newestByContract.wage,
+              nnSupportPct: effectiveRec.nnSupportPct ?? effectiveRec.nn_support_pct ?? newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct,
+              dpSupportPct: effectiveRec.dpSupportPct ?? effectiveRec.dp_support_pct ?? newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct,
+              members: (effectiveRec.members && effectiveRec.members.length > 0) ? effectiveRec.members : (newestByUpdate.members || newestByContract.members)
             };
           }
         }
@@ -767,17 +794,32 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       if (recordToUpdate) {
         if (record) {
           const oldRecord = record;
-          recordToUpdate.id = oldRecord.id;
-          recordToUpdate.date = oldRecord.date;
-          recordToUpdate.status = oldRecord.status;
-          recordToUpdate.paymentStatus = oldRecord.paymentStatus;
-          recordToUpdate.staffId = oldRecord.staffId; 
-          if (type === 'BHYT') {
-             recordToUpdate.fromMonth = oldRecord.fromMonth;
-             recordToUpdate.toMonth = oldRecord.toMonth;
-             recordToUpdate.nextPayment = oldRecord.nextPayment;
+          const cleanOldCccd = (oldRecord.cccd || (oldRecord as any).citizenId || '').replace(/\D/g, '');
+          const cleanOldBhxh = (oldRecord.bhxh || (oldRecord as any).bhxhCode || '').replace(/\D/g, '');
+          const targetId = typeof oldRecord.id === 'number' && !isNaN(oldRecord.id)
+            ? oldRecord.id
+            : (Number(oldRecord.latest_record_id) || (records.find(r => {
+                const rCccd = (r.cccd || '').replace(/\D/g, '');
+                const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+                return (cleanOldCccd && rCccd === cleanOldCccd) || (cleanOldBhxh && rBhxh === cleanOldBhxh);
+              })?.id) || Number(recordToUpdate.id));
+
+          if (!targetId || isNaN(targetId)) {
+            showToast('Không xác định được mã hồ sơ cần cập nhật!', 'error');
+            return;
           }
-          const success = await updateRecord(recordToUpdate.id, recordToUpdate);
+
+          recordToUpdate.id = targetId;
+          recordToUpdate.date = oldRecord.date || recordToUpdate.date;
+          recordToUpdate.status = oldRecord.status || recordToUpdate.status || 'Đang tham gia';
+          recordToUpdate.paymentStatus = oldRecord.paymentStatus || recordToUpdate.paymentStatus || 'Đã thu tiền';
+          recordToUpdate.staffId = oldRecord.staffId || (currentUser ? currentUser.id : 'admin'); 
+          if (type === 'BHYT') {
+             recordToUpdate.fromMonth = oldRecord.fromMonth || recordToUpdate.fromMonth;
+             recordToUpdate.toMonth = oldRecord.toMonth || recordToUpdate.toMonth;
+             recordToUpdate.nextPayment = oldRecord.nextPayment || recordToUpdate.nextPayment;
+          }
+          const success = await updateRecord(targetId, recordToUpdate);
           if (success) {
             showToast('Cập nhật hồ sơ thành công!');
             onClose();
@@ -908,59 +950,79 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         }
       }
 
-      // 1. TÌM KIẾM TRONG BỘ NHỚ CỤC BỘ (records từ AppContext) - Sắp xếp lấy bản ghi mới nhất
+      // 1. TÌM KIẾM TRONG BỘ NHỚ CỤC BỘ (records từ AppContext) - Luôn ưu tiên thông tin cập nhật gần nhất
       if (records && records.length > 0) {
-        const activeRecords = records
-          .filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy')
-          .sort((a, b) => {
-            const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-            const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-            if (nextB !== nextA) return nextB - nextA;
-            const toMA = a.to_month || (a as any).toMonth || '';
-            const toMB = b.to_month || (b as any).toMonth || '';
-            if (toMB !== toMA) return toMB.localeCompare(toMA);
-            const dateA = new Date(a.date || a.created_at || 0).getTime();
-            const dateB = new Date(b.date || b.created_at || 0).getTime();
-            if (dateB !== dateA) return dateB - dateA;
-            return (Number(b.id) || 0) - (Number(a.id) || 0);
-          });
-        
+        const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+
+        // Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (updated_at) để lấy thông tin nhân khẩu mới nhất
+        const sortedByUpdate = [...activeRecords].sort((a, b) => {
+          const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
+          const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
+          if (upB !== upA) return upB - upA;
+          const dateA = new Date(a.date || a.created_at || 0).getTime();
+          const dateB = new Date(b.date || b.created_at || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+
+        // Bản ghi có kỳ hạn mới nhất để tính toán gia hạn tiếp theo
+        const sortedByContract = [...activeRecords].sort((a, b) => {
+          const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+          const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+          if (nextB !== nextA) return nextB - nextA;
+          const toMA = a.to_month || (a as any).toMonth || '';
+          const toMB = b.to_month || (b as any).toMonth || '';
+          if (toMB !== toMA) return toMB.localeCompare(toMA);
+          const dateA = new Date(a.date || a.created_at || 0).getTime();
+          const dateB = new Date(b.date || b.created_at || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+
         // 1a. Khớp trên hồ sơ chính
-        const found = activeRecords.find(r => {
+        const foundUpdate = sortedByUpdate.find(r => {
           const rCccd = (r.cccd || '').replace(/\D/g, '');
           const rBhxh = (r.bhxh || '').replace(/\D/g, '');
           const rOldBhxh = (r.old_bhxh || (r as any).oldBhxh || (r as any).bhxhCu || '').replace(/\D/g, '');
           return rCccd === cleanCode || rBhxh === cleanCode || rOldBhxh === cleanCode;
         });
 
-        if (found) {
+        const foundContract = sortedByContract.find(r => {
+          const rCccd = (r.cccd || '').replace(/\D/g, '');
+          const rBhxh = (r.bhxh || '').replace(/\D/g, '');
+          const rOldBhxh = (r.old_bhxh || (r as any).oldBhxh || (r as any).bhxhCu || '').replace(/\D/g, '');
+          return rCccd === cleanCode || rBhxh === cleanCode || rOldBhxh === cleanCode;
+        });
+
+        if (foundUpdate) {
+          const primaryRec = foundContract || foundUpdate;
           return {
-            name: found.name,
-            dob: found.dob,
-            gender: found.gender,
-            nation: found.nation,
-            cccd: found.cccd,
-            phone: found.phone,
-            email: found.email,
-            address: found.address,
-            notes: found.notes,
-            bhxh: found.bhxh,
-            oldBhxh: found.old_bhxh || ((found as any).oldBhxh) || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
-            old_bhxh: found.old_bhxh || ((found as any).oldBhxh) || (found.bhxh && found.bhxh.length === 10 ? found.bhxh : ''),
-            income: found.income,
-            method: found.method,
-            fromMonth: found.from_month || (found as any).fromMonth,
-            toMonth: found.to_month || (found as any).toMonth,
-            nextPayment: found.next_payment || (found as any).nextPayment,
-            months: found.months,
-            wage: found.wage,
-            nnSupportPct: found.nn_support_pct || (found as any).nnSupportPct,
-            dpSupportPct: found.dp_support_pct || (found as any).dpSupportPct,
-            recvName: found.recv_name || (found as any).recvName,
-            recvPhone: found.recv_phone || (found as any).recvPhone,
-            recvAddress: found.recv_address || (found as any).recvAddress,
-            members: found.members,
-            source: 'Hồ sơ giao dịch gần nhất'
+            name: foundUpdate.name,
+            dob: foundUpdate.dob,
+            gender: foundUpdate.gender,
+            nation: foundUpdate.nation,
+            cccd: foundUpdate.cccd,
+            phone: foundUpdate.phone,
+            email: foundUpdate.email,
+            address: foundUpdate.address,
+            notes: foundUpdate.notes || primaryRec.notes,
+            bhxh: foundUpdate.bhxh,
+            oldBhxh: foundUpdate.old_bhxh || ((foundUpdate as any).oldBhxh) || (foundUpdate.bhxh && foundUpdate.bhxh.length === 10 ? foundUpdate.bhxh : ''),
+            old_bhxh: foundUpdate.old_bhxh || ((foundUpdate as any).oldBhxh) || (foundUpdate.bhxh && foundUpdate.bhxh.length === 10 ? foundUpdate.bhxh : ''),
+            income: primaryRec.income,
+            method: primaryRec.method,
+            fromMonth: primaryRec.from_month || (primaryRec as any).fromMonth,
+            toMonth: primaryRec.to_month || (primaryRec as any).toMonth,
+            nextPayment: primaryRec.next_payment || (primaryRec as any).nextPayment,
+            months: primaryRec.months,
+            wage: primaryRec.wage,
+            nnSupportPct: primaryRec.nn_support_pct || (primaryRec as any).nnSupportPct,
+            dpSupportPct: primaryRec.dp_support_pct || (primaryRec as any).dpSupportPct,
+            recvName: foundUpdate.recv_name || (foundUpdate as any).recvName || primaryRec.recv_name || (primaryRec as any).recvName,
+            recvPhone: foundUpdate.recv_phone || (foundUpdate as any).recvPhone || primaryRec.recv_phone || (primaryRec as any).recvPhone,
+            recvAddress: foundUpdate.recv_address || (foundUpdate as any).recvAddress || primaryRec.recv_address || (primaryRec as any).recvAddress,
+            members: foundUpdate.members || primaryRec.members,
+            source: 'Hồ sơ giao dịch cập nhật gần nhất'
           };
         }
 

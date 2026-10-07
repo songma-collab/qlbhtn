@@ -334,7 +334,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
       });
       if (matched.length > 0) {
-        matched.sort((a, b) => {
+        // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
+        const sortedByContract = [...matched].sort((a, b) => {
           const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
           const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
           if (nextB !== nextA) return nextB - nextA;
@@ -346,24 +347,50 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           if (dateB !== dateA) return dateB - dateA;
           return (Number(b.id) || 0) - (Number(a.id) || 0);
         });
-        const newest = matched[0];
-        if (newest) {
+        const newestByContract = sortedByContract[0];
+
+        // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
+        const sortedByUpdate = [...matched].sort((a, b) => {
+          const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
+          const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
+          if (upB !== upA) return upB - upA;
+          const dateA = new Date(a.date || a.created_at || 0).getTime();
+          const dateB = new Date(b.date || b.created_at || 0).getTime();
+          if (dateB !== dateA) return dateB - dateA;
+          return (Number(b.id) || 0) - (Number(a.id) || 0);
+        });
+        const newestByUpdate = sortedByUpdate[0];
+
+        if (newestByContract && newestByUpdate) {
+          const targetRecordId = typeof record.id === 'number' && !isNaN(record.id)
+            ? record.id
+            : (Number(record.latest_record_id) || newestByContract.id || newestByUpdate.id);
+
           fullRecord = {
-            ...newest,
+            ...newestByContract,
+            ...newestByUpdate,
             ...record,
-            income: record.income ?? newest.income,
-            method: record.method || newest.method,
-            fromMonth: record.fromMonth || (record as any).frommonth || record.from_month || newest.from_month || (newest as any).fromMonth,
-            toMonth: record.toMonth || (record as any).tomonth || record.to_month || newest.to_month || (newest as any).toMonth,
-            nextPayment: record.nextPayment || (record as any).next_payment || newest.next_payment || (newest as any).nextPayment,
-            months: record.months ?? newest.months,
-            wage: record.wage ?? newest.wage,
-            nnSupportPct: record.nnSupportPct ?? record.nn_support_pct ?? newest.nn_support_pct ?? (newest as any).nnSupportPct,
-            dpSupportPct: record.dpSupportPct ?? record.dp_support_pct ?? newest.dp_support_pct ?? (newest as any).dpSupportPct,
-            recvName: record.recvName || (record as any).recvname || record.recv_name || newest.recv_name || (newest as any).recvName,
-            recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newest.recv_phone || (newest as any).recvPhone,
-            recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newest.recv_address || (newest as any).recvAddress,
-            members: (record.members && record.members.length > 0) ? record.members : newest.members
+            id: targetRecordId,
+            name: record.name || newestByUpdate.name || newestByContract.name,
+            phone: record.phone || newestByUpdate.phone || newestByContract.phone,
+            address: record.address || newestByUpdate.address || newestByContract.address,
+            dob: record.dob || newestByUpdate.dob || newestByContract.dob,
+            gender: record.gender || newestByUpdate.gender || newestByContract.gender,
+            nation: record.nation || newestByUpdate.nation || newestByContract.nation,
+            email: record.email || newestByUpdate.email || newestByContract.email,
+            recvName: record.recvName || (record as any).recvname || record.recv_name || newestByUpdate.recv_name || (newestByUpdate as any).recvName || newestByContract.recv_name || (newestByContract as any).recvName,
+            recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
+            recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
+            income: record.income ?? newestByContract.income,
+            method: record.method || newestByContract.method,
+            fromMonth: record.fromMonth || (record as any).frommonth || record.from_month || newestByContract.from_month || (newestByContract as any).fromMonth,
+            toMonth: record.toMonth || (record as any).tomonth || record.to_month || newestByContract.to_month || (newestByContract as any).toMonth,
+            nextPayment: record.nextPayment || (record as any).next_payment || newestByContract.next_payment || (newestByContract as any).nextPayment,
+            months: record.months ?? newestByContract.months,
+            wage: record.wage ?? newestByContract.wage,
+            nnSupportPct: record.nnSupportPct ?? record.nn_support_pct ?? newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct,
+            dpSupportPct: record.dpSupportPct ?? record.dp_support_pct ?? newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct,
+            members: (record.members && record.members.length > 0) ? record.members : (newestByUpdate.members || newestByContract.members)
           };
         }
       }
