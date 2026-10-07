@@ -73,9 +73,10 @@ describe('Kiểm thử Giao diện BHXHActionTypeSelector & Cơ chế gọi lạ
 
       // Bản ghi lấy thông tin nhân thân phải là record2 (vừa cập nhật)
       const newestProfileRec = sortedByUpdate[0];
-      expect(newestProfileRec.id).toBe(50);
-      expect(newestProfileRec.phone).toBe('0988888888');
-      expect(newestProfileRec.address).toBe('Tổ 5 Phường Mới, Thành phố B');
+      expect(newestProfileRec).toBeDefined();
+      expect(newestProfileRec?.id).toBe(50);
+      expect(newestProfileRec?.phone).toBe('0988888888');
+      expect(newestProfileRec?.address).toBe('Tổ 5 Phường Mới, Thành phố B');
 
       // Trong khi đó, bản ghi lấy kỳ hạn gia hạn tiếp theo vẫn là record1 (kỳ đóng xa nhất)
       const sortedByContract = [...allRecords].sort((a, b) => {
@@ -85,8 +86,73 @@ describe('Kiểm thử Giao diện BHXHActionTypeSelector & Cơ chế gọi lạ
         return 0;
       });
       const newestContractRec = sortedByContract[0];
-      expect(newestContractRec.id).toBe(101);
-      expect(newestContractRec.next_payment).toBe('2026-07-15');
+      expect(newestContractRec).toBeDefined();
+      expect(newestContractRec?.id).toBe(101);
+      expect(newestContractRec?.next_payment).toBe('2026-07-15');
+    });
+  });
+
+  describe('3. Kiểm thử phân loại nghiệp vụ BHXH kế thừa Gia hạn (bảo vệ trường hợp đại lý khác chuyển sang)', () => {
+    it('Khách hàng có lịch sử giao dịch là Gia hạn (hoặc chuyển từ đại lý khác) dù tích lũy < 12 tháng vẫn phải giữ nguyên Gia hạn', () => {
+      // Giả lập giao dịch trước đó: Bùi Minh Phương, chuyển từ đại lý khác, tích lũy 3 tháng, đã chọn Gia hạn
+      const previousRenewRecord: Partial<RecordType> = {
+        id: 29,
+        type: 'BHXH',
+        name: 'Bùi Minh Phương',
+        cccd: '014202000001',
+        bhxh: '014202000001',
+        action_type: 'Gia hạn',
+        payment_status: 'Đã thanh toán',
+        months: 3,
+        from_month: '2026-07',
+        to_month: '2026-09',
+        next_payment: '2026-10-15'
+      };
+
+      const recordsList = [previousRenewRecord] as RecordType[];
+
+      // Kiểm tra hàm phát hiện lịch sử gia hạn
+      const cleanC = '014202000001';
+      const hasRenewHistory = recordsList.some(r => {
+        if (!r || r.type !== 'BHXH') return false;
+        const rPayStatus = r.payment_status || (r as any).paymentStatus;
+        if (rPayStatus === 'Đã hủy') return false;
+        const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+        const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+        const isMatch = Boolean(cleanC && (rC === cleanC || rB === cleanC));
+        if (!isMatch) return false;
+        const aType = String(r.action_type || (r as any).actionType || '').toLowerCase();
+        return aType.includes('gia hạn') || aType.includes('tái tục');
+      });
+
+      expect(hasRenewHistory).toBe(true);
+
+      // Khi người dùng bấm gia hạn kỳ tiếp theo (kỳ 10/2026 hoặc 11/2026, tích lũy 4 tháng < 12 tháng)
+      const prevMonths = 4;
+      const isRenew = true;
+      const recActionStr = String(previousRenewRecord.action_type || '').toLowerCase();
+      const isRecRenew = recActionStr.includes('gia hạn') || recActionStr.includes('tái tục');
+      const isCustomerAlreadyRenew = isRecRenew || hasRenewHistory;
+
+      let determinedActionType = 'Tăng mới';
+      if (isRenew) {
+        if (isCustomerAlreadyRenew) {
+          determinedActionType = 'Gia hạn';
+        } else {
+          determinedActionType = prevMonths < 12 ? 'Tăng mới' : 'Gia hạn';
+        }
+      }
+
+      // Kết quả phân loại bắt buộc phải là 'Gia hạn'
+      expect(determinedActionType).toBe('Gia hạn');
+
+      // Kiểm tra logic hiển thị gợi ý trên BHXHActionTypeSelector
+      const hasPreviousRenew = true;
+      const isSuggestedNew = isRenew && prevMonths < 12 && !hasPreviousRenew;
+      const isSuggestedRenew = isRenew && (prevMonths >= 12 || hasPreviousRenew);
+
+      expect(isSuggestedNew).toBe(false);
+      expect(isSuggestedRenew).toBe(true);
     });
   });
 });

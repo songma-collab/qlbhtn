@@ -366,11 +366,21 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
             ? record.id
             : (Number(record.latest_record_id) || newestByContract.id || newestByUpdate.id);
 
+          const hasRenewInMatched = matched.some(r => {
+            const a = String(r.action_type || (r as any).actionType || '').toLowerCase();
+            return a.includes('gia hạn') || a.includes('tái tục');
+          });
+          const inheritedActionType = hasRenewInMatched
+            ? 'Gia hạn'
+            : (newestByContract.action_type || (newestByContract as any).actionType || newestByUpdate.action_type || (newestByUpdate as any).actionType || record.action_type || (record as any).actionType);
+
           fullRecord = {
             ...newestByContract,
             ...newestByUpdate,
             ...record,
             id: targetRecordId,
+            action_type: inheritedActionType,
+            actionType: inheritedActionType,
             name: record.name || newestByUpdate.name || newestByContract.name,
             phone: record.phone || newestByUpdate.phone || newestByContract.phone,
             address: record.address || newestByUpdate.address || newestByContract.address,

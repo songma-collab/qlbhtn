@@ -8,6 +8,7 @@ export interface BHXHActionTypeSelectorProps {
   commBHXHNewPct?: number;
   commBHXHRenewPct?: number;
   isRenew?: boolean;
+  hasPreviousRenew?: boolean;
 }
 
 export const BHXHActionTypeSelector: React.FC<BHXHActionTypeSelectorProps> = ({
@@ -15,9 +16,10 @@ export const BHXHActionTypeSelector: React.FC<BHXHActionTypeSelectorProps> = ({
   onChange,
   previousMonths,
   isRenew = false,
+  hasPreviousRenew = false,
 }) => {
-  const isSuggestedNew = isRenew && previousMonths < 12;
-  const isSuggestedRenew = isRenew && previousMonths >= 12;
+  const isSuggestedNew = isRenew && previousMonths < 12 && !hasPreviousRenew;
+  const isSuggestedRenew = isRenew && (previousMonths >= 12 || hasPreviousRenew);
 
   return (
     <div className="bg-gradient-to-r from-blue-50/80 to-indigo-50/70 p-4 sm:p-5 rounded-2xl border-2 border-blue-200/90 shadow-xs space-y-3.5">
@@ -93,7 +95,11 @@ export const BHXHActionTypeSelector: React.FC<BHXHActionTypeSelectorProps> = ({
             {isSuggestedRenew && (
               <div className="mt-1.5 flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
                 <CheckCircle2 size={12} className="shrink-0" />
-                <span>Gợi ý: Đã tích lũy {previousMonths} tháng (≥ 12 tháng tính gia hạn)</span>
+                <span>
+                  {hasPreviousRenew && previousMonths < 12
+                    ? `Gợi ý: Hồ sơ đã xác nhận gia hạn (${previousMonths} tháng tại đại lý)`
+                    : `Gợi ý: Đã tích lũy ${previousMonths} tháng (≥ 12 tháng tính gia hạn)`}
+                </span>
               </div>
             )}
           </div>

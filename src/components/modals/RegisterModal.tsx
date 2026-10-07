@@ -110,6 +110,27 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
     };
   }, [policies, settings]);
 
+  const hasPreviousRenew = useMemo(() => {
+    if (type !== 'BHXH') return false;
+    const cleanC = (formData.cccd || formData.bhxh || '').replace(/\D/g, '');
+    if (!cleanC) return false;
+
+    const recActionStr = String(record?.actionType || (record as any)?.action_type || '').toLowerCase();
+    if (recActionStr.includes('gia hạn') || recActionStr.includes('tái tục')) return true;
+
+    return (records || []).some(r => {
+      if (!r || r.type !== 'BHXH') return false;
+      const rPayStatus = r.payment_status || (r as any).paymentStatus;
+      if (rPayStatus === 'Đã hủy') return false;
+      const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+      const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+      const isMatch = Boolean(cleanC && (rC === cleanC || rB === cleanC));
+      if (!isMatch) return false;
+      const aType = String(r.action_type || (r as any).actionType || '').toLowerCase();
+      return aType.includes('gia hạn') || aType.includes('tái tục');
+    });
+  }, [formData.cccd, formData.bhxh, record, records, type]);
+
   useEffect(() => {
     if (!isOpen || isRenew || record) return;
 
@@ -273,11 +294,21 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
               ? effectiveRec.id
               : (Number(effectiveRec.latest_record_id) || newestByContract.id || newestByUpdate.id);
 
+            const hasRenewInMatched = matched.some(r => {
+              const a = String(r.action_type || (r as any).actionType || '').toLowerCase();
+              return a.includes('gia hạn') || a.includes('tái tục');
+            });
+            const inheritedActionType = hasRenewInMatched
+              ? 'Gia hạn'
+              : (newestByContract.action_type || (newestByContract as any).actionType || newestByUpdate.action_type || (newestByUpdate as any).actionType || effectiveRec.action_type || (effectiveRec as any).actionType);
+
             resolvedRec = {
               ...newestByContract,
               ...newestByUpdate,
               ...effectiveRec,
               id: targetRecordId,
+              action_type: inheritedActionType,
+              actionType: inheritedActionType,
               name: effectiveRec.name || newestByUpdate.name || newestByContract.name,
               phone: effectiveRec.phone || newestByUpdate.phone || newestByContract.phone,
               address: effectiveRec.address || newestByUpdate.address || newestByContract.address,
@@ -369,22 +400,44 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           }));
 
           // Xác định phân loại hồ sơ BHXH thông minh:
+          const cleanC = (cccdVal || bhxhVal || '').replace(/\D/g, '');
+          const hasRenewHistory = (records || []).some(r => {
+            if (!r || r.type !== 'BHXH') return false;
+            const rPayStatus = r.payment_status || (r as any).paymentStatus;
+            if (rPayStatus === 'Đã hủy') return false;
+            const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+            const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+            const isMatch = Boolean(cleanC && (rC === cleanC || rB === cleanC));
+            if (!isMatch) return false;
+            const aType = String(r.action_type || (r as any).actionType || '').toLowerCase();
+            return aType.includes('gia hạn') || aType.includes('tái tục');
+          });
+
+          const recActionStr = String(rec.actionType || (rec as any).action_type || '').toLowerCase();
+          const isRecRenew = recActionStr.includes('gia hạn') || recActionStr.includes('tái tục');
+          const isCustomerAlreadyRenew = isRecRenew || hasRenewHistory;
+
           if (isRenew) {
-            const prevM = getCustomerPreviousBHXHMonths(
-              records,
-              { cccd: cccdVal, bhxh: bhxhVal },
-              null,
-              fromM,
-              customers
-            );
-            if (prevM < 12) {
-              setBhxhActionType('Tăng mới');
-            } else {
+            if (isCustomerAlreadyRenew) {
+              // Khách hàng đã được phân loại Gia hạn (từ đại lý khác chuyển sang hoặc đã từng đóng gia hạn)
               setBhxhActionType('Gia hạn');
+            } else {
+              // Khách hàng mới tham gia chưa từng đóng gia hạn: áp dụng quy tắc 12 tháng đầu tăng mới
+              const prevM = getCustomerPreviousBHXHMonths(
+                records,
+                { cccd: cccdVal, bhxh: bhxhVal },
+                null,
+                fromM,
+                customers
+              );
+              if (prevM < 12) {
+                setBhxhActionType('Tăng mới');
+              } else {
+                setBhxhActionType('Gia hạn');
+              }
             }
           } else {
-            const actStr = String(rec.actionType || (rec as any).action_type || '').toLowerCase();
-            if (actStr.includes('gia hạn') || actStr.includes('tái tục') || actStr.includes('đóng tiếp')) {
+            if (isCustomerAlreadyRenew) {
               setBhxhActionType('Gia hạn');
             } else {
               setBhxhActionType('Tăng mới');
@@ -581,6 +634,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
     let baseRecordData: any = {
       type,
       actionType,
+      action_type: actionType,
       isRenew: effectiveIsRenew,
       paymentStatus: 'Chờ thanh toán'
     };
@@ -1176,6 +1230,37 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           }));
         }
 
+        // Tự động phân loại hồ sơ BHXH nếu có dữ liệu lịch sử gia hạn
+        const cleanCustCode = (customer.cccd || customer.bhxh || cleanCode || '').replace(/\D/g, '');
+        const hasHistoryRenew = (records || []).some(r => {
+          if (!r || r.type !== 'BHXH') return false;
+          const rPayStatus = r.payment_status || (r as any).paymentStatus;
+          if (rPayStatus === 'Đã hủy') return false;
+          const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+          const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+          const isMatch = Boolean(cleanCustCode && (rC === cleanCustCode || rB === cleanCustCode));
+          if (!isMatch) return false;
+          const aType = String(r.action_type || (r as any).actionType || '').toLowerCase();
+          return aType.includes('gia hạn') || aType.includes('tái tục');
+        });
+        const custActionStr = String((customer as any).action_type || (customer as any).actionType || '').toLowerCase();
+        if (hasHistoryRenew || custActionStr.includes('gia hạn') || custActionStr.includes('tái tục')) {
+          setBhxhActionType('Gia hạn');
+        } else if (isRenew) {
+          const prevM = getCustomerPreviousBHXHMonths(
+            records,
+            { cccd: customer.cccd, bhxh: customer.bhxh },
+            null,
+            nextStartMonth,
+            customers
+          );
+          if (prevM >= 12) {
+            setBhxhActionType('Gia hạn');
+          } else {
+            setBhxhActionType('Tăng mới');
+          }
+        }
+
         setAutoFilledBadge({
           name: cleanName,
           cccd: customer.cccd || cleanCode,
@@ -1386,6 +1471,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                       commBHXHNewPct={commRates.commBHXHNewPct}
                       commBHXHRenewPct={commRates.commBHXHRenewPct}
                       isRenew={isRenew}
+                      hasPreviousRenew={hasPreviousRenew}
                     />
                   )}
 
