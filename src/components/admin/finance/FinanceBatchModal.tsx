@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Send, X, CheckSquare, XSquare, FileSpreadsheet, Lock, Calendar, Hash } from 'lucide-react';
 import { dateISOToVN, getLocalYYYYMMDD, formatMoney } from '../../../utils/helpers';
 import { generateBatchCode, getNextBatchSequence } from '../../../utils/batchSubmission';
@@ -43,21 +43,54 @@ export const FinanceBatchModal: React.FC<FinanceBatchModalProps> = ({
     return selectedRecords.reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
   }, [selectedRecords]);
 
-  // Sinh mã đợt nộp chuẩn kế tiếp: Đợt_YYYYMMDD_XX
-  const handleGenerateStandardCode = (seq = 1) => {
-    const existingBatches = allRecords.map(r => r.submissionBatch || '');
-    const nextSeq = getNextBatchSequence(existingBatches, batchDateInput);
-    const code = generateBatchCode(batchDateInput, seq || nextSeq);
+  const todayStr = getLocalYYYYMMDD();
+  const dateForBatch = batchDateInput || todayStr;
+
+  // Danh sách các đợt nộp đã tồn tại
+  const existingBatches = useMemo(() => {
+    return allRecords.map(r => r.submission_batch || r.submissionBatch || '');
+  }, [allRecords]);
+
+  // Số thứ tự kế tiếp cho ngày nộp này
+  const nextSeq = useMemo(() => {
+    return getNextBatchSequence(existingBatches, dateForBatch);
+  }, [existingBatches, dateForBatch]);
+
+  // Sinh mã đợt nộp chuẩn: Đợt_YYYYMMDD_XX
+  const handleGenerateStandardCode = (seq?: number) => {
+    const seqToUse = seq !== undefined ? seq : nextSeq;
+    const code = generateBatchCode(dateForBatch, seqToUse);
     setBatchNameInput(code);
   };
 
-  const todayStr = getLocalYYYYMMDD();
-  const dateForBatch = batchDateInput || todayStr;
-  const standardPresets = [
-    generateBatchCode(dateForBatch, 1),
-    generateBatchCode(dateForBatch, 2),
-    generateBatchCode(dateForBatch, 3)
-  ];
+  // Tạo danh sách các đợt chuẩn cho ngày được chọn:
+  // Đợt đầu (01) và các đợt kế tiếp (02, 03... đến max(nextSeq + 1, 3))
+  const standardPresets = useMemo(() => {
+    const maxNumber = Math.max(3, nextSeq + 1);
+    const presets: string[] = [];
+    for (let i = 1; i <= maxNumber; i++) {
+      presets.push(generateBatchCode(dateForBatch, i));
+    }
+    return presets;
+  }, [dateForBatch, nextSeq]);
+
+  // Tự động gán mã đợt chuẩn nếu input chưa có mã khi mở modal
+  useEffect(() => {
+    if (isOpen && !batchNameInput) {
+      handleGenerateStandardCode(nextSeq);
+    }
+  }, [isOpen]);
+
+  // Xử lý khi thay đổi ngày nộp hồ sơ
+  const handleDateChange = (newDate: string) => {
+    setBatchDateInput(newDate);
+    const newNextSeq = getNextBatchSequence(existingBatches, newDate);
+    // Nếu mã hiện tại đang rỗng hoặc đang theo dạng chuẩn Đợt_YYYYMMDD_XX, tự động chuyển sang mã ngày mới
+    const isStandardCode = /^(?:Đợt|BATCH)_\d{8}_\d+$/i.test(batchNameInput.trim());
+    if (!batchNameInput || isStandardCode) {
+      setBatchNameInput(generateBatchCode(newDate, newNextSeq));
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -101,7 +134,7 @@ export const FinanceBatchModal: React.FC<FinanceBatchModalProps> = ({
             <input
               type="date"
               value={batchDateInput}
-              onChange={e => setBatchDateInput(e.target.value)}
+              onChange={e => handleDateChange(e.target.value)}
               className="w-full p-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none shadow-xs"
             />
           </div>
@@ -115,54 +148,44 @@ export const FinanceBatchModal: React.FC<FinanceBatchModalProps> = ({
               </label>
               <button
                 type="button"
-                onClick={() => handleGenerateStandardCode()}
+                onClick={() => handleGenerateStandardCode(nextSeq)}
                 className="text-emerald-700 hover:text-emerald-800 font-bold text-[11px] underline cursor-pointer"
+                title="Tự động sinh mã đợt kế tiếp chưa dùng trong ngày"
               >
                 + Tự sinh mã kế tiếp
               </button>
             </div>
 
             {/* Presets chuẩn Đợt_YYYYMMDD_XX */}
-            <div className="flex flex-wrap gap-1.5 mb-2.5">
-              {standardPresets.map(preset => (
-                <button
-                  key={preset}
-                  type="button"
-                  onClick={() => setBatchNameInput(preset)}
-                  className={`text-[11px] px-2.5 py-1 rounded-lg font-mono font-bold border transition cursor-pointer ${
-                    batchNameInput === preset
-                      ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
-                      : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-              {['Đợt 1', 'Đợt 2', 'Đợt 3'].map(chip => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => setBatchNameInput(chip)}
-                  className={`text-[11px] px-2.5 py-1 rounded-lg font-bold border transition cursor-pointer ${
-                    batchNameInput === chip 
-                      ? 'bg-slate-700 text-white border-slate-700 shadow-xs' 
-                      : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                  }`}
-                >
-                  {chip}
-                </button>
-              ))}
+            <div className="flex flex-wrap items-center gap-1.5 mb-2.5">
+              {standardPresets.map(preset => {
+                const isSelected = batchNameInput === preset;
+                return (
+                  <button
+                    key={preset}
+                    type="button"
+                    onClick={() => setBatchNameInput(preset)}
+                    className={`text-[11px] px-2.5 py-1 rounded-lg font-mono font-bold border transition cursor-pointer ${
+                      isSelected
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-emerald-50 text-emerald-800 border-emerald-200 hover:bg-emerald-100'
+                    }`}
+                  >
+                    {preset}
+                  </button>
+                );
+              })}
             </div>
 
             <input
               type="text"
               value={batchNameInput}
               onChange={e => setBatchNameInput(e.target.value)}
-              placeholder="Ví dụ: Đợt_20260919_02 hoặc Đợt 1..."
+              placeholder={`Ví dụ: ${generateBatchCode(dateForBatch, 1)}...`}
               className="w-full p-2.5 rounded-xl border border-slate-200 font-mono font-bold text-sm text-slate-800 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/10 outline-none shadow-xs"
             />
             <p className="text-[11px] text-slate-500 mt-1.5">
-              * Mã hiển thị: <span className="font-bold text-emerald-800">{batchNameInput || 'Đợt_...'} ({dateISOToVN(batchDateInput || todayStr)})</span>
+              * Mã hiển thị: <span className="font-bold text-emerald-800">{batchNameInput || 'Đợt_...'} ({dateISOToVN(dateForBatch)})</span>
             </p>
           </div>
         </div>

@@ -164,7 +164,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   // States for Chuyển hồ sơ BHXH theo đợt & ngày
   const [isBatchModalOpen, setIsBatchModalOpen] = useState(false);
   const [batchModalTargetIds, setBatchModalTargetIds] = useState<number[]>([]);
-  const [batchNameInput, setBatchNameInput] = useState('Đợt 1');
+  const [batchNameInput, setBatchNameInput] = useState('');
   const [batchDateInput, setBatchDateInput] = useState(() => getLocalYYYYMMDD());
 
   // VietQR Modal state
@@ -705,9 +705,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       showAlert('Chưa chọn hồ sơ', 'Vui lòng tích chọn ít nhất 1 hồ sơ để ghi nhận đợt chuyển BHXH.', 'warning');
       return;
     }
-    const defaultBatch = generateBatchCode(getLocalYYYYMMDD(), 1);
-    setBatchNameInput(defaultBatch);
-    setBatchDateInput(getLocalYYYYMMDD());
+    const today = getLocalYYYYMMDD();
+    const selectedRecs = sourceRecords.filter((r: any) => selectedIds.includes(r.id));
+    const commonBatch = (selectedRecs.find((r: any) => r.submission_batch || (r as any).submissionBatch) as any)?.submission_batch ||
+                        (selectedRecs.find((r: any) => r.submission_batch || (r as any).submissionBatch) as any)?.submissionBatch;
+    const commonDate = (selectedRecs.find((r: any) => r.submitted_date || (r as any).submittedDate) as any)?.submitted_date ||
+                       (selectedRecs.find((r: any) => r.submitted_date || (r as any).submittedDate) as any)?.submittedDate;
+    
+    const targetDate = commonDate || today;
+    const existingBatches = sourceRecords.map((r: any) => r.submission_batch || r.submissionBatch || '');
+    const nextSeq = getNextBatchSequence(existingBatches, targetDate);
+    const defaultBatch = generateBatchCode(targetDate, nextSeq);
+
+    setBatchNameInput(commonBatch || defaultBatch);
+    setBatchDateInput(targetDate);
     setBatchModalTargetIds(selectedIds);
     setIsBatchModalOpen(true);
   };
@@ -715,15 +726,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const handleOpenBatchModalSingle = (record: any) => {
     const subBatch = record.submission_batch || record.submissionBatch;
     const subDate = record.submitted_date || record.submittedDate;
-    setBatchNameInput(subBatch || generateBatchCode(getLocalYYYYMMDD(), 1));
-    setBatchDateInput(subDate || getLocalYYYYMMDD());
+    const targetDate = subDate || getLocalYYYYMMDD();
+    const existingBatches = sourceRecords.map((r: any) => r.submission_batch || r.submissionBatch || '');
+    const nextSeq = getNextBatchSequence(existingBatches, targetDate);
+    const defaultBatch = generateBatchCode(targetDate, nextSeq);
+
+    setBatchNameInput(subBatch || defaultBatch);
+    setBatchDateInput(targetDate);
     setBatchModalTargetIds([record.id]);
     setIsBatchModalOpen(true);
   };
 
   const handleSaveBatchSubmission = async (batchName: string, batchDate: string) => {
     if (!batchName.trim()) {
-      showAlert('Thiếu tên đợt', 'Vui lòng nhập tên đợt chuyển (ví dụ: Đợt 1, Đợt 2)', 'warning');
+      showAlert('Thiếu mã đợt', 'Vui lòng nhập hoặc chọn mã đợt nộp (ví dụ: ' + generateBatchCode(batchDate, 1) + ')', 'warning');
       return;
     }
 
@@ -1279,7 +1295,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           setBatchDateInput={setBatchDateInput}
           handleConfirmBatchSubmission={() => handleSaveBatchSubmission(batchNameInput, batchDateInput)}
           handleCancelBatchSubmission={() => handleUnmarkSubmission(batchModalTargetIds)}
-          allRecords={records}
+          allRecords={sourceRecords}
           type={currentType}
         />
       )}

@@ -31,24 +31,16 @@ export const isValidBatchCode = (code: string): boolean => {
  * Lấy số thứ tự kế tiếp cho ngày hiện tại dựa trên danh sách các đợt đã có
  * Tự động nhận diện cả tiền tố Đợt_ và BATCH_ cũ để tăng số thứ tự chính xác
  */
-export const getNextBatchSequence = (existingBatches: string[], dateStr?: string): number => {
-  const datePart = (dateStr ? dateStr.replace(/-/g, '') : getLocalYYYYMMDD().replace(/-/g, ''));
-  const dotPrefix = `ĐỢT_${datePart}_`;
-  const batchPrefix = `BATCH_${datePart}_`;
+export const getNextBatchSequence = (existingBatches: (string | undefined | null)[], dateStr?: string): number => {
+  const cleanDate = (dateStr ? dateStr.replace(/[^0-9]/g, '') : getLocalYYYYMMDD().replace(/[^0-9]/g, ''));
+  const regex = new RegExp(`^(?:Đợt|BATCH)_${cleanDate}_([0-9]+)$`, 'i');
 
   let maxSeq = 0;
   for (const b of existingBatches) {
-    if (!b) continue;
-    const cleanB = b.trim().toUpperCase();
-    if (cleanB.startsWith(dotPrefix)) {
-      const numPart = cleanB.replace(dotPrefix, '');
-      const num = parseInt(numPart, 10);
-      if (!isNaN(num) && num > maxSeq) {
-        maxSeq = num;
-      }
-    } else if (cleanB.startsWith(batchPrefix)) {
-      const numPart = cleanB.replace(batchPrefix, '');
-      const num = parseInt(numPart, 10);
+    if (!b || typeof b !== 'string') continue;
+    const match = b.trim().match(regex);
+    if (match && match[1]) {
+      const num = parseInt(match[1], 10);
       if (!isNaN(num) && num > maxSeq) {
         maxSeq = num;
       }
