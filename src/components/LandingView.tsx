@@ -301,7 +301,7 @@ const LandingView = () => {
 
               <div className="flex items-center gap-1.5 text-[11px] text-white/85 font-medium pt-0.5">
                 <span className="material-symbols-outlined text-emerald-400 text-sm">verified_user</span>
-                <span>Bảo mật NĐ 13/2023/NĐ-CP: Tự động che giấu CCCD, SĐT &amp; Mã BHXH</span>
+                <span>Bảo mật dữ liệu theo NĐ 13/2023/NĐ-CP</span>
               </div>
             </div>
 
@@ -362,7 +362,7 @@ const LandingView = () => {
 
               <div className="flex items-center gap-1.5 text-[11px] text-white/85 font-medium pt-0.5">
                 <span className="material-symbols-outlined text-emerald-400 text-sm">verified_user</span>
-                <span>Bảo mật NĐ 13/2023/NĐ-CP: Tự động che giấu CCCD, SĐT &amp; Mã BHXH</span>
+                <span>Bảo mật dữ liệu theo NĐ 13/2023/NĐ-CP</span>
               </div>
             </div>
           </div>
