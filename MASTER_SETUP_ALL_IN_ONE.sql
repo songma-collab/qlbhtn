@@ -1933,7 +1933,7 @@ BEGIN
     COALESCE(to_char(r.date, 'YYYY-MM-DD'), '') AS registration_date
   FROM public.records r
   WHERE r.payment_status != 'Đã hủy'
-    AND r.type = UPPER(TRIM(p_type))
+    AND (p_type IS NULL OR TRIM(p_type) = '' OR UPPER(TRIM(p_type)) = 'ALL' OR r.type = UPPER(TRIM(p_type)))
     AND (
       (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
       (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
@@ -1973,11 +1973,6 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  IF auth.role() NOT IN ('service_role', 'authenticated') THEN
-    RAISE EXCEPTION 'Access denied: Chức năng gia hạn nhanh chỉ khả dụng qua cổng dịch vụ đã xác thực bảo mật.'
-      USING ERRCODE = '42501';
-  END IF;
-
   IF p_code IS NULL OR TRIM(p_code) !~ '^\d{9}$|^\d{10}$|^\d{12}$' THEN
     RETURN;
   END IF;
@@ -2013,7 +2008,18 @@ BEGIN
       (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
       (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
     )
-  ORDER BY COALESCE(r.updated_at, r.created_at, r.date) DESC, r.date DESC, r.id DESC
+  ORDER BY 
+    COALESCE(
+      r.next_payment,
+      CASE 
+        WHEN r.to_month ~ '^\d{2}/\d{4}$' THEN 
+          TO_DATE('01/' || r.to_month, 'DD/MM/YYYY') + INTERVAL '1 month' - INTERVAL '1 day'
+        ELSE NULL 
+      END,
+      r.date::date
+    ) DESC, 
+    COALESCE(r.date::date, r.created_at::date) DESC, 
+    r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -2699,7 +2705,7 @@ BEGIN
     RETURN;
   END IF;
 
-  -- Ưu tiên 1: Tra cứu từ bảng Master Customers kết hợp record gần nhất
+  -- Ưu tiên 1: Tra cứu từ bảng Master Customers kết hợp record hợp đồng mới nhất và record giao dịch gần nhất
   RETURN QUERY
   SELECT 
     c.name,
@@ -2712,22 +2718,45 @@ BEGIN
     COALESCE(c.nation, 'Kinh') AS nation,
     c.email,
     c.address,
-    r.income,
-    r.method,
-    r.nn_support_pct,
-    r.dp_support_pct,
-    COALESCE(c.notes, r.notes) AS notes,
-    r.from_month,
-    r.to_month,
-    r.next_payment,
-    r.months,
-    r.wage,
-    COALESCE(c.recv_name, r.recv_name) AS recv_name,
-    COALESCE(c.recv_phone, r.recv_phone) AS recv_phone,
-    COALESCE(c.recv_address, r.recv_address) AS recv_address,
-    COALESCE(c.members, CASE WHEN r.members IS NOT NULL THEN to_jsonb(r.members) ELSE NULL END) AS members
+    COALESCE(r_valid.income, r_latest.income) AS income,
+    COALESCE(r_valid.method, r_latest.method) AS method,
+    COALESCE(r_valid.nn_support_pct, r_latest.nn_support_pct) AS nn_support_pct,
+    COALESCE(r_valid.dp_support_pct, r_latest.dp_support_pct) AS dp_support_pct,
+    COALESCE(c.notes, r_valid.notes, r_latest.notes) AS notes,
+    COALESCE(r_valid.from_month, c.from_month, r_latest.from_month) AS from_month,
+    COALESCE(r_valid.to_month, c.to_month, r_latest.to_month) AS to_month,
+    COALESCE(r_valid.next_payment::TEXT, c.next_payment::TEXT, r_latest.next_payment::TEXT) AS next_payment,
+    COALESCE(r_valid.months, r_latest.months, 1) AS months,
+    COALESCE(r_valid.wage, r_latest.wage) AS wage,
+    COALESCE(c.recv_name, r_valid.recv_name, r_latest.recv_name) AS recv_name,
+    COALESCE(c.recv_phone, r_valid.recv_phone, r_latest.recv_phone) AS recv_phone,
+    COALESCE(c.recv_address, r_valid.recv_address, r_latest.recv_address) AS recv_address,
+    COALESCE(c.members, CASE WHEN r_valid.members IS NOT NULL THEN to_jsonb(r_valid.members) WHEN r_latest.members IS NOT NULL THEN to_jsonb(r_latest.members) ELSE NULL END) AS members
   FROM public.customers c
-  LEFT JOIN public.records r ON c.latest_record_id = r.id
+  LEFT JOIN public.records r_latest ON c.latest_record_id = r_latest.id
+  LEFT JOIN LATERAL (
+    SELECT *
+    FROM public.records r2
+    WHERE (
+      (c.customer_key IS NOT NULL AND r2.customer_key = c.customer_key)
+      OR (c.cccd IS NOT NULL AND TRIM(c.cccd) != '' AND r2.cccd = c.cccd)
+      OR (c.bhxh IS NOT NULL AND TRIM(c.bhxh) != '' AND r2.bhxh = c.bhxh)
+    )
+      AND COALESCE(r2.payment_status, '') != 'Đã hủy'
+    ORDER BY 
+      COALESCE(
+        r2.next_payment,
+        CASE 
+          WHEN r2.to_month ~ '^\d{2}/\d{4}$' THEN 
+            TO_DATE('01/' || r2.to_month, 'DD/MM/YYYY') + INTERVAL '1 month' - INTERVAL '1 day'
+          ELSE r2.to_month_date
+        END,
+        r2.date::date
+      ) DESC,
+      COALESCE(r2.date::date, r2.created_at::date) DESC,
+      r2.id DESC
+    LIMIT 1
+  ) r_valid ON true
   WHERE (
       (c.cccd = v_clean) OR
       (c.bhxh = v_clean) OR
@@ -2760,7 +2789,7 @@ BEGIN
     r.notes,
     r.from_month,
     r.to_month,
-    r.next_payment,
+    r.next_payment::TEXT,
     r.months,
     r.wage,
     r.recv_name,
@@ -2774,7 +2803,18 @@ BEGIN
       (r.cccd = v_clean AND r.cccd IS NOT NULL AND r.cccd != '') OR
       (r.old_bhxh = v_clean AND r.old_bhxh IS NOT NULL AND r.old_bhxh != '')
     )
-  ORDER BY COALESCE(r.updated_at, r.created_at, r.date) DESC, r.date DESC, r.id DESC
+  ORDER BY 
+    COALESCE(
+      r.next_payment,
+      CASE 
+        WHEN r.to_month ~ '^\d{2}/\d{4}$' THEN 
+          TO_DATE('01/' || r.to_month, 'DD/MM/YYYY') + INTERVAL '1 month' - INTERVAL '1 day'
+        ELSE r.to_month_date
+      END,
+      r.date::date
+    ) DESC, 
+    COALESCE(r.date::date, r.created_at::date) DESC, 
+    r.id DESC
   LIMIT 1;
 END;
 $$;
@@ -2934,6 +2974,9 @@ BEGIN
   END LOOP;
 
   PERFORM set_config('app.is_batch_import', 'false', true);
+
+  -- Tự động đồng bộ lại toàn bộ danh bạ khách hàng sau khi hoàn tất nạp hồ sơ hàng loạt
+  PERFORM public.resync_customer_from_records();
 
   INSERT INTO public.auditlogs (user_id, user_name, action, details, timestamp)
   VALUES (
@@ -3809,7 +3852,7 @@ $$;
 GRANT EXECUTE ON FUNCTION public.public_register_customer(JSONB) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.check_customer_exists(TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) TO anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.admin_override_record(BIGINT, JSONB, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.confirm_record_payment(BIGINT, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_current_staff_profile() TO authenticated, service_role;
@@ -4244,6 +4287,8 @@ DECLARE
     v_latest_id BIGINT;
     v_latest_remaining RECORD;
     v_newest_txn_remaining RECORD;
+    v_latest_contract RECORD;
+    v_newest_txn RECORD;
 BEGIN
     IF current_setting('app.is_batch_import', true) = 'true' THEN
         RETURN COALESCE(NEW, OLD);
@@ -4263,7 +4308,17 @@ BEGIN
             OR (OLD.bhxh IS NOT NULL AND TRIM(OLD.bhxh) != '' AND bhxh = OLD.bhxh)
           )
           AND COALESCE(payment_status, '') != 'Đã hủy'
-        ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+        ORDER BY 
+          COALESCE(
+            next_payment,
+            CASE 
+              WHEN to_month ~ '^\d{2}/\d{4}$' THEN 
+                TO_DATE('01/' || to_month, 'DD/MM/YYYY') + INTERVAL '1 month' - INTERVAL '1 day'
+              ELSE to_month_date
+            END,
+            date::date
+          ) DESC, 
+          id DESC
         LIMIT 1;
 
         -- 2. Tìm giao dịch đóng/nộp tiền mới nhất còn lại theo thời gian thực (date DESC, id DESC)
@@ -4373,16 +4428,62 @@ BEGIN
     v_delta_amount := v_new_eff_amount - v_old_eff_amount;
     v_delta_contrib := v_new_eff_contrib - v_old_eff_contrib;
 
-    -- Xác định trạng thái vòng đời khách hàng
+    -- Xác định hợp đồng mới nhất và giao dịch mới nhất để chống desync khi cập nhật hồ sơ cũ hoặc phát sinh đợt thu
     IF TG_OP IN ('INSERT', 'UPDATE') THEN
-        IF NEW.payment_status = 'Đã thu tiền' AND COALESCE(NEW.amount, 0) > 0 AND (NEW.is_adjustment IS NOT TRUE) AND (NEW.status IS NULL OR NEW.status != 'Đã dừng đóng') THEN
-            v_target_status := 'Đang tham gia';
-        ELSIF NEW.status = 'Đã dừng đóng' THEN
-            v_target_status := 'Đã dừng đóng';
+        -- 1. Tìm hợp đồng hợp lệ có kỳ hạn mới nhất (bao gồm cả record vừa thêm/sửa)
+        SELECT * INTO v_latest_contract
+        FROM public.records
+        WHERE (
+            (v_key IS NOT NULL AND customer_key = v_key)
+            OR (v_rec.cccd IS NOT NULL AND TRIM(v_rec.cccd) != '' AND cccd = v_rec.cccd)
+            OR (v_rec.bhxh IS NOT NULL AND TRIM(v_rec.bhxh) != '' AND bhxh = v_rec.bhxh)
+        )
+          AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY 
+          COALESCE(
+            next_payment,
+            CASE 
+              WHEN to_month ~ '^\d{2}/\d{4}$' THEN 
+                TO_DATE('01/' || to_month, 'DD/MM/YYYY') + INTERVAL '1 month' - INTERVAL '1 day'
+              ELSE to_month_date
+            END,
+            date::date
+          ) DESC, 
+          id DESC
+        LIMIT 1;
+
+        -- 2. Tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (date DESC, id DESC)
+        SELECT * INTO v_newest_txn
+        FROM public.records
+        WHERE (
+            (v_key IS NOT NULL AND customer_key = v_key)
+            OR (v_rec.cccd IS NOT NULL AND TRIM(v_rec.cccd) != '' AND cccd = v_rec.cccd)
+            OR (v_rec.bhxh IS NOT NULL AND TRIM(v_rec.bhxh) != '' AND bhxh = v_rec.bhxh)
+        )
+          AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(date::date, created_at::date) DESC, id DESC
+        LIMIT 1;
+
+        -- 3. Xác định trạng thái vòng đời khách hàng từ hợp đồng mới nhất (fallback sang NEW)
+        IF v_latest_contract.id IS NOT NULL THEN
+            IF v_latest_contract.payment_status = 'Đã thu tiền' AND COALESCE(v_latest_contract.amount, 0) > 0 AND (v_latest_contract.is_adjustment IS NOT TRUE) AND (v_latest_contract.status IS NULL OR v_latest_contract.status != 'Đã dừng đóng') THEN
+                v_target_status := 'Đang tham gia';
+            ELSIF v_latest_contract.status = 'Đã dừng đóng' THEN
+                v_target_status := 'Đã dừng đóng';
+            ELSE
+                v_target_status := COALESCE(v_latest_contract.status, 'Đang tham gia');
+            END IF;
+            v_latest_id := COALESCE(v_newest_txn.id, v_latest_contract.id, NEW.id);
         ELSE
-            v_target_status := COALESCE(NEW.status, 'Đang tham gia');
+            IF NEW.payment_status = 'Đã thu tiền' AND COALESCE(NEW.amount, 0) > 0 AND (NEW.is_adjustment IS NOT TRUE) AND (NEW.status IS NULL OR NEW.status != 'Đã dừng đóng') THEN
+                v_target_status := 'Đang tham gia';
+            ELSIF NEW.status = 'Đã dừng đóng' THEN
+                v_target_status := 'Đã dừng đóng';
+            ELSE
+                v_target_status := COALESCE(NEW.status, 'Đang tham gia');
+            END IF;
+            v_latest_id := NEW.id;
         END IF;
-        v_latest_id := NEW.id;
     ELSE
         v_target_status := 'Đang tham gia';
         v_latest_id := NULL;
@@ -4395,56 +4496,85 @@ BEGIN
         next_payment, next_payment_bhxh, next_payment_bhyt, latest_date, latest_amount, from_month, to_month,
         created_at, updated_at
     ) VALUES (
-        v_key, v_rec.type, v_rec.name, v_rec.cccd, v_rec.bhxh, v_rec.old_bhxh, v_rec.phone, v_rec.address,
-        v_rec.dob, v_rec.gender, v_rec.nation, v_rec.email,
-        v_latest_id, v_target_status, v_rec.payment_status, v_rec.notes, v_rec.staff_id,
-        GREATEST(0, v_delta_contrib), GREATEST(0, v_delta_amount),
-        v_rec.household_id,
-        CASE WHEN v_rec.members IS NOT NULL THEN to_jsonb(v_rec.members) ELSE NULL END,
-        v_rec.recv_name, v_rec.recv_phone, v_rec.recv_address,
-        v_rec.next_payment,
-        CASE WHEN v_rec.type = 'BHXH' THEN v_rec.next_payment ELSE NULL END,
-        CASE WHEN v_rec.type = 'BHYT' THEN v_rec.next_payment ELSE NULL END,
-        v_rec.date::date,
-        v_rec.amount,
-        v_rec.from_month,
-        v_rec.to_month,
+        v_key, 
+        COALESCE(v_latest_contract.type, v_rec.type), 
+        COALESCE(v_latest_contract.name, v_rec.name), 
+        COALESCE(v_latest_contract.cccd, v_rec.cccd), 
+        COALESCE(v_latest_contract.bhxh, v_rec.bhxh), 
+        COALESCE(v_latest_contract.old_bhxh, v_rec.old_bhxh), 
+        COALESCE(v_latest_contract.phone, v_rec.phone), 
+        COALESCE(v_latest_contract.address, v_rec.address),
+        COALESCE(v_latest_contract.dob, v_rec.dob), 
+        COALESCE(v_latest_contract.gender, v_rec.gender), 
+        COALESCE(v_latest_contract.nation, v_rec.nation), 
+        COALESCE(v_latest_contract.email, v_rec.email),
+        v_latest_id, 
+        v_target_status, 
+        COALESCE(v_newest_txn.payment_status, v_latest_contract.payment_status, v_rec.payment_status), 
+        COALESCE(v_latest_contract.notes, v_rec.notes), 
+        COALESCE(v_latest_contract.staff_id, v_rec.staff_id),
+        GREATEST(0, v_delta_contrib), 
+        GREATEST(0, v_delta_amount),
+        COALESCE(v_latest_contract.household_id, v_rec.household_id),
+        CASE WHEN COALESCE(v_latest_contract.members, v_rec.members) IS NOT NULL THEN to_jsonb(COALESCE(v_latest_contract.members, v_rec.members)) ELSE NULL END,
+        COALESCE(v_latest_contract.recv_name, v_rec.recv_name), 
+        COALESCE(v_latest_contract.recv_phone, v_rec.recv_phone), 
+        COALESCE(v_latest_contract.recv_address, v_rec.recv_address),
+        COALESCE(v_latest_contract.next_payment, v_rec.next_payment),
+        CASE WHEN COALESCE(v_latest_contract.type, v_rec.type) = 'BHXH' THEN COALESCE(v_latest_contract.next_payment, v_rec.next_payment) ELSE NULL END,
+        CASE WHEN COALESCE(v_latest_contract.type, v_rec.type) = 'BHYT' THEN COALESCE(v_latest_contract.next_payment, v_rec.next_payment) ELSE NULL END,
+        COALESCE(v_newest_txn.date::date, v_latest_contract.date::date, v_rec.date::date),
+        COALESCE(v_newest_txn.amount, v_latest_contract.amount, v_rec.amount),
+        COALESCE(v_latest_contract.from_month, v_rec.from_month),
+        COALESCE(v_latest_contract.to_month, v_rec.to_month),
         NOW(), NOW()
     )
     ON CONFLICT (customer_key) DO UPDATE SET
         total_amount_paid = GREATEST(0, COALESCE(public.customers.total_amount_paid, 0) + v_delta_amount),
         total_contributions = GREATEST(0, COALESCE(public.customers.total_contributions, 0) + v_delta_contrib),
         latest_record_id = COALESCE(v_latest_id, public.customers.latest_record_id),
-        type = COALESCE(EXCLUDED.type, public.customers.type),
-        name = COALESCE(EXCLUDED.name, public.customers.name),
-        cccd = COALESCE(EXCLUDED.cccd, public.customers.cccd),
-        bhxh = COALESCE(EXCLUDED.bhxh, public.customers.bhxh),
-        old_bhxh = COALESCE(EXCLUDED.old_bhxh, public.customers.old_bhxh),
-        phone = COALESCE(EXCLUDED.phone, public.customers.phone),
-        address = COALESCE(EXCLUDED.address, public.customers.address),
-        dob = COALESCE(EXCLUDED.dob, public.customers.dob),
-        gender = COALESCE(EXCLUDED.gender, public.customers.gender),
-        nation = COALESCE(EXCLUDED.nation, public.customers.nation),
-        email = COALESCE(EXCLUDED.email, public.customers.email),
+        type = COALESCE(v_latest_contract.type, EXCLUDED.type, public.customers.type),
+        name = COALESCE(v_latest_contract.name, EXCLUDED.name, public.customers.name),
+        cccd = COALESCE(v_latest_contract.cccd, EXCLUDED.cccd, public.customers.cccd),
+        bhxh = COALESCE(v_latest_contract.bhxh, EXCLUDED.bhxh, public.customers.bhxh),
+        old_bhxh = COALESCE(v_latest_contract.old_bhxh, EXCLUDED.old_bhxh, public.customers.old_bhxh),
+        phone = COALESCE(v_latest_contract.phone, EXCLUDED.phone, public.customers.phone),
+        address = COALESCE(v_latest_contract.address, EXCLUDED.address, public.customers.address),
+        dob = COALESCE(v_latest_contract.dob, EXCLUDED.dob, public.customers.dob),
+        gender = COALESCE(v_latest_contract.gender, EXCLUDED.gender, public.customers.gender),
+        nation = COALESCE(v_latest_contract.nation, EXCLUDED.nation, public.customers.nation),
+        email = COALESCE(v_latest_contract.email, EXCLUDED.email, public.customers.email),
         status = CASE 
             WHEN v_target_status IS NOT NULL AND v_target_status != '' THEN v_target_status
             ELSE public.customers.status
         END,
-        payment_status = COALESCE(EXCLUDED.payment_status, public.customers.payment_status),
-        next_payment = COALESCE(EXCLUDED.next_payment, public.customers.next_payment),
-        next_payment_bhxh = COALESCE(EXCLUDED.next_payment_bhxh, public.customers.next_payment_bhxh),
-        next_payment_bhyt = COALESCE(EXCLUDED.next_payment_bhyt, public.customers.next_payment_bhyt),
-        latest_date = COALESCE(EXCLUDED.latest_date, public.customers.latest_date),
-        latest_amount = COALESCE(EXCLUDED.latest_amount, public.customers.latest_amount),
-        from_month = COALESCE(EXCLUDED.from_month, public.customers.from_month),
-        to_month = COALESCE(EXCLUDED.to_month, public.customers.to_month),
-        notes = COALESCE(EXCLUDED.notes, public.customers.notes),
-        staff_id = COALESCE(EXCLUDED.staff_id, public.customers.staff_id),
-        household_id = COALESCE(EXCLUDED.household_id, public.customers.household_id),
-        members = COALESCE(EXCLUDED.members, public.customers.members),
-        recv_name = COALESCE(EXCLUDED.recv_name, public.customers.recv_name),
-        recv_phone = COALESCE(EXCLUDED.recv_phone, public.customers.recv_phone),
-        recv_address = COALESCE(EXCLUDED.recv_address, public.customers.recv_address),
+        payment_status = COALESCE(v_newest_txn.payment_status, v_latest_contract.payment_status, EXCLUDED.payment_status, public.customers.payment_status),
+        next_payment = COALESCE(v_latest_contract.next_payment, EXCLUDED.next_payment, public.customers.next_payment),
+        next_payment_bhxh = CASE 
+            WHEN COALESCE(v_latest_contract.type, EXCLUDED.type, public.customers.type) = 'BHXH' THEN 
+                COALESCE(v_latest_contract.next_payment, EXCLUDED.next_payment, public.customers.next_payment) 
+            ELSE public.customers.next_payment_bhxh 
+        END,
+        next_payment_bhyt = CASE 
+            WHEN COALESCE(v_latest_contract.type, EXCLUDED.type, public.customers.type) = 'BHYT' THEN 
+                COALESCE(v_latest_contract.next_payment, EXCLUDED.next_payment, public.customers.next_payment) 
+            ELSE public.customers.next_payment_bhyt 
+        END,
+        latest_date = COALESCE(v_newest_txn.date::date, v_latest_contract.date::date, EXCLUDED.latest_date, public.customers.latest_date),
+        latest_amount = COALESCE(v_newest_txn.amount, v_latest_contract.amount, EXCLUDED.latest_amount, public.customers.latest_amount),
+        from_month = COALESCE(v_latest_contract.from_month, EXCLUDED.from_month, public.customers.from_month),
+        to_month = COALESCE(v_latest_contract.to_month, EXCLUDED.to_month, public.customers.to_month),
+        notes = COALESCE(v_latest_contract.notes, EXCLUDED.notes, public.customers.notes),
+        staff_id = COALESCE(v_latest_contract.staff_id, EXCLUDED.staff_id, public.customers.staff_id),
+        household_id = COALESCE(v_latest_contract.household_id, EXCLUDED.household_id, public.customers.household_id),
+        members = COALESCE(
+            CASE WHEN v_latest_contract.members IS NOT NULL THEN to_jsonb(v_latest_contract.members) ELSE NULL END, 
+            EXCLUDED.members, 
+            public.customers.members
+        ),
+        recv_name = COALESCE(v_latest_contract.recv_name, EXCLUDED.recv_name, public.customers.recv_name),
+        recv_phone = COALESCE(v_latest_contract.recv_phone, EXCLUDED.recv_phone, public.customers.recv_phone),
+        recv_address = COALESCE(v_latest_contract.recv_address, EXCLUDED.recv_address, public.customers.recv_address),
         updated_at = NOW();
 
     RETURN v_rec;
