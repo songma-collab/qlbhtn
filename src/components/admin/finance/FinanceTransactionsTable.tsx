@@ -194,9 +194,12 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                       {formatMoney(r.amount)}
                     </td>
                     {/* HOA HỒNG: font-mono tabular-nums text-right */}
-                    <td className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
-                      commAmount < 0 ? 'text-rose-600' : 'text-emerald-700'
-                    }`}>
+                    <td 
+                      className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
+                        commAmount < 0 ? 'text-rose-600' : 'text-emerald-700'
+                      }`}
+                      title={`Tỷ lệ hoa hồng: ${(rate * 100).toFixed(1)}% (${formatMoney(commAmount)})`}
+                    >
                       {commAmount > 0 ? '+' : ''}{formatMoney(commAmount)}
                     </td>
                     <td className="p-4">

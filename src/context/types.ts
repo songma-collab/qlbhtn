@@ -215,6 +215,15 @@ export type SettingsType = {
   commBHXHRenew?: number | undefined; 
   commBHYTNew?: number | undefined; 
   commBHYTRenew?: number | undefined; 
+  // Cấu hình tỷ lệ hoa hồng theo phương thức đóng mới
+  commBHXHNew1M?: number | undefined;
+  commBHXHNew3M?: number | undefined;
+  commBHXHNew6M?: number | undefined;
+  commBHXHNew12M?: number | undefined;
+  comm_bhxh_new_1m?: number | undefined;
+  comm_bhxh_new_3m?: number | undefined;
+  comm_bhxh_new_6m?: number | undefined;
+  comm_bhxh_new_12m?: number | undefined;
   commBHXH?: number | undefined; 
   commBHYT?: number | undefined; 
   investmentRate?: number | undefined; 
@@ -274,6 +283,17 @@ export interface UserPermissionOverride {
 }
 
 export type UserOverridesMap = Record<string, UserPermissionOverride>;
+
+export interface PolicyCommissionValue {
+  commBHXHNew?: number | undefined;
+  commBHXHRenew?: number | undefined;
+  commBHYTNew?: number | undefined;
+  commBHYTRenew?: number | undefined;
+  commBHXHNew1M?: number | undefined;
+  commBHXHNew3M?: number | undefined;
+  commBHXHNew6M?: number | undefined;
+  commBHXHNew12M?: number | undefined;
+}
 
 export interface Policy {
   id?: number | undefined;

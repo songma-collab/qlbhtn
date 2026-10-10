@@ -69,14 +69,18 @@ export const DEFAULT_SYSTEM_POLICIES: Policy[] = [
     parameter_type: 'commission',
     name: 'Cài đặt Tỷ lệ Hoa hồng đại lý 2026',
     value: {
-      commBHXHNew: 15,
-      commBHYTNew: 9,
+      commBHXHNew: 20,
       commBHXHRenew: 9,
-      commBHYTRenew: 5
+      commBHYTNew: 9,
+      commBHYTRenew: 5,
+      commBHXHNew1M: 12,
+      commBHXHNew3M: 15,
+      commBHXHNew6M: 17,
+      commBHXHNew12M: 20
     },
     effective_date: '2026-08-01',
-    description: 'Cơ chế tỷ lệ hoa hồng đại lý mới áp dụng từ tháng 08/2026: BHXH mới 15%, gia hạn 9%; BHYT mới 9%, gia hạn 5%',
-    notes: 'Cơ chế tỷ lệ hoa hồng đại lý mới áp dụng từ tháng 08/2026: BHXH mới 15%, gia hạn 9%; BHYT mới 9%, gia hạn 5%',
+    description: 'Cơ chế tỷ lệ hoa hồng đại lý: BHXH mới (1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%); BHXH gia hạn: 9%; BHYT mới: 9%, gia hạn: 5%',
+    notes: 'Cơ chế tỷ lệ hoa hồng đại lý: BHXH mới (1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%); BHXH gia hạn: 9%; BHYT mới: 9%, gia hạn: 5%',
     is_active: true,
     created_at: '2026-07-30 11:25:35.325719+00'
   },

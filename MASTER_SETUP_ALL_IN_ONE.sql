@@ -853,9 +853,9 @@ WHERE NOT EXISTS (
 
 -- 5.2.5. Tỷ lệ Hoa hồng: Cài đặt Tỷ lệ Hoa hồng đại lý 2026
 INSERT INTO public.policies (parameter_type, name, value, effective_date, is_active, notes, description)
-SELECT 'commission', 'Cài đặt Tỷ lệ Hoa hồng đại lý 2026', '{"commBHXHNew": 15, "commBHYTNew": 9, "commBHXHRenew": 9, "commBHYTRenew": 5}'::jsonb, '2026-08-01'::date, true, 
-       'Cơ chế tỷ lệ hoa hồng đại lý mới áp dụng từ tháng 08/2026: BHXH mới 15%, gia hạn 9%; BHYT mới 9%, gia hạn 5%',
-       'Cơ chế tỷ lệ hoa hồng đại lý mới áp dụng từ tháng 08/2026: BHXH mới 15%, gia hạn 9%; BHYT mới 9%, gia hạn 5%'
+SELECT 'commission', 'Cài đặt Tỷ lệ Hoa hồng đại lý 2026', '{"commBHXHNew": 20, "commBHYTNew": 9, "commBHXHRenew": 9, "commBHYTRenew": 5, "commBHXHNew1M": 12, "commBHXHNew3M": 15, "commBHXHNew6M": 17, "commBHXHNew12M": 20}'::jsonb, '2026-08-01'::date, true, 
+       'Cơ chế tỷ lệ hoa hồng đại lý mới: BHXH mới (1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%); BHXH gia hạn: 9%; BHYT mới: 9%, gia hạn: 5%',
+       'Cơ chế tỷ lệ hoa hồng đại lý mới: BHXH mới (1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%); BHXH gia hạn: 9%; BHYT mới: 9%, gia hạn: 5%'
 WHERE NOT EXISTS (
   SELECT 1 FROM public.policies WHERE parameter_type = 'commission' AND name = 'Cài đặt Tỷ lệ Hoa hồng đại lý 2026'
 );
@@ -1534,7 +1534,11 @@ RETURNS TABLE (
   comm_bhxh_new NUMERIC,
   comm_bhxh_renew NUMERIC,
   comm_bhyt_new NUMERIC,
-  comm_bhyt_renew NUMERIC
+  comm_bhyt_renew NUMERIC,
+  comm_bhxh_new_1m NUMERIC,
+  comm_bhxh_new_3m NUMERIC,
+  comm_bhxh_new_6m NUMERIC,
+  comm_bhxh_new_12m NUMERIC
 )
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -1563,10 +1567,14 @@ BEGIN
   -- 3. Trả về các tỷ lệ hoa hồng hoặc fallback về bảng settings hoặc giá trị mặc định
   RETURN QUERY
   SELECT 
-    COALESCE((v_val->>'commBHXHNew')::NUMERIC, (v_val->>'comm_bhxh_new')::NUMERIC, s.comm_bhxh_new, 5::NUMERIC) AS comm_bhxh_new,
-    COALESCE((v_val->>'commBHXHRenew')::NUMERIC, (v_val->>'comm_bhxh_renew')::NUMERIC, s.comm_bhxh_renew, 3::NUMERIC) AS comm_bhxh_renew,
-    COALESCE((v_val->>'commBHYTNew')::NUMERIC, (v_val->>'comm_bhyt_new')::NUMERIC, s.comm_bhyt_new, 5::NUMERIC) AS comm_bhyt_new,
-    COALESCE((v_val->>'commBHYTRenew')::NUMERIC, (v_val->>'comm_bhyt_renew')::NUMERIC, s.comm_bhyt_renew, 3::NUMERIC) AS comm_bhyt_renew
+    COALESCE((v_val->>'commBHXHNew12M')::NUMERIC, (v_val->>'commBHXHNew')::NUMERIC, (v_val->>'comm_bhxh_new')::NUMERIC, s.comm_bhxh_new, 20::NUMERIC) AS comm_bhxh_new,
+    COALESCE((v_val->>'commBHXHRenew')::NUMERIC, (v_val->>'comm_bhxh_renew')::NUMERIC, s.comm_bhxh_renew, 9::NUMERIC) AS comm_bhxh_renew,
+    COALESCE((v_val->>'commBHYTNew')::NUMERIC, (v_val->>'comm_bhyt_new')::NUMERIC, s.comm_bhyt_new, 9::NUMERIC) AS comm_bhyt_new,
+    COALESCE((v_val->>'commBHYTRenew')::NUMERIC, (v_val->>'comm_bhyt_renew')::NUMERIC, s.comm_bhyt_renew, 5::NUMERIC) AS comm_bhyt_renew,
+    COALESCE((v_val->>'commBHXHNew1M')::NUMERIC, (v_val->>'comm_bhxh_new_1m')::NUMERIC, (v_val->>'commBHXHNew')::NUMERIC, 12::NUMERIC) AS comm_bhxh_new_1m,
+    COALESCE((v_val->>'commBHXHNew3M')::NUMERIC, (v_val->>'comm_bhxh_new_3m')::NUMERIC, (v_val->>'commBHXHNew')::NUMERIC, 15::NUMERIC) AS comm_bhxh_new_3m,
+    COALESCE((v_val->>'commBHXHNew6M')::NUMERIC, (v_val->>'comm_bhxh_new_6m')::NUMERIC, (v_val->>'commBHXHNew')::NUMERIC, 17::NUMERIC) AS comm_bhxh_new_6m,
+    COALESCE((v_val->>'commBHXHNew12M')::NUMERIC, (v_val->>'commBHXHNew')::NUMERIC, (v_val->>'comm_bhxh_new')::NUMERIC, 20::NUMERIC) AS comm_bhxh_new_12m
   FROM (SELECT 1) dummy
   LEFT JOIN public.settings s ON true
   LIMIT 1;
@@ -2319,10 +2327,21 @@ BEGIN
     COALESCE(SUM(CASE WHEN r.payment_status = 'Chờ thanh toán' THEN r.amount ELSE 0 END), 0),
     COALESCE(SUM(
       CASE 
-        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' AND (r.action_type = 'Đăng ký mới' OR r.action_type ILIKE '%mới%' OR r.action_type = 'new') 
-          THEN r.amount * (rates.comm_bhxh_new / 100.0)
-        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' 
-          THEN r.amount * (rates.comm_bhxh_renew / 100.0)
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' AND (r.action_type = 'Đăng ký mới' OR r.action_type ILIKE '%mới%' OR r.action_type = 'new') THEN
+          CASE
+            WHEN rec_months.m > 12 THEN
+              r.amount * ((12.0 * rates.comm_bhxh_new_12m + (rec_months.m - 12.0) * rates.comm_bhxh_renew) / (rec_months.m * 100.0))
+            WHEN rec_months.m <= 1 THEN r.amount * (rates.comm_bhxh_new_1m / 100.0)
+            WHEN rec_months.m <= 3 THEN r.amount * (rates.comm_bhxh_new_3m / 100.0)
+            WHEN rec_months.m <= 6 THEN r.amount * (rates.comm_bhxh_new_6m / 100.0)
+            ELSE r.amount * (rates.comm_bhxh_new_12m / 100.0)
+          END
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' THEN
+          CASE
+            WHEN rec_months.m > 12 THEN
+              r.amount * ((12.0 * rates.comm_bhxh_new_12m + (rec_months.m - 12.0) * rates.comm_bhxh_renew) / (rec_months.m * 100.0))
+            ELSE r.amount * (rates.comm_bhxh_renew / 100.0)
+          END
         WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHYT' AND (r.action_type = 'Đăng ký mới' OR r.action_type ILIKE '%mới%' OR r.action_type = 'new') 
           THEN r.amount * (rates.comm_bhyt_new / 100.0)
         WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHYT' 
@@ -2332,6 +2351,19 @@ BEGIN
     ), 0)
   INTO total_revenue, total_pending, total_commission
   FROM public.records r
+  CROSS JOIN LATERAL (
+    SELECT COALESCE(
+      NULLIF(r.months, 0),
+      CASE 
+        WHEN r.method = 'pre_24' THEN 24
+        WHEN r.method = 'pre_36' THEN 36
+        WHEN r.method = 'pre_48' THEN 48
+        WHEN r.method = 'pre_60' THEN 60
+        WHEN r.method ~ '^\d+$' THEN r.method::integer
+        ELSE 1
+      END
+    ) AS m
+  ) rec_months
   CROSS JOIN LATERAL public.get_commission_rates_for_date(public.safe_cast_date(r.date)) rates
   WHERE (
       (payment_status_filter = 'all' AND r.payment_status IN ('Đã thu tiền', 'Chờ thanh toán'))

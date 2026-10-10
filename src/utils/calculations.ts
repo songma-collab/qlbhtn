@@ -4,36 +4,225 @@ import { getLocalYYYYMMDD } from './helpers';
 import { normalizePeriod, parseMonthAndYear, calculateToMonthVN } from './dateStandardHelper';
 import { calculatePeriodSupportedMonths } from './customerParticipationHelper';
 
+export interface EffectiveCommissionConfig {
+  commBHXHNew: number;
+  commBHXHRenew: number;
+  commBHYTNew: number;
+  commBHYTRenew: number;
+  commBHXHNew1M: number;
+  commBHXHNew3M: number;
+  commBHXHNew6M: number;
+  commBHXHNew12M: number;
+}
+
+export interface CommissionBreakdown {
+  totalAmount: number;
+  totalCommission: number;
+  effectiveRate: number;
+  effectiveRatePct: number;
+  isMultiStage: boolean;
+  stage1Months: number;
+  stage1RatePct: number;
+  stage1Amount: number;
+  stage1Commission: number;
+  stage2Months: number;
+  stage2RatePct: number;
+  stage2Amount: number;
+  stage2Commission: number;
+}
+
+/**
+ * Xác định chính xác số tháng tham gia của bản ghi giao dịch
+ */
+export const getRecordMonths = (r: Partial<RecordType> | null | undefined): number => {
+  if (!r) return 1;
+  const directMonths = Number(r.months || (r as any).durationMonths || (r as any).duration_months);
+  if (!isNaN(directMonths) && directMonths > 0) {
+    return directMonths;
+  }
+  const methodStr = String(r.method || '').trim();
+  if (methodStr.startsWith('pre_')) {
+    const m = parseInt(methodStr.split('_')[1] || '1', 10);
+    if (!isNaN(m) && m > 0) return m;
+  }
+  if (!isNaN(Number(methodStr)) && Number(methodStr) > 0) {
+    return Number(methodStr);
+  }
+  const match = methodStr.match(/(\d+)\s*(?:tháng|thang|m)/i);
+  if (match && match[1]) {
+    const m = parseInt(match[1], 10);
+    if (!isNaN(m) && m > 0) return m;
+  }
+  const matchYear = methodStr.match(/(\d+)\s*(?:năm|nam|y)/i);
+  if (matchYear && matchYear[1]) {
+    const y = parseInt(matchYear[1], 10);
+    if (!isNaN(y) && y > 0) return y * 12;
+  }
+  return 1;
+};
+
+/**
+ * Trích xuất cấu hình tỷ lệ hoa hồng đại lý hiệu lực theo ngày giao dịch
+ */
+export const getEffectiveCommissionConfig = (
+  policies: Policy[] | undefined,
+  settings: Partial<SettingsType> | null | undefined,
+  dateStr?: string
+): EffectiveCommissionConfig => {
+  const dStr = dateStr || getLocalYYYYMMDD();
+  const defaultObj: EffectiveCommissionConfig = {
+    commBHXHNew: Number(settings?.commBHXHNew12M ?? settings?.commBHXHNew ?? settings?.comm_bhxh_new ?? 20),
+    commBHXHRenew: Number(settings?.commBHXHRenew ?? settings?.comm_bhxh_renew ?? 9),
+    commBHYTNew: Number(settings?.commBHYTNew ?? settings?.comm_bhyt_new ?? 9),
+    commBHYTRenew: Number(settings?.commBHYTRenew ?? settings?.comm_bhyt_renew ?? 5),
+    commBHXHNew1M: Number(settings?.commBHXHNew1M ?? settings?.comm_bhxh_new_1m ?? 12),
+    commBHXHNew3M: Number(settings?.commBHXHNew3M ?? settings?.comm_bhxh_new_3m ?? 15),
+    commBHXHNew6M: Number(settings?.commBHXHNew6M ?? settings?.comm_bhxh_new_6m ?? 17),
+    commBHXHNew12M: Number(settings?.commBHXHNew12M ?? settings?.comm_bhxh_new_12m ?? settings?.commBHXHNew ?? 20)
+  };
+
+  const commObjRaw = getPolicyValueForDate(policies, 'commission', dStr, defaultObj);
+  let commObj = defaultObj;
+  if (commObjRaw) {
+    if (typeof commObjRaw === 'object') commObj = { ...defaultObj, ...commObjRaw };
+    else if (typeof commObjRaw === 'string') {
+      try {
+        commObj = { ...defaultObj, ...JSON.parse(commObjRaw) };
+      } catch {
+        commObj = defaultObj;
+      }
+    }
+  }
+
+  // Kiểm tra nếu là chính sách cũ chỉ có commBHXHNew chung (không có phân loại 1M, 3M, 6M, 12M)
+  const rawObj = (typeof commObjRaw === 'object' ? commObjRaw : {}) as any;
+  const isLegacySingleRate = rawObj && rawObj.commBHXHNew1M === undefined && rawObj.comm_bhxh_new_1m === undefined &&
+    (rawObj.commBHXHNew !== undefined || rawObj.comm_bhxh_new !== undefined);
+
+  const legacyRate = isLegacySingleRate ? Number(rawObj.commBHXHNew ?? rawObj.comm_bhxh_new) : null;
+  const new12 = Number(commObj.commBHXHNew12M ?? legacyRate ?? commObj.commBHXHNew ?? 20);
+
+  return {
+    commBHXHNew: new12,
+    commBHXHRenew: Number(commObj.commBHXHRenew ?? 9),
+    commBHYTNew: Number(commObj.commBHYTNew ?? 9),
+    commBHYTRenew: Number(commObj.commBHYTRenew ?? 5),
+    commBHXHNew1M: Number(commObj.commBHXHNew1M ?? (legacyRate ?? 12)),
+    commBHXHNew3M: Number(commObj.commBHXHNew3M ?? (legacyRate ?? 15)),
+    commBHXHNew6M: Number(commObj.commBHXHNew6M ?? (legacyRate ?? 17)),
+    commBHXHNew12M: new12
+  };
+};
+
+/**
+ * Tính toán tỷ lệ hoa hồng đại lý áp dụng cho hồ sơ giao dịch.
+ * Quy định chuẩn nghiệp vụ:
+ * 1. BHXH Tăng mới: 1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%.
+ * 2. BHXH Gia hạn (đóng tiếp): 9%.
+ * 3. Đóng trước (>12T) hoặc Đóng cho những năm còn thiếu (>12T):
+ *    12 tháng đầu hưởng mức 20%, các tháng tiếp theo hưởng mức gia hạn 9%.
+ * 4. BHYT: Tăng mới 9%, Gia hạn 5% (hoặc theo chính sách cấu hình).
+ */
 export const getCommissionRateForRecord = (
   r: Partial<RecordType> | null | undefined,
   policies: Policy[] | undefined,
   settings: Partial<SettingsType> | null | undefined
 ): number => {
   const dateStr = r?.date || r?.created_at || getLocalYYYYMMDD();
-  const defaultObj = {
-    commBHXHNew: settings?.commBHXHNew || 5,
-    commBHXHRenew: settings?.commBHXHRenew || 3,
-    commBHYTNew: settings?.commBHYTNew || 5,
-    commBHYTRenew: settings?.commBHYTRenew || 3
-  };
-
-  const commObjRaw = getPolicyValueForDate(policies, 'commission', dateStr, defaultObj);
-  let commObj = defaultObj;
-  if (commObjRaw) {
-    if (typeof commObjRaw === 'object') commObj = commObjRaw;
-    else if (typeof commObjRaw === 'string') {
-      try { commObj = JSON.parse(commObjRaw); } catch { commObj = defaultObj; }
-    }
-  }
+  const config = getEffectiveCommissionConfig(policies, settings, dateStr);
 
   const actionStr = String(r?.action_type || (r as any)?.actionType || '').toLowerCase();
   const isRenew = actionStr.includes('gia hạn') || actionStr.includes('renew') || actionStr.includes('đóng tiếp') || actionStr.includes('tái tục');
 
-  if (r?.type === 'BHXH') {
-    return isRenew ? ((Number(commObj.commBHXHRenew) || 3) / 100) : ((Number(commObj.commBHXHNew) || 5) / 100);
-  } else {
-    return isRenew ? ((Number(commObj.commBHYTRenew) || 3) / 100) : ((Number(commObj.commBHYTNew) || 5) / 100);
+  if (r?.type === 'BHYT') {
+    return isRenew ? (config.commBHYTRenew / 100) : (config.commBHYTNew / 100);
   }
+
+  // BHXH Tự nguyện
+  const months = getRecordMonths(r);
+
+  // Nếu là Gia hạn thông thường (<= 12 tháng): hưởng tỷ lệ gia hạn
+  if (isRenew && months <= 12) {
+    return config.commBHXHRenew / 100;
+  }
+
+  // Trường hợp đóng trước nhiều năm (>12 tháng) hoặc đóng cho những năm còn thiếu (>12 tháng):
+  // 12 tháng đầu hưởng mức Tăng mới 12 tháng (20%), (months - 12) tháng sau hưởng mức gia hạn (9%)
+  if (months > 12) {
+    const weightedRate = (12 * config.commBHXHNew12M + (months - 12) * config.commBHXHRenew) / months;
+    return weightedRate / 100;
+  }
+
+  // BHXH Tăng mới theo phương thức đóng (<= 12 tháng)
+  if (months <= 1) return config.commBHXHNew1M / 100;
+  if (months <= 3) return config.commBHXHNew3M / 100;
+  if (months <= 6) return config.commBHXHNew6M / 100;
+  return config.commBHXHNew12M / 100;
+};
+
+/**
+ * Trả về chi tiết phân bổ hoa hồng (Breakdown) phục vụ hiển thị giải trình, tooltip và báo cáo
+ */
+export const getCommissionBreakdownForRecord = (
+  r: Partial<RecordType> | null | undefined,
+  policies: Policy[] | undefined,
+  settings: Partial<SettingsType> | null | undefined
+): CommissionBreakdown => {
+  const totalAmount = Number(r?.amount) || 0;
+  const rate = getCommissionRateForRecord(r, policies, settings);
+  const effectiveRatePct = Math.round(rate * 10000) / 100;
+  const totalCommission = Math.round(totalAmount * rate);
+
+  const months = getRecordMonths(r);
+  const isBHXH = r?.type === 'BHXH';
+
+  if (isBHXH && months > 12) {
+    const dateStr = r?.date || r?.created_at || getLocalYYYYMMDD();
+    const config = getEffectiveCommissionConfig(policies, settings, dateStr);
+    const stage1RatePct = config.commBHXHNew12M;
+    const stage2RatePct = config.commBHXHRenew;
+
+    const stage1Months = 12;
+    const stage2Months = months - 12;
+
+    const stage1Amount = Math.round((totalAmount / months) * stage1Months);
+    const stage2Amount = totalAmount - stage1Amount;
+
+    const stage1Commission = Math.round(stage1Amount * (stage1RatePct / 100));
+    const stage2Commission = Math.round(stage2Amount * (stage2RatePct / 100));
+
+    return {
+      totalAmount,
+      totalCommission: stage1Commission + stage2Commission,
+      effectiveRate: rate,
+      effectiveRatePct,
+      isMultiStage: true,
+      stage1Months,
+      stage1RatePct,
+      stage1Amount,
+      stage1Commission,
+      stage2Months,
+      stage2RatePct,
+      stage2Amount,
+      stage2Commission
+    };
+  }
+
+  return {
+    totalAmount,
+    totalCommission,
+    effectiveRate: rate,
+    effectiveRatePct,
+    isMultiStage: false,
+    stage1Months: months,
+    stage1RatePct: effectiveRatePct,
+    stage1Amount: totalAmount,
+    stage1Commission: totalCommission,
+    stage2Months: 0,
+    stage2RatePct: 0,
+    stage2Amount: 0,
+    stage2Commission: 0
+  };
 };
 
 export const getPolicyValueForDate = <T = any>(

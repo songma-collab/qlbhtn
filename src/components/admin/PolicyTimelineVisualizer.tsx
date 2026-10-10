@@ -188,17 +188,66 @@ export const PolicyTimelineVisualizer: React.FC<PolicyTimelineVisualizerProps> =
     // 1. TỶ LỆ HOA HỒNG ĐẠI LÝ (Commission)
     if (pType === 'commission' || pType === 'commission_rates') {
       const val = safeParseObject(policy.value) || {};
-      const bhxhNew = val.commBHXHNew ?? val.commBHXH ?? 0;
-      const bhxhRenew = val.commBHXHRenew ?? 0;
-      const bhytNew = val.commBHYTNew ?? val.commBHYT ?? 0;
-      const bhytRenew = val.commBHYTRenew ?? 0;
+      const hasMethodRates = val.commBHXHNew1M !== undefined || val.commBHXHNew3M !== undefined;
+      const new1M = val.commBHXHNew1M ?? 12;
+      const new3M = val.commBHXHNew3M ?? 15;
+      const new6M = val.commBHXHNew6M ?? 17;
+      const new12M = val.commBHXHNew12M ?? val.commBHXHNew ?? 20;
+      const bhxhRenew = val.commBHXHRenew ?? 9;
+      const bhytNew = val.commBHYTNew ?? val.commBHYT ?? 9;
+      const bhytRenew = val.commBHYTRenew ?? 5;
+
+      if (hasMethodRates) {
+        return (
+          <div className="space-y-2 mt-1">
+            <div className="bg-blue-50/70 border border-blue-200/70 rounded-xl p-2.5">
+              <span className="text-[10px] font-bold text-blue-800 uppercase tracking-tight block mb-1.5">
+                BHXH Tự nguyện - Tăng mới theo phương thức
+              </span>
+              <div className="grid grid-cols-4 gap-1.5 text-center">
+                <div className="bg-white/90 p-1 rounded border border-blue-200/60">
+                  <span className="text-[9px] text-gray-500 block">1 Tháng</span>
+                  <span className="text-xs sm:text-sm font-black text-blue-900">{`${new1M}%`}</span>
+                </div>
+                <div className="bg-white/90 p-1 rounded border border-blue-200/60">
+                  <span className="text-[9px] text-gray-500 block">3 Tháng</span>
+                  <span className="text-xs sm:text-sm font-black text-blue-900">{`${new3M}%`}</span>
+                </div>
+                <div className="bg-white/90 p-1 rounded border border-blue-200/60">
+                  <span className="text-[9px] text-gray-500 block">6 Tháng</span>
+                  <span className="text-xs sm:text-sm font-black text-blue-900">{`${new6M}%`}</span>
+                </div>
+                <div className="bg-white/90 p-1 rounded border border-blue-200/60">
+                  <span className="text-[9px] text-gray-500 block">12 Tháng</span>
+                  <span className="text-xs sm:text-sm font-black text-blue-900">{`${new12M}%`}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-sky-50/90 border border-sky-200/80 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] font-bold text-sky-700 uppercase tracking-tight block">BHXH Gia Hạn</span>
+                <span className="text-sm sm:text-base font-black text-sky-900">{`${bhxhRenew}%`}</span>
+              </div>
+              <div className="bg-emerald-50/90 border border-emerald-200/80 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] font-bold text-emerald-700 uppercase tracking-tight block">BHYT Mới</span>
+                <span className="text-sm sm:text-base font-black text-emerald-900">{`${bhytNew}%`}</span>
+              </div>
+              <div className="bg-teal-50/90 border border-teal-200/80 rounded-xl p-2 text-center shadow-2xs">
+                <span className="text-[10px] font-bold text-teal-700 uppercase tracking-tight block">BHYT Gia Hạn</span>
+                <span className="text-sm sm:text-base font-black text-teal-900">{`${bhytRenew}%`}</span>
+              </div>
+            </div>
+          </div>
+        );
+      }
 
       return (
         <div className="space-y-2 mt-1">
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             <div className="bg-blue-50/90 border border-blue-200/80 rounded-xl p-2.5 text-center shadow-2xs">
               <span className="text-[10px] font-bold text-blue-700 uppercase tracking-tight block">BHXH Mới</span>
-              <span className="text-base sm:text-lg font-black text-blue-900">{`${bhxhNew}%`}</span>
+              <span className="text-base sm:text-lg font-black text-blue-900">{`${new12M}%`}</span>
             </div>
             <div className="bg-sky-50/90 border border-sky-200/80 rounded-xl p-2.5 text-center shadow-2xs">
               <span className="text-[10px] font-bold text-sky-700 uppercase tracking-tight block">BHXH Gia Hạn</span>

@@ -45,10 +45,14 @@ const SystemSettings = () => {
   const [modalForm, setModalForm] = useState({
     name: '',
     valueText: '', // For single number or JSON values
-    commBHXHNew: '', // For commission object values
+    commBHXHNew: '', // For commission object values (fallback)
     commBHXHRenew: '',
     commBHYTNew: '',
     commBHYTRenew: '',
+    commBHXHNew1M: '',
+    commBHXHNew3M: '',
+    commBHXHNew6M: '',
+    commBHXHNew12M: '',
     effective_date: '',
     description: ''
   });
@@ -88,7 +92,14 @@ const SystemSettings = () => {
     if (type === 'commission') {
       try {
         const obj = typeof val === 'string' ? JSON.parse(val) : val;
-        return `BHXH Mới: ${obj.commBHXHNew || 0}%, Gia hạn: ${obj.commBHXHRenew || 0}% | BHYT Mới: ${obj.commBHYTNew || 0}%, Gia hạn: ${obj.commBHYTRenew || 0}%`;
+        const new1M = obj.commBHXHNew1M ?? 12;
+        const new3M = obj.commBHXHNew3M ?? 15;
+        const new6M = obj.commBHXHNew6M ?? 17;
+        const new12M = obj.commBHXHNew12M ?? obj.commBHXHNew ?? 20;
+        const renew = obj.commBHXHRenew ?? 9;
+        const bhytNew = obj.commBHYTNew ?? 9;
+        const bhytRenew = obj.commBHYTRenew ?? 5;
+        return `BHXH Mới: 1T (${new1M}%), 3T (${new3M}%), 6T (${new6M}%), 12T (${new12M}%) | Gia hạn: ${renew}% | BHYT: Mới ${bhytNew}%, GH ${bhytRenew}%`;
       } catch {
         return String(val);
       }
@@ -105,10 +116,14 @@ const SystemSettings = () => {
     if (type === 'cpi_index') return settings.cpiIndex ?? { "2026": 1.0, "2025": 1.0 };
     if (type === 'commission') {
       return {
-        commBHXHNew: settings.commBHXHNew ?? settings.commBHXH ?? 5,
-        commBHXHRenew: settings.commBHXHRenew ?? 3,
-        commBHYTNew: settings.commBHYTNew ?? settings.commBHYT ?? 5,
-        commBHYTRenew: settings.commBHYTRenew ?? 3
+        commBHXHNew: settings.commBHXHNew12M ?? settings.commBHXHNew ?? settings.commBHXH ?? 20,
+        commBHXHRenew: settings.commBHXHRenew ?? 9,
+        commBHYTNew: settings.commBHYTNew ?? settings.commBHYT ?? 9,
+        commBHYTRenew: settings.commBHYTRenew ?? 5,
+        commBHXHNew1M: settings.commBHXHNew1M ?? 12,
+        commBHXHNew3M: settings.commBHXHNew3M ?? 15,
+        commBHXHNew6M: settings.commBHXHNew6M ?? 17,
+        commBHXHNew12M: settings.commBHXHNew12M ?? settings.commBHXHNew ?? 20
       };
     }
     return null;
@@ -121,10 +136,14 @@ const SystemSettings = () => {
       setModalForm({
         name: 'Cài đặt Tỷ lệ Hoa hồng đại lý 2026',
         valueText: '',
-        commBHXHNew: String(fb.commBHXHNew ?? 15),
+        commBHXHNew: String(fb.commBHXHNew12M ?? fb.commBHXHNew ?? 20),
         commBHXHRenew: String(fb.commBHXHRenew ?? 9),
         commBHYTNew: String(fb.commBHYTNew ?? 9),
         commBHYTRenew: String(fb.commBHYTRenew ?? 5),
+        commBHXHNew1M: String(fb.commBHXHNew1M ?? 12),
+        commBHXHNew3M: String(fb.commBHXHNew3M ?? 15),
+        commBHXHNew6M: String(fb.commBHXHNew6M ?? 17),
+        commBHXHNew12M: String(fb.commBHXHNew12M ?? fb.commBHXHNew ?? 20),
         effective_date: new Date().toISOString().split('T')[0] ?? '',
         description: 'Cài đặt Tỷ lệ Hoa hồng đại lý'
       });
@@ -147,6 +166,10 @@ const SystemSettings = () => {
         commBHXHRenew: '',
         commBHYTNew: '',
         commBHYTRenew: '',
+        commBHXHNew1M: '',
+        commBHXHNew3M: '',
+        commBHXHNew6M: '',
+        commBHXHNew12M: '',
         effective_date: new Date().toISOString().split('T')[0] ?? '',
         description: ''
       });
@@ -159,13 +182,20 @@ const SystemSettings = () => {
     const desc = policy.description || policy.notes || '';
     if (activeTab === 'commission') {
       const val = typeof policy.value === 'string' ? JSON.parse(policy.value) : policy.value;
+      const isLegacy = val.commBHXHNew1M === undefined && val.commBHXHNew !== undefined;
+      const fallbackNew = val.commBHXHNew ?? 20;
+      const n12 = val.commBHXHNew12M ?? fallbackNew;
       setModalForm({
         name: policy.name,
         valueText: '',
-        commBHXHNew: String(val.commBHXHNew || 0),
-        commBHXHRenew: String(val.commBHXHRenew || 0),
-        commBHYTNew: String(val.commBHYTNew || 0),
-        commBHYTRenew: String(val.commBHYTRenew || 0),
+        commBHXHNew: String(n12),
+        commBHXHRenew: String(val.commBHXHRenew ?? 9),
+        commBHYTNew: String(val.commBHYTNew ?? 9),
+        commBHYTRenew: String(val.commBHYTRenew ?? 5),
+        commBHXHNew1M: String(val.commBHXHNew1M ?? (isLegacy ? fallbackNew : 12)),
+        commBHXHNew3M: String(val.commBHXHNew3M ?? (isLegacy ? fallbackNew : 15)),
+        commBHXHNew6M: String(val.commBHXHNew6M ?? (isLegacy ? fallbackNew : 17)),
+        commBHXHNew12M: String(n12),
         effective_date: policy.effective_date,
         description: desc
       });
@@ -177,6 +207,10 @@ const SystemSettings = () => {
         commBHXHRenew: '',
         commBHYTNew: '',
         commBHYTRenew: '',
+        commBHXHNew1M: '',
+        commBHXHNew3M: '',
+        commBHXHNew6M: '',
+        commBHXHNew12M: '',
         effective_date: policy.effective_date,
         description: desc
       });
@@ -195,11 +229,16 @@ const SystemSettings = () => {
     try {
       let parsedValue: any;
       if (activeTab === 'commission') {
+        const new12 = Number(modalForm.commBHXHNew12M) || Number(modalForm.commBHXHNew) || 20;
         parsedValue = {
-          commBHXHNew: Number(modalForm.commBHXHNew),
-          commBHXHRenew: Number(modalForm.commBHXHRenew),
-          commBHYTNew: Number(modalForm.commBHYTNew),
-          commBHYTRenew: Number(modalForm.commBHYTRenew)
+          commBHXHNew: new12,
+          commBHXHRenew: Number(modalForm.commBHXHRenew) || 9,
+          commBHYTNew: Number(modalForm.commBHYTNew) || 9,
+          commBHYTRenew: Number(modalForm.commBHYTRenew) || 5,
+          commBHXHNew1M: Number(modalForm.commBHXHNew1M) || 12,
+          commBHXHNew3M: Number(modalForm.commBHXHNew3M) || 15,
+          commBHXHNew6M: Number(modalForm.commBHXHNew6M) || 17,
+          commBHXHNew12M: new12
         };
       } else if (activeTab === 'cpi_index') {
         try {
@@ -509,23 +548,62 @@ const SystemSettings = () => {
                           {/* COMMISSION VIEW */}
                           {activeTab === 'commission' && (() => {
                             const obj = typeof policy.value === 'string' ? JSON.parse(policy.value) : policy.value;
+                            const new1M = obj.commBHXHNew1M ?? 12;
+                            const new3M = obj.commBHXHNew3M ?? 15;
+                            const new6M = obj.commBHXHNew6M ?? 17;
+                            const new12M = obj.commBHXHNew12M ?? obj.commBHXHNew ?? 20;
+                            const renew = obj.commBHXHRenew ?? 9;
+                            const bhytNew = obj.commBHYTNew ?? 9;
+                            const bhytRenew = obj.commBHYTRenew ?? 5;
                             return (
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 mt-1.5 bg-slate-50 p-3 rounded-xl border border-slate-100 max-w-xl text-xs font-semibold">
-                                <div className="text-gray-700">
-                                  Hoa hồng BHXH Mới:{' '}
-                                  <span className="text-blue-600 font-bold">{obj.commBHXHNew || 0}%</span>
+                              <div className="mt-2 space-y-2 max-w-2xl">
+                                {/* KHỐI 1: BHXH TĂNG MỚI */}
+                                <div className="bg-blue-50/80 border border-blue-100 p-2.5 rounded-xl">
+                                  <div className="text-[11px] font-bold text-blue-900 uppercase tracking-wide mb-1.5 flex items-center justify-between">
+                                    <span>BHXH Tự nguyện - Tăng mới theo phương thức</span>
+                                    <span className="text-[10px] text-blue-600 font-normal">Tự động áp dụng theo số tháng</span>
+                                  </div>
+                                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                                    <div className="bg-white p-1.5 rounded-lg border border-blue-200/60 text-center shadow-2xs">
+                                      <span className="text-[10px] text-gray-500 block">Đóng 1 tháng</span>
+                                      <span className="text-blue-700 font-black text-sm">{new1M}%</span>
+                                    </div>
+                                    <div className="bg-white p-1.5 rounded-lg border border-blue-200/60 text-center shadow-2xs">
+                                      <span className="text-[10px] text-gray-500 block">Đóng 3 tháng</span>
+                                      <span className="text-blue-700 font-black text-sm">{new3M}%</span>
+                                    </div>
+                                    <div className="bg-white p-1.5 rounded-lg border border-blue-200/60 text-center shadow-2xs">
+                                      <span className="text-[10px] text-gray-500 block">Đóng 6 tháng</span>
+                                      <span className="text-blue-700 font-black text-sm">{new6M}%</span>
+                                    </div>
+                                    <div className="bg-white p-1.5 rounded-lg border border-blue-200/60 text-center shadow-2xs">
+                                      <span className="text-[10px] text-gray-500 block">Đóng 12 tháng</span>
+                                      <span className="text-blue-700 font-black text-sm">{new12M}%</span>
+                                    </div>
+                                  </div>
                                 </div>
-                                <div className="text-gray-700">
-                                  Hoa hồng BHXH Gia hạn:{' '}
-                                  <span className="text-blue-600 font-bold">{obj.commBHXHRenew || 0}%</span>
-                                </div>
-                                <div className="text-gray-700">
-                                  Hoa hồng BHYT Mới:{' '}
-                                  <span className="text-emerald-600 font-bold">{obj.commBHYTNew || 0}%</span>
-                                </div>
-                                <div className="text-gray-700">
-                                  Hoa hồng BHYT Gia hạn:{' '}
-                                  <span className="text-emerald-600 font-bold">{obj.commBHYTRenew || 0}%</span>
+
+                                {/* KHỐI 2: BHXH GIA HẠN & BHYT */}
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                                  <div className="bg-sky-50/80 border border-sky-100 p-2.5 rounded-xl">
+                                    <div className="text-[11px] font-bold text-sky-900 uppercase tracking-wide mb-1 flex items-center justify-between">
+                                      <span>BHXH Gia hạn & Đóng trước</span>
+                                      <span className="text-sky-700 font-bold">{renew}%</span>
+                                    </div>
+                                    <p className="text-[10px] text-sky-800 leading-relaxed font-normal">
+                                      Đóng trước &gt; 12 tháng hoặc đóng năm còn thiếu: 12 tháng đầu hưởng <span className="font-bold text-sky-900">{new12M}%</span>, các tháng sau hưởng <span className="font-bold text-sky-900">{renew}%</span>.
+                                    </p>
+                                  </div>
+
+                                  <div className="bg-emerald-50/80 border border-emerald-100 p-2.5 rounded-xl">
+                                    <div className="text-[11px] font-bold text-emerald-900 uppercase tracking-wide mb-1">
+                                      BHYT Hộ gia đình
+                                    </div>
+                                    <div className="flex items-center justify-between text-xs font-semibold text-gray-700 mt-1">
+                                      <div>Tăng mới: <span className="text-emerald-700 font-black">{bhytNew}%</span></div>
+                                      <div>Gia hạn: <span className="text-emerald-700 font-black">{bhytRenew}%</span></div>
+                                    </div>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -657,51 +735,126 @@ const SystemSettings = () => {
               {/* COMMISSION INPUTS */}
               {activeTab === 'commission' && (
                 <div className="space-y-4">
-                  <h5 className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b border-gray-100 pb-1">Tỷ lệ Hoa hồng (%)</h5>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">BHXH Mới (%)</label>
-                      <input 
-                        type="number" 
-                        step="0.1"
-                        value={modalForm.commBHXHNew}
-                        onChange={e => setModalForm(prev => ({ ...prev, commBHXHNew: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-semibold"
-                        required
-                      />
+                  {/* KHỐI 1: BHXH TĂNG MỚI THEO PHƯƠNG THỨC */}
+                  <div className="bg-blue-50/60 p-3.5 rounded-xl border border-blue-100 space-y-3">
+                    <div className="flex items-center justify-between border-b border-blue-100 pb-1.5">
+                      <h5 className="text-xs font-bold text-blue-900 uppercase tracking-wider">
+                        1. BHXH Tự nguyện - Tăng mới theo phương thức
+                      </h5>
+                      <span className="text-[10px] text-blue-700 font-semibold bg-blue-100/80 px-2 py-0.5 rounded-full">
+                        Phân loại theo kỳ đóng
+                      </span>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">BHXH Gia hạn (%)</label>
-                      <input 
-                        type="number" 
-                        step="0.1"
-                        value={modalForm.commBHXHRenew}
-                        onChange={e => setModalForm(prev => ({ ...prev, commBHXHRenew: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-semibold"
-                        required
-                      />
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Đóng 1 tháng (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHXHNew1M}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHXHNew1M: e.target.value }))}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-bold text-blue-900 bg-white"
+                          required
+                          placeholder="12"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Đóng 3 tháng (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHXHNew3M}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHXHNew3M: e.target.value }))}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-bold text-blue-900 bg-white"
+                          required
+                          placeholder="15"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Đóng 6 tháng (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHXHNew6M}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHXHNew6M: e.target.value }))}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-bold text-blue-900 bg-white"
+                          required
+                          placeholder="17"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Đóng 12 tháng (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHXHNew12M}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHXHNew12M: e.target.value, commBHXHNew: e.target.value }))}
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-bold text-blue-900 bg-white"
+                          required
+                          placeholder="20"
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">BHYT Mới (%)</label>
-                      <input 
-                        type="number" 
-                        step="0.1"
-                        value={modalForm.commBHYTNew}
-                        onChange={e => setModalForm(prev => ({ ...prev, commBHYTNew: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-semibold"
-                        required
-                      />
+                  </div>
+
+                  {/* KHỐI 2: BHXH GIA HẠN & QUY TẮC ĐÓNG TRƯỚC */}
+                  <div className="bg-sky-50/60 p-3.5 rounded-xl border border-sky-100 space-y-3">
+                    <div className="flex items-center justify-between border-b border-sky-100 pb-1.5">
+                      <h5 className="text-xs font-bold text-sky-900 uppercase tracking-wider">
+                        2. BHXH Tự nguyện - Gia hạn & Đóng trước
+                      </h5>
                     </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-gray-600 mb-1">BHYT Gia hạn (%)</label>
-                      <input 
-                        type="number" 
-                        step="0.1"
-                        value={modalForm.commBHYTRenew}
-                        onChange={e => setModalForm(prev => ({ ...prev, commBHYTRenew: e.target.value }))}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-semibold"
-                        required
-                      />
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">Gia hạn (đóng tiếp) (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHXHRenew}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHXHRenew: e.target.value }))}
+                          className="w-full px-3 py-2 border border-sky-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition text-sm font-bold text-sky-900 bg-white"
+                          required
+                          placeholder="9"
+                        />
+                      </div>
+                      <div className="sm:col-span-2 text-[11px] text-sky-800 bg-sky-100/60 p-2.5 rounded-lg border border-sky-200/50 leading-relaxed font-medium">
+                        💡 <span className="font-bold">Quy tắc tự động đóng trước / năm còn thiếu (&gt; 12 tháng):</span> 12 tháng đầu tính tăng mới ({modalForm.commBHXHNew12M || 20}%), các tháng sau tính gia hạn ({modalForm.commBHXHRenew || 9}%).
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* KHỐI 3: BHYT HỘ GIA ĐÌNH */}
+                  <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-100 space-y-3">
+                    <div className="flex items-center justify-between border-b border-emerald-100 pb-1.5">
+                      <h5 className="text-xs font-bold text-emerald-900 uppercase tracking-wider">
+                        3. BHYT Hộ gia đình
+                      </h5>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">BHYT Tăng mới (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHYTNew}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHYTNew: e.target.value }))}
+                          className="w-full px-3 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-bold text-emerald-900 bg-white"
+                          required
+                          placeholder="9"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-gray-700 mb-1">BHYT Gia hạn (%)</label>
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          value={modalForm.commBHYTRenew}
+                          onChange={e => setModalForm(prev => ({ ...prev, commBHYTRenew: e.target.value }))}
+                          className="w-full px-3 py-2 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none transition text-sm font-bold text-emerald-900 bg-white"
+                          required
+                          placeholder="5"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

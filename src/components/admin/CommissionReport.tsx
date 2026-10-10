@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney } from '../../utils/helpers';
-import { getCommissionRateForRecord } from '../../utils/calculations';
+import { getCommissionRateForRecord, getCommissionBreakdownForRecord } from '../../utils/calculations';
 import { FileDown, Percent } from 'lucide-react';
 
 const CommissionReport = () => {
@@ -99,8 +99,21 @@ const CommissionReport = () => {
 
           const isRenewRec = (r: any) => String(r.action_type || r.actionType || '').toLowerCase().includes('gia hạn');
 
-          const bhxhNewComm = sBhxhRecords.filter(r => !isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
-          const bhxhRenewComm = sBhxhRecords.filter(r => isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
+          let bhxhNewComm = 0;
+          let bhxhRenewComm = 0;
+
+          sBhxhRecords.forEach(r => {
+            const b = getCommissionBreakdownForRecord(r, policies, settings);
+            if (b.isMultiStage) {
+              bhxhNewComm += b.stage1Commission;
+              bhxhRenewComm += b.stage2Commission;
+            } else if (isRenewRec(r)) {
+              bhxhRenewComm += b.totalCommission;
+            } else {
+              bhxhNewComm += b.totalCommission;
+            }
+          });
+
           const bhytNewComm = sBhytRecords.filter(r => !isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
           const bhytRenewComm = sBhytRecords.filter(r => isRenewRec(r)).reduce((sum, r) => sum + ((r.amount || 0) * getCommissionRateForRecord(r, policies, settings)), 0);
           const sComm = bhxhNewComm + bhxhRenewComm + bhytNewComm + bhytRenewComm;
