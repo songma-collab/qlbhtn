@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest } from '../../utils/helpers';
 import { recordService, auditService } from '../../services';
 import {
   Users,
@@ -109,18 +109,7 @@ const DispatchOperations: React.FC = () => {
     });
 
     if (matching.length > 0) {
-      matching.sort((a, b) => {
-        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-        if (nextB !== nextA) return nextB - nextA;
-        const toMA = a.to_month || (a as any).toMonth || '';
-        const toMB = b.to_month || (b as any).toMonth || '';
-        if (toMB !== toMA) return toMB.localeCompare(toMA);
-        const dateA = new Date(a.date || a.created_at || 0).getTime();
-        const dateB = new Date(b.date || b.created_at || 0).getTime();
-        if (dateB !== dateA) return dateB - dateA;
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
-      });
+      matching.sort(compareRecordsByContractLatest);
     }
 
     const fullRecord = matching[0] || {

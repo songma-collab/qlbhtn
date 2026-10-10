@@ -11,7 +11,9 @@ import {
   getHistoryForCustomer, 
   formatTitleCase, 
   groupRecordsByCustomer, 
-  getOldBhxh10 
+  getOldBhxh10,
+  compareRecordsByContractLatest,
+  normalizeMethodValue
 } from '../../utils/helpers';
 import { 
   maskCCCD, 
@@ -286,18 +288,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
       if (matchedRecs.length === 0) return c;
 
-      const sortedContract = [...matchedRecs].sort((a, b) => {
-        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-        if (nextB !== nextA) return nextB - nextA;
-        const toMA = a.to_month || (a as any).toMonth || '';
-        const toMB = b.to_month || (b as any).toMonth || '';
-        if (toMB !== toMA) return toMB.localeCompare(toMA);
-        const dateA = new Date(a.date || a.created_at || 0).getTime();
-        const dateB = new Date(b.date || b.created_at || 0).getTime();
-        if (dateB !== dateA) return dateB - dateA;
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
-      });
+      const sortedContract = [...matchedRecs].sort(compareRecordsByContractLatest);
       const latestContract = sortedContract[0];
       if (!latestContract) return c;
 
@@ -414,18 +405,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       });
       if (matched.length > 0) {
         // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
-        const sortedByContract = [...matched].sort((a, b) => {
-          const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-          const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-          if (nextB !== nextA) return nextB - nextA;
-          const toMA = a.to_month || (a as any).toMonth || '';
-          const toMB = b.to_month || (b as any).toMonth || '';
-          if (toMB !== toMA) return toMB.localeCompare(toMA);
-          const dateA = new Date(a.date || a.created_at || 0).getTime();
-          const dateB = new Date(b.date || b.created_at || 0).getTime();
-          if (dateB !== dateA) return dateB - dateA;
-          return (Number(b.id) || 0) - (Number(a.id) || 0);
-        });
+        const sortedByContract = [...matched].sort(compareRecordsByContractLatest);
         const newestByContract = sortedByContract[0];
 
         // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
@@ -471,16 +451,16 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
             recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
             recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
             // CÁC TRƯỜNG HỢP ĐỒNG & TÀI CHÍNH: BẮT BUỘC ƯU TIÊN newestByContract (giao dịch thực tế)
-            income: newestByContract.income ?? record.income,
+            income: newestByContract.income != null ? newestByContract.income : record.income,
             method: newestByContract.method || record.method,
             fromMonth: newestByContract.from_month || (newestByContract as any).fromMonth || record.fromMonth || (record as any).frommonth || record.from_month,
             toMonth: newestByContract.to_month || (newestByContract as any).toMonth || record.toMonth || (record as any).tomonth || record.to_month,
             nextPayment: newestByContract.next_payment || (newestByContract as any).nextPayment || record.nextPayment || (record as any).next_payment,
-            months: newestByContract.months ?? record.months,
-            wage: newestByContract.wage ?? record.wage,
+            months: newestByContract.months != null ? newestByContract.months : record.months,
+            wage: newestByContract.wage != null ? newestByContract.wage : record.wage,
             nnSupportPct: newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct ?? record.nnSupportPct ?? (record as any).nn_support_pct,
             dpSupportPct: newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct ?? record.dpSupportPct ?? (record as any).dp_support_pct,
-            amount: newestByContract.amount ?? record.amount,
+            amount: newestByContract.amount != null ? newestByContract.amount : record.amount,
             paymentStatus: newestByContract.payment_status || (newestByContract as any).paymentStatus || record.paymentStatus || record.payment_status,
             members: (record.members && record.members.length > 0) ? record.members : (newestByUpdate.members || newestByContract.members)
           };

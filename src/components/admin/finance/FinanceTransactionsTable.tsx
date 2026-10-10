@@ -172,7 +172,9 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                     </td>
                     <td className="p-4">
                       <p className="font-semibold text-slate-800 text-sm">{r.name}</p>
-                      <p className="text-[11px] font-mono text-slate-500">{r.bhxh || r.cccd || r.phone}</p>
+                      <p className="text-[11px] font-mono text-slate-500" title={r.cccd ? `CCCD: ${r.cccd}` : (r.bhxh ? `Mã BHXH: ${r.bhxh}` : '')}>
+                        {r.cccd || (r as any).citizenId || r.bhxh || r.phone || '---'}
+                      </p>
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col items-start gap-1">

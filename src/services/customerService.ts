@@ -5,6 +5,7 @@
 import { supabase } from '../lib/supabase';
 import { CustomerType, normalizeLegacyPayload } from '../context/types';
 import { withRetry } from '../utils/networkHelper';
+import { compareRecordsByContractLatest } from '../utils/helpers';
 
 export const customerService = {
   /**
@@ -265,18 +266,7 @@ export const customerService = {
       }
 
       // Sắp xếp tìm hợp đồng có kỳ hạn mới nhất
-      const sortedContract = [...activeRecords].sort((a, b) => {
-        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-        if (nextB !== nextA) return nextB - nextA;
-        const toMA = a.to_month || (a as any).toMonth || '';
-        const toMB = b.to_month || (b as any).toMonth || '';
-        if (toMB !== toMA) return toMB.localeCompare(toMA);
-        const dateA = new Date(a.date || a.created_at || 0).getTime();
-        const dateB = new Date(b.date || b.created_at || 0).getTime();
-        if (dateB !== dateA) return dateB - dateA;
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
-      });
+      const sortedContract = [...activeRecords].sort(compareRecordsByContractLatest);
       const latestContract = sortedContract[0];
 
       // Sắp xếp tìm thông tin cập nhật gần nhất

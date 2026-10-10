@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RecordType } from '../context/types';
-import { calculateNextRenewalMonth } from '../utils/dateUtils';
+import { calculateNextRenewalMonth, compareRecordsByContractLatest } from '../utils/dateUtils';
 
 describe('Kiểm thử Đồng bộ Khách hàng khi Xóa Giao dịch Gia hạn (Test Case: Lèo Thị Thư)', () => {
   it('Khi xóa giao dịch gia hạn phát sinh (04/2026-06/2026), hợp đồng và danh bạ phải tự động phục hồi về đợt đóng hợp lệ trước đó (01/2026-03/2026, Đã thu tiền)', () => {
@@ -62,15 +62,7 @@ describe('Kiểm thử Đồng bộ Khách hàng khi Xóa Giao dịch Gia hạn 
 
     expect(matchedRecs.length).toBe(1);
 
-    const sortedContract = [...matchedRecs].sort((a, b) => {
-      const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-      const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-      if (nextB !== nextA) return nextB - nextA;
-      const toMA = a.to_month || (a as any).toMonth || '';
-      const toMB = b.to_month || (b as any).toMonth || '';
-      if (toMB !== toMA) return toMB.localeCompare(toMA);
-      return (Number(b.id) || 0) - (Number(a.id) || 0);
-    });
+    const sortedContract = [...matchedRecs].sort(compareRecordsByContractLatest);
 
     const latestContract = sortedContract[0];
     expect(latestContract).toBeDefined();

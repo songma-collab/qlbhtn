@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { groupRecordsByCustomer } from '../utils/helpers';
+import { groupRecordsByCustomer, compareRecordsByContractLatest } from '../utils/helpers';
 import { classifyRenewalRecords } from '../utils/renewalDispatchHelper';
 import { calculateNextRenewalMonth } from '../utils/dateStandardHelper';
 import { RecordType } from '../context/types';
@@ -99,15 +99,7 @@ describe('Kiểm thử Toàn vẹn Vòng đời Khách hàng & Chu trình Gia h�
     const cleanCode = '014090001234';
     const activeRecords = history
       .filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy')
-      .sort((a, b) => {
-        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-        if (nextB !== nextA) return nextB - nextA;
-        const toMA = a.to_month || (a as any).toMonth || '';
-        const toMB = b.to_month || (b as any).toMonth || '';
-        if (toMB !== toMA) return toMB.localeCompare(toMA);
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
-      });
+      .sort(compareRecordsByContractLatest);
 
     const matchedLatest = activeRecords.find(r => r.cccd === cleanCode);
     expect(matchedLatest).toBeDefined();

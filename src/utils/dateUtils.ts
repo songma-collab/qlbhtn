@@ -479,6 +479,212 @@ export const calculateNextPaymentFromToMonth = (
   return getLocalYYYYMMDD(fallback);
 };
 
+/**
+ * getAbsoluteMonthIndex:
+ * Trả về chỉ số tháng tuyệt đối (year * 12 + month) cho một chuỗi kỳ (YYYY-MM hoặc MM/YYYY hoặc Date)
+ */
+export const getAbsoluteMonthIndex = (monthStr?: string | null): number => {
+  if (!monthStr || typeof monthStr !== 'string') return 0;
+  const { month, year } = parseMonthAndYear(monthStr);
+  if (year && month) return year * 12 + month;
+  return 0;
+};
+
+/**
+ * getSafeTimestamp:
+ * Trả về timestamp chuẩn an toàn không bị NaN từ bất kỳ định dạng ngày nào (YYYY-MM-DD, DD/MM/YYYY, ISO, Date)
+ */
+export const getSafeTimestamp = (dateVal?: any): number => {
+  if (!dateVal) return 0;
+  if (dateVal instanceof Date) return isNaN(dateVal.getTime()) ? 0 : dateVal.getTime();
+  if (typeof dateVal === 'number') return isNaN(dateVal) ? 0 : dateVal;
+  if (typeof dateVal === 'string') {
+    const s = dateVal.trim();
+    if (!s) return 0;
+    if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
+      const parts = s.split('/');
+      const d = parseInt(parts[0], 10);
+      const m = parseInt(parts[1], 10) - 1;
+      const y = parseInt(parts[2], 10);
+      const dt = new Date(y, m, d);
+      return isNaN(dt.getTime()) ? 0 : dt.getTime();
+    }
+    const t = new Date(s).getTime();
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
+};
+
+/**
+ * getRecordEndMonthIndex:
+ * Trả về chỉ số tháng kết thúc kỳ đóng thực tế của một hợp đồng (year * 12 + month)
+ */
+export const getRecordEndMonthIndex = (r: any): number => {
+  if (!r) return 0;
+  const toM = r.to_month || r.toMonth || (r as any).tomonth;
+  if (toM) {
+    const idx = getAbsoluteMonthIndex(toM);
+    if (idx > 0) return idx;
+  }
+  const nextP = r.next_payment || r.nextPayment;
+  if (nextP) {
+    const { month, year } = parseMonthAndYear(null, nextP);
+    if (year && month) return year * 12 + month - 1;
+  }
+  const fromM = r.from_month || r.fromMonth || (r as any).frommonth;
+  if (fromM) {
+    const fromIdx = getAbsoluteMonthIndex(fromM);
+    if (fromIdx > 0) {
+      const mCount = Number(r.months) || 1;
+      return fromIdx + mCount - 1;
+    }
+  }
+  const d = r.date || r.created_at;
+  if (d) {
+    const { month, year } = parseMonthAndYear(null, d);
+    if (year && month) return year * 12 + month;
+  }
+  return 0;
+};
+
+/**
+ * compareRecordsByContractLatest:
+ * Hàm sắp xếp chuẩn xác 100% tìm bản ghi hợp đồng mới nhất theo thời gian đóng thực tế.
+ * 1. Ưu tiên kỳ kết thúc đóng to_month lớn hơn (năm sau > năm trước, tháng sau > tháng trước).
+ * 2. Ưu tiên hợp đồng đã thu tiền (payment_status === 'Đã thu tiền') so với bản ghi chờ thanh toán/nháp.
+ * 3. Hạn nộp tiếp theo (next_payment) muộn hơn.
+ * 4. Kỳ bắt đầu (from_month) muộn hơn.
+ * 5. Thời điểm cập nhật/lập (updated_at, date, created_at) gần nhất.
+ * 6. ID lớn hơn.
+ */
+export const compareRecordsByContractLatest = (a: any, b: any): number => {
+  if (!a && !b) return 0;
+  if (!a) return 1;
+  if (!b) return -1;
+
+  // 1. Trạng thái thanh toán: Tuyệt đối ưu tiên hợp đồng đã hoàn tất đóng tiền ('Đã thu tiền')
+  const isPaidA = (a.payment_status || a.paymentStatus) === 'Đã thu tiền';
+  const isPaidB = (b.payment_status || b.paymentStatus) === 'Đã thu tiền';
+  if (isPaidB !== isPaidA) return isPaidB ? 1 : -1;
+
+  // 2. Kỳ kết thúc đóng to_month (toán học theo năm và tháng tuyệt đối)
+  const endA = getRecordEndMonthIndex(a);
+  const endB = getRecordEndMonthIndex(b);
+  if (endB !== endA) return endB - endA;
+
+  // 3. Hạn nộp tiếp theo next_payment
+  const nextA = getSafeTimestamp(a.next_payment || a.nextPayment);
+  const nextB = getSafeTimestamp(b.next_payment || b.nextPayment);
+  if (nextB !== nextA) return nextB - nextA;
+
+  // 4. Kỳ bắt đầu from_month
+  const fromA = getAbsoluteMonthIndex(a.from_month || a.fromMonth || (a as any).frommonth);
+  const fromB = getAbsoluteMonthIndex(b.from_month || b.fromMonth || (b as any).frommonth);
+  if (fromB !== fromA) return fromB - fromA;
+
+  // 5. Thời điểm cập nhật / lập
+  const dateA = getSafeTimestamp(a.updated_at || a.date || a.created_at);
+  const dateB = getSafeTimestamp(b.updated_at || b.date || b.created_at);
+  if (dateB !== dateA) return dateB - dateA;
+
+  // 6. ID bản ghi
+  return (Number(b.id) || 0) - (Number(a.id) || 0);
+};
+
+/**
+ * normalizeMethodValue:
+ * Chuẩn hóa giá trị phương thức đóng thành mã value dùng cho select box trong UI ('1', '3', '6', '12', 'pre_24', ...)
+ */
+export const normalizeMethodValue = (method?: any, months?: any): string => {
+  const mStr = String(method || '').trim();
+  
+  if (['1', '3', '6', '12', 'pre_24', 'pre_36', 'pre_48', 'pre_60', 'post_custom'].includes(mStr)) {
+    return mStr;
+  }
+  
+  const methodMap: Record<string, string> = {
+    'Đóng hằng tháng': '1',
+    'Đóng hàng tháng': '1',
+    'Hằng tháng': '1',
+    'Hàng tháng': '1',
+    '1 tháng': '1',
+    '01 tháng': '1',
+    'Đóng 3 tháng': '3',
+    '3 tháng': '3',
+    '03 tháng': '3',
+    'Đóng 6 tháng': '6',
+    '6 tháng': '6',
+    '06 tháng': '6',
+    'Đóng 12 tháng': '12',
+    '12 tháng': '12',
+    '1 năm': '12',
+    'Đóng trước 2 năm': 'pre_24',
+    '2 năm': 'pre_24',
+    '24 tháng': 'pre_24',
+    'Đóng trước 3 năm': 'pre_36',
+    '3 năm': 'pre_36',
+    '36 tháng': 'pre_36',
+    'Đóng trước 4 năm': 'pre_48',
+    '4 năm': 'pre_48',
+    '48 tháng': 'pre_48',
+    'Đóng trước 5 năm': 'pre_60',
+    '5 năm': 'pre_60',
+    '60 tháng': 'pre_60',
+    'Đóng 1 lần để nghỉ hưu': 'post_custom',
+    'Đóng 1 lần cho những năm còn thiếu': 'post_custom',
+    'Đóng 1 lần': 'post_custom'
+  };
+
+  if (methodMap[mStr]) return methodMap[mStr];
+
+  const lower = mStr.toLowerCase();
+  if (lower.includes('nghỉ hưu') || lower.includes('còn thiếu') || lower.includes('1 lần')) {
+    return 'post_custom';
+  }
+  if (lower.includes('5 năm') || lower.includes('60 tháng')) return 'pre_60';
+  if (lower.includes('4 năm') || lower.includes('48 tháng')) return 'pre_48';
+  if (lower.includes('3 năm') || lower.includes('36 tháng')) return 'pre_36';
+  if (lower.includes('2 năm') || lower.includes('24 tháng')) return 'pre_24';
+  if (lower.includes('12 tháng') || lower.includes('1 năm')) return '12';
+  if (lower.includes('6 tháng')) return '6';
+  if (lower.includes('3 tháng')) return '3';
+  if (lower.includes('hằng tháng') || lower.includes('hàng tháng') || lower.includes('1 tháng')) return '1';
+
+  const numMonths = Number(months);
+  if (!isNaN(numMonths) && numMonths > 0) {
+    if (numMonths === 3) return '3';
+    if (numMonths === 6) return '6';
+    if (numMonths === 12) return '12';
+    if (numMonths === 24) return 'pre_24';
+    if (numMonths === 36) return 'pre_36';
+    if (numMonths === 48) return 'pre_48';
+    if (numMonths === 60) return 'pre_60';
+    if (numMonths > 12) return 'post_custom';
+    return '1';
+  }
+
+  return '1';
+};
+
+/**
+ * getMethodLabelFromValue:
+ * Trả về nhãn tiếng Việt từ mã phương thức đóng ('1', '3', '6', '12', ...)
+ */
+export const getMethodLabelFromValue = (val: string): string => {
+  const labelMap: Record<string, string> = {
+    '1': 'Đóng hằng tháng',
+    '3': 'Đóng 3 tháng',
+    '6': 'Đóng 6 tháng',
+    '12': 'Đóng 12 tháng',
+    'pre_24': 'Đóng trước 2 năm',
+    'pre_36': 'Đóng trước 3 năm',
+    'pre_48': 'Đóng trước 4 năm',
+    'pre_60': 'Đóng trước 5 năm',
+    'post_custom': 'Đóng 1 lần để nghỉ hưu'
+  };
+  return labelMap[val] || 'Đóng hằng tháng';
+};
+
 // ==========================================
 // 4. INPUT MASK HELPERS (MẶT NẠ NHẬP LIỆU FORM)
 // ==========================================

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest } from '../../utils/helpers';
 import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -233,32 +233,21 @@ const PredictiveAnalytics: React.FC = () => {
         return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
       });
       if (matched.length > 0) {
-        matched.sort((a, b) => {
-          const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-          const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-          if (nextB !== nextA) return nextB - nextA;
-          const toMA = a.to_month || (a as any).toMonth || '';
-          const toMB = b.to_month || (b as any).toMonth || '';
-          if (toMB !== toMA) return toMB.localeCompare(toMA);
-          const dateA = new Date(a.date || a.created_at || 0).getTime();
-          const dateB = new Date(b.date || b.created_at || 0).getTime();
-          if (dateB !== dateA) return dateB - dateA;
-          return (Number(b.id) || 0) - (Number(a.id) || 0);
-        });
+        matched.sort(compareRecordsByContractLatest);
         const newest = matched[0];
         if (newest) {
           fullRecord = {
             ...newest,
             ...customer,
-            income: customer.income ?? newest.income,
-            method: customer.method || newest.method,
-            fromMonth: customer.fromMonth || (customer as any).frommonth || customer.from_month || newest.from_month || (newest as any).fromMonth,
-            toMonth: customer.toMonth || (customer as any).tomonth || customer.to_month || newest.to_month || (newest as any).toMonth,
-            nextPayment: customer.nextPayment || (customer as any).next_payment || newest.next_payment || (newest as any).nextPayment,
-            months: customer.months ?? newest.months,
-            wage: customer.wage ?? newest.wage,
-            nnSupportPct: customer.nnSupportPct ?? customer.nn_support_pct ?? newest.nn_support_pct ?? (newest as any).nnSupportPct,
-            dpSupportPct: customer.dpSupportPct ?? customer.dp_support_pct ?? newest.dp_support_pct ?? (newest as any).dpSupportPct
+            income: (newest.income && Number(newest.income) > 0) ? newest.income : customer.income,
+            method: newest.method || customer.method,
+            fromMonth: newest.from_month || (newest as any).fromMonth || customer.fromMonth || (customer as any).frommonth || customer.from_month,
+            toMonth: newest.to_month || (newest as any).toMonth || customer.toMonth || (customer as any).tomonth || customer.to_month,
+            nextPayment: newest.next_payment || (newest as any).nextPayment || customer.nextPayment || (customer as any).next_payment,
+            months: (newest.months && Number(newest.months) > 0) ? newest.months : customer.months,
+            wage: newest.wage ?? customer.wage,
+            nnSupportPct: newest.nn_support_pct ?? (newest as any).nnSupportPct ?? customer.nnSupportPct ?? customer.nn_support_pct,
+            dpSupportPct: newest.dp_support_pct ?? (newest as any).dpSupportPct ?? customer.dpSupportPct ?? customer.dp_support_pct
           };
         }
       }

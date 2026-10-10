@@ -493,8 +493,9 @@ export const getCustomerPreviousBHXHMonths = (
     // Loại trừ bản ghi đang cập nhật nếu có
     if (excludeRecordId != null && String(r.id) === String(excludeRecordId)) continue;
 
-    // Loại trừ các bản ghi đã hủy hoặc bút toán điều chỉnh âm
-    if (r.paymentStatus === 'Đã hủy' || r.status === 'Đã hủy' || r.isAdjustment) continue;
+    // Loại trừ các bản ghi đã hủy, thoái thu hoặc chưa thanh toán (chờ thu tiền / chờ thanh toán)
+    const pStatus = r.paymentStatus || r.payment_status;
+    if (pStatus === 'Đã hủy' || r.status === 'Đã hủy' || pStatus === 'Đã thoái thu' || pStatus === 'Chờ thu tiền' || pStatus === 'Chờ thanh toán' || r.isAdjustment) continue;
 
     const recCccd = (r.cccd || r.citizenId || '').trim();
     const recBhxh = (r.bhxh || r.bhxhCode || r.old_bhxh || r.oldBhxh || r.bhxhCu || '').trim();

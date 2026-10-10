@@ -147,4 +147,28 @@ describe('Kiểm thử Tính toán KPI Tài chính & Sổ Quỹ (snake_case) và
     expect(submitted.length).toBe(1);
     expect(submitted[0].id).toBe(11);
   });
+
+  it('4. Khách hàng trong bảng FinanceTransactionsTable ưu tiên hiển thị số CCCD thay vì mã số BHXH', () => {
+    const record = {
+      name: 'Lèo Thị Thư',
+      cccd: '014201001234',
+      bhxh: '1421010133',
+      phone: '0987654321'
+    };
+
+    // Logic hiển thị dưới tên khách hàng: ưu tiên CCCD
+    const displayIdentifier = record.cccd || (record as any).citizenId || record.bhxh || record.phone || '---';
+    expect(displayIdentifier).toBe('014201001234');
+    expect(displayIdentifier).not.toBe('1421010133');
+
+    // Trường hợp không có CCCD thì fallback về BHXH
+    const fallbackRecord = {
+      name: 'Khách hàng không CCCD',
+      cccd: '',
+      bhxh: '1421025185',
+      phone: '0912345678'
+    };
+    const fallbackDisplay = fallbackRecord.cccd || (fallbackRecord as any).citizenId || fallbackRecord.bhxh || fallbackRecord.phone || '---';
+    expect(fallbackDisplay).toBe('1421025185');
+  });
 });

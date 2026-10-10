@@ -2,7 +2,19 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 import { CONSTANTS } from '../../utils/constants';
-import { formatDateInput, parseDateISO, parseMonthISO, dateISOToVN, monthISOToVN, formatMonthVN, getLocalYYYYMMDD, formatTitleCase } from '../../utils/helpers';
+import { 
+  formatDateInput, 
+  parseDateISO, 
+  parseMonthISO, 
+  dateISOToVN, 
+  monthISOToVN, 
+  formatMonthVN, 
+  getLocalYYYYMMDD, 
+  formatTitleCase,
+  compareRecordsByContractLatest,
+  normalizeMethodValue,
+  getMethodLabelFromValue
+} from '../../utils/helpers';
 import { calculateNextRenewalMonth, toUIDate, toUIMonth, toDbDate, toDbMonth, parseMonthAndYear } from '../../utils/dateStandardHelper';
 import { 
   formatDateInputMask, 
@@ -263,18 +275,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
 
         if (matched.length > 0) {
           // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
-          const sortedByContract = [...matched].sort((a, b) => {
-            const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-            const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-            if (nextB !== nextA) return nextB - nextA;
-            const toMA = a.to_month || (a as any).toMonth || '';
-            const toMB = b.to_month || (b as any).toMonth || '';
-            if (toMB !== toMA) return toMB.localeCompare(toMA);
-            const dateA = new Date(a.date || a.created_at || 0).getTime();
-            const dateB = new Date(b.date || b.created_at || 0).getTime();
-            if (dateB !== dateA) return dateB - dateA;
-            return (Number(b.id) || 0) - (Number(a.id) || 0);
-          });
+          const sortedByContract = [...matched].sort(compareRecordsByContractLatest);
           const newestByContract = sortedByContract[0];
 
           // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
@@ -320,12 +321,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
               recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
               recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
               // CÁC TRƯỜNG HỢP ĐỒNG & TÀI CHÍNH: BẮT BUỘC ƯU TIÊN newestByContract (giao dịch thực tế)
-              income: newestByContract.income ?? effectiveRec.income,
+              income: (newestByContract.income && Number(newestByContract.income) > 0) ? newestByContract.income : effectiveRec.income,
               method: newestByContract.method || effectiveRec.method,
               fromMonth: newestByContract.from_month || (newestByContract as any).fromMonth || effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month,
               toMonth: newestByContract.to_month || (newestByContract as any).toMonth || effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month,
               nextPayment: newestByContract.next_payment || (newestByContract as any).nextPayment || effectiveRec.nextPayment || (effectiveRec as any).next_payment,
-              months: newestByContract.months ?? effectiveRec.months,
+              months: (newestByContract.months && Number(newestByContract.months) > 0) ? newestByContract.months : effectiveRec.months,
               wage: newestByContract.wage ?? effectiveRec.wage,
               nnSupportPct: newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct ?? effectiveRec.nnSupportPct ?? (effectiveRec as any).nn_support_pct,
               dpSupportPct: newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct ?? effectiveRec.dpSupportPct ?? (effectiveRec as any).dp_support_pct,
@@ -376,13 +377,8 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             notes: initialNotes
           });
           
-          let methodVal = '1';
-          const methodMap: Record<string, string> = {
-            'Đóng hằng tháng': '1', 'Đóng 3 tháng': '3', 'Đóng 6 tháng': '6', 'Đóng 12 tháng': '12',
-            'Đóng trước 2 năm': 'pre_24', 'Đóng trước 3 năm': 'pre_36', 'Đóng trước 4 năm': 'pre_48', 'Đóng trước 5 năm': 'pre_60',
-            'Đóng 1 lần để nghỉ hưu': 'post_custom'
-          };
-          if (rec.method) methodVal = methodMap[rec.method] || '1';
+          const methodVal = normalizeMethodValue(rec.method, rec.months);
+          const restoredMonths = Number(rec.months) || (methodVal === '3' ? 3 : methodVal === '6' ? 6 : methodVal === '12' ? 12 : methodVal === 'pre_24' ? 24 : methodVal === 'pre_36' ? 36 : methodVal === 'pre_48' ? 48 : methodVal === 'pre_60' ? 60 : 1);
 
           const nnSupportVal = rec.nnSupportPct != null 
             ? Number(rec.nnSupportPct) 
@@ -396,7 +392,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             nnSupport: nnSupportVal,
             dpSupport: rec.dpSupportPct != null ? Number(rec.dpSupportPct) : ((rec as any).dpSupport != null ? Number((rec as any).dpSupport) : 0),
             method: methodVal,
-            customMonths: Number(rec.months) || 1,
+            customMonths: restoredMonths,
             fromMonth: fromM,
             toMonth: '',
             basePremium: 0, nnSupportAmount: 0, dpSupportAmount: 0, amount: 0, discountAmount: 0, penaltyAmount: 0
@@ -671,7 +667,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         dob: toDbDate(formData.dob) || null, gender: formData.gender || 'Nam',
         nation: formData.nation || 'Kinh', email: formData.email || '', address: formData.address || '', notes: formData.notes || '',
         income: bhxhCalc.income, nnSupportPct: bhxhCalc.nnSupport, dpSupportPct: bhxhCalc.dpSupport,
-        method: document.getElementById('modal-bhxh-method')?.querySelector('option:checked')?.textContent || '',
+        method: document.getElementById('modal-bhxh-method')?.querySelector('option:checked')?.textContent?.trim() || getMethodLabelFromValue(bhxhCalc.method),
         months: bhxhCalc.method === 'post_custom' ? bhxhCalc.customMonths : Math.abs(parseInt(bhxhCalc.method.replace('pre_','')) || 1),
         fromMonth: toDbMonth(bhxhCalc.fromMonth) || null, toMonth: toDbMonth(bhxhCalc.toMonth) || null,
         basePremium: bhxhCalc.basePremium, nnSupportAmount: bhxhCalc.nnSupportAmount, dpSupportAmount: bhxhCalc.dpSupportAmount, amount: bhxhCalc.amount,
@@ -964,18 +960,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
               const pStatus = r.payment_status || (r as any).paymentStatus;
               return pStatus !== 'Đã hủy' && pStatus !== 'Đã thoái thu';
             })
-            .sort((a, b) => {
-              const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-              const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-              if (nextB !== nextA) return nextB - nextA;
-              const toMA = a.to_month || (a as any).toMonth || '';
-              const toMB = b.to_month || (b as any).toMonth || '';
-              if (toMB !== toMA) return toMB.localeCompare(toMA);
-              const dateA = new Date(a.date || a.created_at || 0).getTime();
-              const dateB = new Date(b.date || b.created_at || 0).getTime();
-              if (dateB !== dateA) return dateB - dateA;
-              return (Number(b.id) || 0) - (Number(a.id) || 0);
-            });
+            .sort(compareRecordsByContractLatest);
 
           const foundRec = activeRecords.find(r => {
             const rCccd = (r.cccd || '').replace(/\D/g, '');
@@ -1031,18 +1016,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         });
 
         // Bản ghi có kỳ hạn mới nhất để tính toán gia hạn tiếp theo
-        const sortedByContract = [...activeRecords].sort((a, b) => {
-          const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
-          const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
-          if (nextB !== nextA) return nextB - nextA;
-          const toMA = a.to_month || (a as any).toMonth || '';
-          const toMB = b.to_month || (b as any).toMonth || '';
-          if (toMB !== toMA) return toMB.localeCompare(toMA);
-          const dateA = new Date(a.date || a.created_at || 0).getTime();
-          const dateB = new Date(b.date || b.created_at || 0).getTime();
-          if (dateB !== dateA) return dateB - dateA;
-          return (Number(b.id) || 0) - (Number(a.id) || 0);
-        });
+        const sortedByContract = [...activeRecords].sort(compareRecordsByContractLatest);
 
         // 1a. Khớp trên hồ sơ chính
         const foundUpdate = sortedByUpdate.find(r => {
@@ -1220,18 +1194,16 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         }
 
         // Khôi phục mức thu nhập đóng và hình thức đóng cũ nếu có
-        if (customer.income) {
-          const methodMap: Record<string, string> = {
-            'Đóng hằng tháng': '1', 'Đóng 3 tháng': '3', 'Đóng 6 tháng': '6', 'Đóng 12 tháng': '12',
-            'Đóng trước 2 năm': 'pre_24', 'Đóng trước 3 năm': 'pre_36', 'Đóng trước 4 năm': 'pre_48', 'Đóng trước 5 năm': 'pre_60',
-            'Đóng 1 lần để nghỉ hưu': 'post_custom'
-          };
+        if (customer.income || customer.method) {
+          const methodVal = normalizeMethodValue(customer.method, customer.months);
+          const restoredMonths = Number(customer.months) || (methodVal === '3' ? 3 : methodVal === '6' ? 6 : methodVal === '12' ? 12 : methodVal === 'pre_24' ? 24 : methodVal === 'pre_36' ? 36 : methodVal === 'pre_48' ? 48 : methodVal === 'pre_60' ? 60 : 1);
           setBhxhCalc(prev => ({
             ...prev,
-            income: Number(customer.income) || prev.income,
+            income: (customer.income && Number(customer.income) > 0) ? Number(customer.income) : prev.income,
             nnSupport: customer.nnSupportPct != null ? Number(customer.nnSupportPct) : (customer.nn_support_pct != null ? Number(customer.nn_support_pct) : prev.nnSupport),
             dpSupport: customer.dpSupportPct != null ? Number(customer.dpSupportPct) : (customer.dp_support_pct != null ? Number(customer.dp_support_pct) : prev.dpSupport),
-            method: customer.method ? (methodMap[customer.method] || customer.method) : prev.method,
+            method: methodVal || prev.method,
+            customMonths: restoredMonths || prev.customMonths,
             fromMonth: nextStartMonth || prev.fromMonth
           }));
         } else if (nextStartMonth) {
@@ -1414,7 +1386,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                     return (
                       <div className="space-y-1.5">
                         <p className="text-xs sm:text-sm text-gray-700 flex items-center font-medium">
-                          <Clock className="text-[#004182] mr-1.5 shrink-0" size={15} /> Thời gian đóng trước đó: <strong className="text-gray-900 ml-1">{rec.method || 'Đóng hằng tháng'}</strong> (từ tháng {fromMStr || '---'} - {toMStr || '---'})
+                          <Clock className="text-[#004182] mr-1.5 shrink-0" size={15} /> Thời gian đóng trước đó: <strong className="text-gray-900 ml-1">{getMethodLabelFromValue(rec.method || rec.months) || rec.method || 'Đóng hằng tháng'}</strong> (từ tháng {fromMStr || '---'} - {toMStr || '---'})
                         </p>
                         {type === 'BHXH' && (
                           <div className="pt-2 border-t border-blue-100 flex flex-wrap items-center justify-between gap-2 text-xs">
