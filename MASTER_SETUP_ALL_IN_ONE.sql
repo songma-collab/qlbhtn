@@ -3259,7 +3259,33 @@ BEGIN
       OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
       OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
     )
-  ORDER BY COALESCE(c.latest_date, r.date::date) DESC NULLS LAST, COALESCE(r.id, 0) DESC, COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST
+  ORDER BY 
+    COALESCE(
+      (
+        SELECT MAX(r_sub.date::date) 
+        FROM public.records r_sub 
+        WHERE ((c.customer_key IS NOT NULL AND r_sub.customer_key = c.customer_key) 
+            OR (c.cccd IS NOT NULL AND TRIM(c.cccd) != '' AND r_sub.cccd = c.cccd) 
+            OR (c.bhxh IS NOT NULL AND TRIM(c.bhxh) != '' AND r_sub.bhxh = c.bhxh))
+          AND COALESCE(r_sub.payment_status, '') != 'Đã hủy'
+      ),
+      c.latest_date,
+      r.date::date,
+      c.created_at::date
+    ) DESC NULLS LAST,
+    COALESCE(
+      (
+        SELECT MAX(r_sub.id) 
+        FROM public.records r_sub 
+        WHERE ((c.customer_key IS NOT NULL AND r_sub.customer_key = c.customer_key) 
+            OR (c.cccd IS NOT NULL AND TRIM(c.cccd) != '' AND r_sub.cccd = c.cccd) 
+            OR (c.bhxh IS NOT NULL AND TRIM(c.bhxh) != '' AND r_sub.bhxh = c.bhxh))
+          AND COALESCE(r_sub.payment_status, '') != 'Đã hủy'
+      ),
+      r.id,
+      0
+    ) DESC,
+    c.updated_at DESC
   LIMIT p_limit OFFSET p_offset;
 END;
 $$;
@@ -3693,6 +3719,7 @@ AS $$
 DECLARE
     r_cust RECORD;
     r_valid RECORD;
+    r_newest_txn RECORD;
     v_updated_count INT := 0;
     v_deleted_count INT := 0;
 BEGIN
@@ -3704,6 +3731,7 @@ BEGIN
            OR (p_cccd IS NOT NULL AND TRIM(p_cccd) != '' AND cccd = p_cccd)
            OR (p_bhxh IS NOT NULL AND TRIM(p_bhxh) != '' AND bhxh = p_bhxh)
     LOOP
+        -- 1. Tìm kỳ hạn hợp đồng mới nhất (để kế thừa kỳ đóng, hạn nộp)
         SELECT * INTO r_valid
         FROM public.records
         WHERE (
@@ -3715,18 +3743,30 @@ BEGIN
         ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
         LIMIT 1;
 
+        -- 2. Tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (date DESC, id DESC)
+        SELECT * INTO r_newest_txn
+        FROM public.records
+        WHERE (
+            (r_cust.customer_key IS NOT NULL AND customer_key = r_cust.customer_key)
+            OR (r_cust.cccd IS NOT NULL AND TRIM(r_cust.cccd) != '' AND cccd = r_cust.cccd)
+            OR (r_cust.bhxh IS NOT NULL AND TRIM(r_cust.bhxh) != '' AND bhxh = r_cust.bhxh)
+        )
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(date::date, created_at::date) DESC, id DESC
+        LIMIT 1;
+
         IF r_valid.id IS NOT NULL THEN
             UPDATE public.customers
             SET
-                latest_record_id = r_valid.id,
+                latest_record_id = COALESCE(r_newest_txn.id, r_valid.id),
                 from_month = r_valid.from_month,
                 to_month = r_valid.to_month,
                 next_payment = r_valid.next_payment,
                 next_payment_bhxh = CASE WHEN r_valid.type = 'BHXH' THEN r_valid.next_payment ELSE NULL END,
                 next_payment_bhyt = CASE WHEN r_valid.type = 'BHYT' THEN r_valid.next_payment ELSE NULL END,
                 payment_status = r_valid.payment_status,
-                latest_amount = r_valid.amount,
-                latest_date = r_valid.date::date,
+                latest_amount = COALESCE(r_newest_txn.amount, r_valid.amount),
+                latest_date = COALESCE(r_newest_txn.date::date, r_valid.date::date),
                 status = COALESCE(r_valid.status, 'Đang tham gia'),
                 total_amount_paid = GREATEST(0, COALESCE((
                     SELECT SUM(amount) FROM public.records 
@@ -4203,6 +4243,7 @@ DECLARE
     v_delta_contrib INT := 0;
     v_latest_id BIGINT;
     v_latest_remaining RECORD;
+    v_newest_txn_remaining RECORD;
 BEGIN
     IF current_setting('app.is_batch_import', true) = 'true' THEN
         RETURN COALESCE(NEW, OLD);
@@ -4212,7 +4253,7 @@ BEGIN
     IF TG_OP = 'DELETE' THEN
         v_key := COALESCE(OLD.customer_key, public.generate_customer_key(OLD.type, OLD.bhxh, OLD.cccd, OLD.name, OLD.phone));
 
-        -- Tìm hợp đồng hợp lệ mới nhất còn lại của khách hàng này (loại trừ bản ghi vừa xóa và bản ghi đã hủy)
+        -- 1. Tìm hợp đồng hợp lệ có kỳ hạn mới nhất còn lại của khách hàng này (để giữ kỳ đóng, hạn nộp)
         SELECT * INTO v_latest_remaining
         FROM public.records
         WHERE id != OLD.id
@@ -4225,19 +4266,32 @@ BEGIN
         ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
         LIMIT 1;
 
+        -- 2. Tìm giao dịch đóng/nộp tiền mới nhất còn lại theo thời gian thực (date DESC, id DESC)
+        SELECT * INTO v_newest_txn_remaining
+        FROM public.records
+        WHERE id != OLD.id
+          AND (
+            (v_key IS NOT NULL AND customer_key = v_key)
+            OR (OLD.cccd IS NOT NULL AND TRIM(OLD.cccd) != '' AND cccd = OLD.cccd)
+            OR (OLD.bhxh IS NOT NULL AND TRIM(OLD.bhxh) != '' AND bhxh = OLD.bhxh)
+          )
+          AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(date::date, created_at::date) DESC, id DESC
+        LIMIT 1;
+
         IF v_latest_remaining.id IS NOT NULL THEN
             -- Khách hàng còn giao dịch hợp lệ: Hoàn nguyên thông tin customers về giao dịch mới nhất còn lại
             UPDATE public.customers
             SET
-                latest_record_id = v_latest_remaining.id,
+                latest_record_id = COALESCE(v_newest_txn_remaining.id, v_latest_remaining.id),
                 from_month = v_latest_remaining.from_month,
                 to_month = v_latest_remaining.to_month,
                 next_payment = v_latest_remaining.next_payment,
                 next_payment_bhxh = CASE WHEN v_latest_remaining.type = 'BHXH' THEN v_latest_remaining.next_payment ELSE NULL END,
                 next_payment_bhyt = CASE WHEN v_latest_remaining.type = 'BHYT' THEN v_latest_remaining.next_payment ELSE NULL END,
                 payment_status = v_latest_remaining.payment_status,
-                latest_date = v_latest_remaining.date::date,
-                latest_amount = v_latest_remaining.amount,
+                latest_date = COALESCE(v_newest_txn_remaining.date::date, v_latest_remaining.date::date),
+                latest_amount = COALESCE(v_newest_txn_remaining.amount, v_latest_remaining.amount),
                 status = COALESCE(v_latest_remaining.status, 'Đang tham gia'),
                 total_amount_paid = GREATEST(0, COALESCE((
                     SELECT SUM(amount) FROM public.records 
@@ -5073,6 +5127,7 @@ DO $$
 DECLARE
     r_cust RECORD;
     r_valid RECORD;
+    r_txn RECORD;
 BEGIN
     -- 1. Bổ sung hạn đóng tiếp nếu hồ sơ có to_month nhưng chưa có next_payment
     UPDATE public.records
@@ -5083,8 +5138,9 @@ BEGIN
     SET next_payment = (to_date('15/' || to_month, 'DD/MM/YYYY') + interval '1 month')::date
     WHERE next_payment IS NULL AND to_month ~ '^\d{2}/\d{4}$';
 
-    -- 2. Tự động chữa lành & đồng bộ toàn vẹn dữ liệu cho toàn bộ khách hàng từ hợp đồng hợp lệ mới nhất còn lại
+    -- 2. Tự động chữa lành & đồng bộ toàn vẹn dữ liệu cho toàn bộ khách hàng
     FOR r_cust IN SELECT id, customer_key, cccd, bhxh FROM public.customers LOOP
+        -- Tìm hợp đồng có kỳ hạn hiệu lực mới nhất (hiển thị kỳ hạn, hạn nộp, trạng thái)
         SELECT * INTO r_valid
         FROM public.records
         WHERE (
@@ -5096,18 +5152,30 @@ BEGIN
         ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
         LIMIT 1;
 
+        -- Tìm giao dịch phát sinh gần nhất (ngày nộp thực tế mới nhất, id mới nhất)
+        SELECT * INTO r_txn
+        FROM public.records
+        WHERE (
+            (r_cust.customer_key IS NOT NULL AND customer_key = r_cust.customer_key)
+            OR (r_cust.cccd IS NOT NULL AND TRIM(r_cust.cccd) != '' AND cccd = r_cust.cccd)
+            OR (r_cust.bhxh IS NOT NULL AND TRIM(r_cust.bhxh) != '' AND bhxh = r_cust.bhxh)
+        )
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY date::date DESC, id DESC
+        LIMIT 1;
+
         IF r_valid.id IS NOT NULL THEN
             UPDATE public.customers
             SET
-                latest_record_id = r_valid.id,
+                latest_record_id = COALESCE(r_txn.id, r_valid.id),
                 from_month = r_valid.from_month,
                 to_month = r_valid.to_month,
                 next_payment = r_valid.next_payment,
                 next_payment_bhxh = CASE WHEN r_valid.type = 'BHXH' THEN r_valid.next_payment ELSE NULL END,
                 next_payment_bhyt = CASE WHEN r_valid.type = 'BHYT' THEN r_valid.next_payment ELSE NULL END,
                 payment_status = r_valid.payment_status,
-                latest_amount = r_valid.amount,
-                latest_date = r_valid.date::date,
+                latest_amount = COALESCE(r_txn.amount, r_valid.amount),
+                latest_date = COALESCE(r_txn.date::date, r_valid.date::date),
                 status = COALESCE(r_valid.status, 'Đang tham gia'),
                 total_amount_paid = GREATEST(0, COALESCE((
                     SELECT SUM(amount) FROM public.records 

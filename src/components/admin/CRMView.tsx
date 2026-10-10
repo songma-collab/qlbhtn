@@ -13,7 +13,8 @@ import {
   groupRecordsByCustomer, 
   getOldBhxh10,
   compareRecordsByContractLatest,
-  normalizeMethodValue
+  normalizeMethodValue,
+  getSafeTimestamp
 } from '../../utils/helpers';
 import { 
   maskCCCD, 
@@ -254,10 +255,12 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     let rawList: any[] = [];
     if (useServerData && serverCustomers.length > 0) {
       rawList = [...serverCustomers].sort((a, b) => {
-        const dateA = new Date(a.latest_date || a.date || a.created_at || 0).getTime();
-        const dateB = new Date(b.latest_date || b.date || b.created_at || 0).getTime();
+        const dateA = getSafeTimestamp(a.latest_date || a.date || a.created_at);
+        const dateB = getSafeTimestamp(b.latest_date || b.date || b.created_at);
         if (dateB !== dateA) return dateB - dateA;
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
+        const idA = Number(a.latest_record_id || a.record_id || a.id) || 0;
+        const idB = Number(b.latest_record_id || b.record_id || b.id) || 0;
+        return idB - idA;
       });
     } else {
       rawList = uniqueCustomersList.slice(startIdx, startIdx + itemsPerPage);
@@ -270,7 +273,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       return pStatus !== 'Đã hủy' && pStatus !== 'Đã thoái thu';
     });
 
-    return rawList.map(c => {
+    const enrichedList = rawList.map(c => {
       const cleanC = (c.cccd || '').replace(/\D/g, '');
       const cleanB = (c.bhxh || '').replace(/\D/g, '');
       const cleanO = (c.old_bhxh || (c as any).oldBhxh || '').replace(/\D/g, '');
@@ -291,6 +294,15 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       const sortedContract = [...matchedRecs].sort(compareRecordsByContractLatest);
       const latestContract = sortedContract[0];
       if (!latestContract) return c;
+
+      // Tìm giao dịch nộp/đóng tiền mới nhất của khách hàng theo thời gian thực (date DESC, id DESC)
+      const sortedByTxn = [...matchedRecs].sort((a, b) => {
+        const tA = getSafeTimestamp(a.date || a.created_at);
+        const tB = getSafeTimestamp(b.date || b.created_at);
+        if (tB !== tA) return tB - tA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const newestTxn = sortedByTxn[0] || latestContract;
 
       const fromM = latestContract.from_month || (latestContract as any).fromMonth;
       const toM = latestContract.to_month || (latestContract as any).toMonth;
@@ -323,10 +335,21 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         months: latestContract.months ?? c.months,
         income: latestContract.income ?? c.income,
         wage: latestContract.wage ?? c.wage,
-        latest_amount: latestContract.amount ?? c.latest_amount,
-        latest_date: latestContract.date ?? c.latest_date,
-        latest_record_id: latestContract.id || c.latest_record_id
+        latest_amount: newestTxn.amount ?? latestContract.amount ?? c.latest_amount,
+        latest_date: newestTxn.date ?? latestContract.date ?? c.latest_date,
+        latest_record_id: newestTxn.id || latestContract.id || c.latest_record_id,
+        latest_txn_timestamp: getSafeTimestamp(newestTxn.date || newestTxn.created_at),
+        latest_txn_id: Number(newestTxn.id) || 0
       };
+    });
+
+    return [...enrichedList].sort((a, b) => {
+      const tA = (a as any).latest_txn_timestamp || getSafeTimestamp(a.latest_date || a.date || a.created_at);
+      const tB = (b as any).latest_txn_timestamp || getSafeTimestamp(b.latest_date || b.date || b.created_at);
+      if (tB !== tA) return tB - tA;
+      const idA = (a as any).latest_txn_id || Number(a.latest_record_id || a.record_id || a.id) || 0;
+      const idB = (b as any).latest_txn_id || Number(b.latest_record_id || b.record_id || b.id) || 0;
+      return idB - idA;
     });
   }, [useServerData, serverCustomers, uniqueCustomersList, startIdx, itemsPerPage, records]);
 

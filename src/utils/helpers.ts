@@ -1,5 +1,5 @@
 import type { RecordType } from '../context/types';
-import { compareRecordsByContractLatest } from './dateUtils';
+import { compareRecordsByContractLatest, getSafeTimestamp } from './dateUtils';
 
 export const formatMoney = (num: number) => {
   return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';
@@ -472,22 +472,38 @@ export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterT
       });
     }
 
-    // Sort customer records to find the newest active transaction (latest nextPayment / toMonth)
+    // 1. Tìm bản ghi có hiệu lực/kỳ hạn hợp đồng mới nhất (để hiển thị thông tin kỳ đóng, hạn nộp, trạng thái)
     customerRecords.sort(compareRecordsByContractLatest);
+    const latestContract = customerRecords[0]!;
 
-    const latest = customerRecords[0];
-    latestCustomers.push({
-      ...latest,
-      totalHistoryCount: customerRecords.length
+    // 2. Tìm bản ghi có giao dịch đóng mới nhất (ngày thu/ngày lập giao dịch mới nhất, id mới nhất)
+    const sortedByTxn = [...customerRecords].sort((r1, r2) => {
+      const t1 = getSafeTimestamp(r1.date || r1.created_at);
+      const t2 = getSafeTimestamp(r2.date || r2.created_at);
+      if (t2 !== t1) return t2 - t1;
+      return (Number(r2.id) || 0) - (Number(r1.id) || 0);
     });
+    const newestTxn = sortedByTxn[0] || latestContract;
+
+    latestCustomers.push({
+      ...latestContract,
+      latest_date: newestTxn.date || latestContract.date,
+      latest_record_id: newestTxn.id || latestContract.id,
+      latest_amount: newestTxn.amount !== undefined ? newestTxn.amount : latestContract.amount,
+      latest_txn_timestamp: getSafeTimestamp(newestTxn.date || newestTxn.created_at),
+      latest_txn_id: Number(newestTxn.id) || Number(latestContract.id) || 0,
+      totalHistoryCount: customerRecords.length
+    } as CustomerSummaryRecord);
   });
 
-  // Mặc định sắp xếp: những khách hàng có giao dịch đóng mới nhất sẽ hiện lên đầu
+  // Mặc định sắp xếp: những khách hàng có giao dịch đóng mới nhất sẽ hiện lên đầu (date DESC, id DESC)
   latestCustomers.sort((a, b) => {
-    const dateA = new Date(a.date || a.latest_date || a.created_at || 0).getTime();
-    const dateB = new Date(b.date || b.latest_date || b.created_at || 0).getTime();
-    if (dateB !== dateA) return dateB - dateA;
-    return (Number(b.id) || 0) - (Number(a.id) || 0);
+    const timeA = (a as any).latest_txn_timestamp || getSafeTimestamp(a.latest_date || a.date || a.created_at);
+    const timeB = (b as any).latest_txn_timestamp || getSafeTimestamp(b.latest_date || b.date || b.created_at);
+    if (timeB !== timeA) return timeB - timeA;
+    const idA = (a as any).latest_txn_id || Number(a.latest_record_id || a.id) || 0;
+    const idB = (b as any).latest_txn_id || Number(b.latest_record_id || b.id) || 0;
+    return idB - idA;
   });
 
   return latestCustomers;

@@ -5,7 +5,7 @@
 import { supabase } from '../lib/supabase';
 import { CustomerType, normalizeLegacyPayload } from '../context/types';
 import { withRetry } from '../utils/networkHelper';
-import { compareRecordsByContractLatest } from '../utils/helpers';
+import { compareRecordsByContractLatest, getSafeTimestamp } from '../utils/helpers';
 
 export const customerService = {
   /**
@@ -265,9 +265,18 @@ export const customerService = {
         return { success: true, error: null };
       }
 
-      // Sắp xếp tìm hợp đồng có kỳ hạn mới nhất
+      // Sắp xếp tìm hợp đồng có kỳ hạn mới nhất (để kế thừa kỳ hạn)
       const sortedContract = [...activeRecords].sort(compareRecordsByContractLatest);
       const latestContract = sortedContract[0];
+
+      // Sắp xếp tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (date DESC, id DESC)
+      const sortedTxn = [...activeRecords].sort((a, b) => {
+        const tA = getSafeTimestamp(a.date || a.created_at);
+        const tB = getSafeTimestamp(b.date || b.created_at);
+        if (tB !== tA) return tB - tA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const latestTxn = sortedTxn[0] || latestContract;
 
       // Sắp xếp tìm thông tin cập nhật gần nhất
       const sortedUpdate = [...activeRecords].sort((a, b) => {
@@ -299,9 +308,9 @@ export const customerService = {
         next_payment: latestContract.next_payment || (latestContract as any).nextPayment || null,
         payment_status: latestContract.payment_status || (latestContract as any).paymentStatus || 'Chờ thanh toán',
         status: latestContract.status || 'Đang tham gia',
-        latest_date: latestContract.date ? new Date(latestContract.date).toISOString().split('T')[0] : null,
-        latest_amount: latestContract.amount,
-        latest_record_id: latestContract.id,
+        latest_date: latestTxn.date ? new Date(latestTxn.date).toISOString().split('T')[0] : (latestContract.date ? new Date(latestContract.date).toISOString().split('T')[0] : null),
+        latest_amount: latestTxn.amount !== undefined ? latestTxn.amount : latestContract.amount,
+        latest_record_id: latestTxn.id || latestContract.id,
         total_amount_paid: totalAmountPaid,
         total_contributions: totalContributions,
         updated_at: new Date().toISOString()
