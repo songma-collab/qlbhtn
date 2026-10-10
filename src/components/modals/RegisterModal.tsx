@@ -58,6 +58,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
     fetchCustomerByCode: fetchCustomerFromContext, 
     updateRecord, 
     addRecord, 
+    bulkPutRecords,
     showToast, 
     showAlert, 
     currentUser, 
@@ -921,9 +922,12 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           }
 
           // Cán bộ thu / Admin đã đăng nhập lưu trực tiếp qua bảng records
-          for (const record of newRecordsToAdd) {
-            const { id, ...recordWithoutId } = record;
+          if (newRecordsToAdd.length === 1) {
+            const { id, ...recordWithoutId } = newRecordsToAdd[0];
             await addRecord(recordWithoutId);
+          } else if (newRecordsToAdd.length > 1) {
+            const recordsWithoutId = newRecordsToAdd.map(({ id, ...rest }) => rest as any);
+            await bulkPutRecords(recordsWithoutId);
           }
 
           showToast(actionType === 'Gia hạn' ? 'Đã ghi nhận giao dịch gia hạn!' : 'Lưu hồ sơ và ghi nhận thu tiền thành công!');

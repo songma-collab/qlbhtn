@@ -205,9 +205,11 @@ export const recordService = {
 
       while (maxRetries > 0) {
         maxRetries--;
-        const res = await supabase.from('records').insert([payload]).select().single();
-        data = res.data;
-        error = res.error;
+        const res: any = await withRetry(async () => {
+          return await supabase.from('records').insert([payload]).select().single();
+        });
+        data = res?.data;
+        error = res?.error;
         if (!error) break;
 
         const handled = handleSchemaCacheMissingColumn(error, payload);
@@ -234,8 +236,10 @@ export const recordService = {
 
       while (maxRetries > 0) {
         maxRetries--;
-        const res = await supabase.from('records').update(payload).eq('id', id);
-        error = res.error;
+        const res: any = await withRetry(async () => {
+          return await supabase.from('records').update(payload).eq('id', id);
+        });
+        error = res?.error;
         if (!error) break;
 
         const handled = handleSchemaCacheMissingColumn(error, payload);
@@ -512,7 +516,7 @@ export const recordService = {
         .select('*')
         .or(`cccd.eq.${clean},bhxh.eq.${clean},old_bhxh.eq.${clean}`)
         .neq('payment_status', 'Đã hủy')
-        .order('updated_at', { ascending: false })
+        .order('next_payment', { ascending: false, nullsFirst: false })
         .order('date', { ascending: false })
         .order('id', { ascending: false })
         .limit(1);

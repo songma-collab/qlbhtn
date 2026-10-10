@@ -184,6 +184,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const filterOptions = useMemo(() => ({ currentUser }), [currentUser?.id, currentUser?.role]);
   const {
     filterState,
+    debouncedSearch,
     updateFilter,
     resetFilters,
     submissionBatches,
@@ -205,7 +206,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         const offset = (currentPage - 1) * itemsPerPage;
         const res = await customerService.searchCustomersServer({
           type: selectedType,
-          search: filterState.searchQuery,
+          search: debouncedSearch,
           staffId: filterState.staffId === 'all' || filterState.staffId === 'ALL' ? undefined : filterState.staffId,
           status: filterState.customerStatus === 'ALL' ? undefined : filterState.customerStatus,
           fromDate: filterState.customStartDate,
@@ -239,7 +240,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     selectedType,
     currentPage,
     itemsPerPage,
-    filterState.searchQuery,
+    debouncedSearch,
     filterState.staffId,
     filterState.customerStatus,
     filterState.customStartDate,

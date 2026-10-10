@@ -55,8 +55,14 @@ export const financeService = {
    */
   async getCustomerLedger(customerId: string, limit = 50, offset = 0) {
     try {
+      const cleanId = (customerId || '').trim();
+      const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+      if (!isUUID) {
+        return { data: [], error: null };
+      }
+
       const { data, error } = await supabase.rpc('get_customer_financial_ledger', {
-        p_customer_id: customerId,
+        p_customer_id: cleanId,
         p_limit: limit,
         p_offset: offset
       });

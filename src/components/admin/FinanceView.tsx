@@ -481,6 +481,15 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   }, [sourceRecords, currentType, effectiveStaffId, startDateRPC, endDateRPC]);
 
 
+  // Debounce 300ms cho ô tìm kiếm Server-side Finance
+  const [debouncedSearch, setDebouncedSearch] = useState<string>(filterState.searchQuery);
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(filterState.searchQuery);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [filterState.searchQuery]);
+
   useEffect(() => {
     let isSubscribed = true;
     const loadServerFinance = async () => {
@@ -489,7 +498,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         const offset = (currentPage - 1) * itemsPerPage;
         const res = await recordService.searchRecordsServer({
           type: currentType,
-          search: filterState.searchQuery,
+          search: debouncedSearch,
           staffId: effectiveStaffId || 'all',
           paymentStatus: filterState.kpiQuickFilter === 'PAID' ? 'Đã thu tiền' : (filterState.kpiQuickFilter === 'PENDING' ? 'Chờ thanh toán' : 'all'),
           batchCode: filterState.submissionStatus !== 'ALL' && filterState.submissionStatus !== 'SUBMITTED' && filterState.submissionStatus !== 'UNSUBMITTED' ? filterState.submissionStatus : 'all',
@@ -524,7 +533,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     currentType,
     currentPage,
     itemsPerPage,
-    filterState.searchQuery,
+    debouncedSearch,
     effectiveStaffId,
     filterState.kpiQuickFilter,
     filterState.submissionStatus,

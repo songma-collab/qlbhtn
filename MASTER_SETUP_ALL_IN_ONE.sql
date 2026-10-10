@@ -5332,6 +5332,35 @@ END;
 $$;
 
 -- ======================================================================
+-- 9. KÍCH HOẠT SUPABASE REALTIME REPLICATION (ĐỒNG BỘ ĐA THIẾT BỊ THỜI GIAN THỰC)
+-- ======================================================================
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_publication WHERE pubname = 'supabase_realtime') THEN
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.records;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.customers;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.settings;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.policies;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+    BEGIN
+      ALTER PUBLICATION supabase_realtime ADD TABLE public.submission_batches;
+    EXCEPTION WHEN duplicate_object THEN NULL;
+    END;
+  END IF;
+END $$;
+
+-- ======================================================================
 -- THÔNG BÁO SUPABASE POSTGREST NẠP LẠI TOÀN BỘ SCHEMA MỚI
 -- ======================================================================
 NOTIFY pgrst, 'reload schema';

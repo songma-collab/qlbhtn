@@ -53,6 +53,7 @@ export const customerService = {
       let query = supabase
         .from('customers')
         .select('*')
+        .order('latest_date', { ascending: false, nullsFirst: false })
         .order('updated_at', { ascending: false })
         .limit(options?.limit || 2500);
 
