@@ -133,6 +133,8 @@ CREATE TABLE IF NOT EXISTS public.customers (
     prior_voluntary_months INT DEFAULT 0,
     prior_compulsory_months INT DEFAULT 0,
     prior_participation_notes TEXT,
+    from_month TEXT,
+    to_month TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -322,6 +324,8 @@ ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_periods JSONB DEFAUL
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_voluntary_months INT DEFAULT 0;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_compulsory_months INT DEFAULT 0;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS prior_participation_notes TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS from_month TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS to_month TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT NOW();
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW();
 

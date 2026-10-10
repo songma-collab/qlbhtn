@@ -234,6 +234,105 @@ export const customerService = {
   },
 
   /**
+   * Đồng bộ lại thông tin tóm tắt của khách hàng trong bảng customers từ danh sách records thực tế còn lại
+   */
+  async resyncCustomerFromRecords(
+    customerIdentifier: { customerKey?: string | undefined; cccd?: string | undefined; bhxh?: string | undefined; phone?: string | undefined; id?: any },
+    currentRecords: any[]
+  ): Promise<{ success: boolean; error: Error | null }> {
+    try {
+      const cleanC = (customerIdentifier.cccd || '').replace(/\D/g, '');
+      const cleanB = (customerIdentifier.bhxh || '').replace(/\D/g, '');
+      const cleanK = (customerIdentifier.customerKey || '').trim();
+
+      const activeRecords = (currentRecords || []).filter(r => {
+        const pStatus = r.payment_status || (r as any).paymentStatus;
+        if (pStatus === 'Đã hủy' || pStatus === 'Đã thoái thu') return false;
+        const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+        const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+        const rK = (r.customer_key || (r as any).customerKey || '').trim();
+        return (cleanK && rK === cleanK) || (cleanC && (rC === cleanC || rB === cleanC)) || (cleanB && (rB === cleanB || rC === cleanB));
+      });
+
+      if (activeRecords.length === 0) {
+        // Không còn giao dịch nào: Xóa khách hàng khỏi danh bạ nếu không có hồ sơ độc lập
+        if (cleanK) {
+          await supabase.from('customers').delete().eq('customer_key', cleanK);
+        } else if (cleanC || cleanB) {
+          await supabase.from('customers').delete().or(`cccd.eq.${cleanC || 'null'},bhxh.eq.${cleanB || 'null'}`);
+        }
+        return { success: true, error: null };
+      }
+
+      // Sắp xếp tìm hợp đồng có kỳ hạn mới nhất
+      const sortedContract = [...activeRecords].sort((a, b) => {
+        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+        if (nextB !== nextA) return nextB - nextA;
+        const toMA = a.to_month || (a as any).toMonth || '';
+        const toMB = b.to_month || (b as any).toMonth || '';
+        if (toMB !== toMA) return toMB.localeCompare(toMA);
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const latestContract = sortedContract[0];
+
+      // Sắp xếp tìm thông tin cập nhật gần nhất
+      const sortedUpdate = [...activeRecords].sort((a, b) => {
+        const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
+        const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
+        if (upB !== upA) return upB - upA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const latestUpdate = sortedUpdate[0];
+
+      const totalAmountPaid = activeRecords
+        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
+        .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
+      const totalContributions = activeRecords
+        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
+        .reduce((sum, r) => sum + (Number(r.months) || 1), 0);
+
+      const updatePayload: Record<string, any> = {
+        name: latestUpdate.name,
+        phone: latestUpdate.phone,
+        address: latestUpdate.address,
+        dob: latestUpdate.dob,
+        gender: latestUpdate.gender,
+        nation: latestUpdate.nation,
+        email: latestUpdate.email,
+        from_month: latestContract.from_month || (latestContract as any).fromMonth || null,
+        to_month: latestContract.to_month || (latestContract as any).toMonth || null,
+        next_payment: latestContract.next_payment || (latestContract as any).nextPayment || null,
+        payment_status: latestContract.payment_status || (latestContract as any).paymentStatus || 'Chờ thanh toán',
+        status: latestContract.status || 'Đang tham gia',
+        latest_date: latestContract.date ? new Date(latestContract.date).toISOString().split('T')[0] : null,
+        latest_amount: latestContract.amount,
+        latest_record_id: latestContract.id,
+        total_amount_paid: totalAmountPaid,
+        total_contributions: totalContributions,
+        updated_at: new Date().toISOString()
+      };
+
+      let query = supabase.from('customers').update(updatePayload);
+      if (cleanK) {
+        query = query.eq('customer_key', cleanK);
+      } else {
+        query = query.or(`cccd.eq.${cleanC || 'null'},bhxh.eq.${cleanB || 'null'}`);
+      }
+      const { error } = await query;
+      if (error) throw error;
+      return { success: true, error: null };
+    } catch (err: any) {
+      console.warn('[CustomerService] resyncCustomerFromRecords warning:', err);
+      return { success: false, error: err };
+    }
+  },
+
+  /**
    * Cập nhật hồ sơ quá trình tham gia trước đây của khách hàng (Bắt buộc & Tự nguyện nơi khác)
    */
   async updateCustomerParticipation(

@@ -405,11 +405,71 @@ DECLARE
     v_delta_amount NUMERIC := 0;
     v_delta_contrib INT := 0;
     v_latest_id BIGINT;
+    v_latest_remaining RECORD;
 BEGIN
     IF current_setting('app.is_batch_import', true) = 'true' THEN
         RETURN COALESCE(NEW, OLD);
     END IF;
 
+    -- XỬ LÝ ĐẶC BIỆT KHI XÓA BẢN GHI (DELETE)
+    IF TG_OP = 'DELETE' THEN
+        v_key := COALESCE(OLD.customer_key, public.generate_customer_key(OLD.type, OLD.bhxh, OLD.cccd, OLD.name, OLD.phone));
+
+        -- Tìm hợp đồng hợp lệ mới nhất còn lại của khách hàng này (loại trừ bản ghi vừa xóa và bản ghi đã hủy)
+        SELECT * INTO v_latest_remaining
+        FROM public.records
+        WHERE id != OLD.id
+          AND (
+            (v_key IS NOT NULL AND customer_key = v_key)
+            OR (OLD.cccd IS NOT NULL AND TRIM(OLD.cccd) != '' AND cccd = OLD.cccd)
+            OR (OLD.bhxh IS NOT NULL AND TRIM(OLD.bhxh) != '' AND bhxh = OLD.bhxh)
+          )
+          AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+        LIMIT 1;
+
+        IF v_latest_remaining.id IS NOT NULL THEN
+            -- Khách hàng còn giao dịch hợp lệ: Hoàn nguyên thông tin customers về giao dịch mới nhất còn lại
+            UPDATE public.customers
+            SET
+                latest_record_id = v_latest_remaining.id,
+                from_month = v_latest_remaining.from_month,
+                to_month = v_latest_remaining.to_month,
+                next_payment = v_latest_remaining.next_payment,
+                next_payment_bhxh = CASE WHEN v_latest_remaining.type = 'BHXH' THEN v_latest_remaining.next_payment ELSE NULL END,
+                next_payment_bhyt = CASE WHEN v_latest_remaining.type = 'BHYT' THEN v_latest_remaining.next_payment ELSE NULL END,
+                payment_status = v_latest_remaining.payment_status,
+                latest_date = v_latest_remaining.date::date,
+                latest_amount = v_latest_remaining.amount,
+                status = COALESCE(v_latest_remaining.status, 'Đang tham gia'),
+                total_amount_paid = GREATEST(0, COALESCE((
+                    SELECT SUM(amount) FROM public.records 
+                    WHERE id != OLD.id 
+                      AND ((v_key IS NOT NULL AND customer_key = v_key) OR (OLD.cccd IS NOT NULL AND cccd = OLD.cccd) OR (OLD.bhxh IS NOT NULL AND bhxh = OLD.bhxh))
+                      AND payment_status = 'Đã thu tiền'
+                ), 0)),
+                total_contributions = GREATEST(0, COALESCE((
+                    SELECT COUNT(*) FROM public.records 
+                    WHERE id != OLD.id 
+                      AND ((v_key IS NOT NULL AND customer_key = v_key) OR (OLD.cccd IS NOT NULL AND cccd = OLD.cccd) OR (OLD.bhxh IS NOT NULL AND bhxh = OLD.bhxh))
+                      AND payment_status = 'Đã thu tiền'
+                ), 0)),
+                updated_at = NOW()
+            WHERE customer_key = v_key
+               OR (OLD.cccd IS NOT NULL AND TRIM(OLD.cccd) != '' AND cccd = OLD.cccd)
+               OR (OLD.bhxh IS NOT NULL AND TRIM(OLD.bhxh) != '' AND bhxh = OLD.bhxh);
+        ELSE
+            -- Khách hàng không còn bất kỳ giao dịch nào: Xóa khỏi danh bạ customers
+            DELETE FROM public.customers
+            WHERE customer_key = v_key
+               OR (OLD.cccd IS NOT NULL AND TRIM(OLD.cccd) != '' AND cccd = OLD.cccd)
+               OR (OLD.bhxh IS NOT NULL AND TRIM(OLD.bhxh) != '' AND bhxh = OLD.bhxh);
+        END IF;
+
+        RETURN OLD;
+    END IF;
+
+    -- XỬ LÝ KHI UPDATE BẢN GHI
     IF TG_OP = 'UPDATE' THEN
         IF OLD.amount IS NOT DISTINCT FROM NEW.amount AND
            OLD.status IS NOT DISTINCT FROM NEW.status AND

@@ -249,16 +249,95 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const totalPages = Math.max(1, Math.ceil(totalCount / itemsPerPage));
   const startIdx = (currentPage - 1) * itemsPerPage;
   const paginatedCustomers = useMemo(() => {
+    let rawList: any[] = [];
     if (useServerData && serverCustomers.length > 0) {
-      return [...serverCustomers].sort((a, b) => {
+      rawList = [...serverCustomers].sort((a, b) => {
         const dateA = new Date(a.latest_date || a.date || a.created_at || 0).getTime();
         const dateB = new Date(b.latest_date || b.date || b.created_at || 0).getTime();
         if (dateB !== dateA) return dateB - dateA;
         return (Number(b.id) || 0) - (Number(a.id) || 0);
       });
+    } else {
+      rawList = uniqueCustomersList.slice(startIdx, startIdx + itemsPerPage);
     }
-    return uniqueCustomersList.slice(startIdx, startIdx + itemsPerPage);
-  }, [useServerData, serverCustomers, uniqueCustomersList, startIdx, itemsPerPage]);
+
+    if (!records || records.length === 0) return rawList;
+
+    const activeRecords = records.filter(r => {
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      return pStatus !== 'Đã hủy' && pStatus !== 'Đã thoái thu';
+    });
+
+    return rawList.map(c => {
+      const cleanC = (c.cccd || '').replace(/\D/g, '');
+      const cleanB = (c.bhxh || '').replace(/\D/g, '');
+      const cleanO = (c.old_bhxh || (c as any).oldBhxh || '').replace(/\D/g, '');
+      const cleanK = (c.customer_key || (c as any).customerKey || '').trim();
+
+      const matchedRecs = activeRecords.filter(r => {
+        if (cleanK && (r.customer_key === cleanK || (r as any).customerKey === cleanK)) return true;
+        const rC = (r.cccd || '').replace(/\D/g, '');
+        const rB = (r.bhxh || '').replace(/\D/g, '');
+        const rO = (r.old_bhxh || (r as any).oldBhxh || (r as any).bhxhCu || '').replace(/\D/g, '');
+        return (cleanC && (rC === cleanC || rB === cleanC)) ||
+               (cleanB && (rB === cleanB || rC === cleanB || rO === cleanB)) ||
+               (cleanO && (rO === cleanO || rB === cleanO));
+      });
+
+      if (matchedRecs.length === 0) return c;
+
+      const sortedContract = [...matchedRecs].sort((a, b) => {
+        const nextA = new Date(a.next_payment || (a as any).nextPayment || 0).getTime();
+        const nextB = new Date(b.next_payment || (b as any).nextPayment || 0).getTime();
+        if (nextB !== nextA) return nextB - nextA;
+        const toMA = a.to_month || (a as any).toMonth || '';
+        const toMB = b.to_month || (b as any).toMonth || '';
+        if (toMB !== toMA) return toMB.localeCompare(toMA);
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const latestContract = sortedContract[0];
+      if (!latestContract) return c;
+
+      const fromM = latestContract.from_month || (latestContract as any).fromMonth;
+      const toM = latestContract.to_month || (latestContract as any).toMonth;
+      const nextP = latestContract.next_payment || (latestContract as any).nextPayment;
+      const paySt = latestContract.payment_status || (latestContract as any).paymentStatus;
+
+      // Tự động đồng bộ ngầm lên database nếu phát hiện lệch dữ liệu do xóa giao dịch trước đó
+      if (
+        useServerData &&
+        (c.to_month !== toM || c.payment_status !== paySt || c.from_month !== fromM)
+      ) {
+        customerService.resyncCustomerFromRecords(
+          { customerKey: cleanK, cccd: cleanC, bhxh: cleanB },
+          matchedRecs
+        ).catch(() => {});
+      }
+
+      return {
+        ...c,
+        from_month: fromM || c.from_month,
+        fromMonth: fromM || c.fromMonth,
+        to_month: toM || c.to_month,
+        toMonth: toM || c.toMonth,
+        next_payment: nextP || c.next_payment,
+        nextPayment: nextP || c.nextPayment,
+        payment_status: paySt || c.payment_status,
+        paymentStatus: paySt || c.paymentStatus,
+        status: latestContract.status || c.status || 'Đang tham gia',
+        method: latestContract.method || c.method,
+        months: latestContract.months ?? c.months,
+        income: latestContract.income ?? c.income,
+        wage: latestContract.wage ?? c.wage,
+        latest_amount: latestContract.amount ?? c.latest_amount,
+        latest_date: latestContract.date ?? c.latest_date,
+        latest_record_id: latestContract.id || c.latest_record_id
+      };
+    });
+  }, [useServerData, serverCustomers, uniqueCustomersList, startIdx, itemsPerPage, records]);
 
   // Reset trang nếu vượt quá
   useEffect(() => {
@@ -391,15 +470,18 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
             recvName: record.recvName || (record as any).recvname || record.recv_name || newestByUpdate.recv_name || (newestByUpdate as any).recvName || newestByContract.recv_name || (newestByContract as any).recvName,
             recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
             recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
-            income: record.income ?? newestByContract.income,
-            method: record.method || newestByContract.method,
-            fromMonth: record.fromMonth || (record as any).frommonth || record.from_month || newestByContract.from_month || (newestByContract as any).fromMonth,
-            toMonth: record.toMonth || (record as any).tomonth || record.to_month || newestByContract.to_month || (newestByContract as any).toMonth,
-            nextPayment: record.nextPayment || (record as any).next_payment || newestByContract.next_payment || (newestByContract as any).nextPayment,
-            months: record.months ?? newestByContract.months,
-            wage: record.wage ?? newestByContract.wage,
-            nnSupportPct: record.nnSupportPct ?? record.nn_support_pct ?? newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct,
-            dpSupportPct: record.dpSupportPct ?? record.dp_support_pct ?? newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct,
+            // CÁC TRƯỜNG HỢP ĐỒNG & TÀI CHÍNH: BẮT BUỘC ƯU TIÊN newestByContract (giao dịch thực tế)
+            income: newestByContract.income ?? record.income,
+            method: newestByContract.method || record.method,
+            fromMonth: newestByContract.from_month || (newestByContract as any).fromMonth || record.fromMonth || (record as any).frommonth || record.from_month,
+            toMonth: newestByContract.to_month || (newestByContract as any).toMonth || record.toMonth || (record as any).tomonth || record.to_month,
+            nextPayment: newestByContract.next_payment || (newestByContract as any).nextPayment || record.nextPayment || (record as any).next_payment,
+            months: newestByContract.months ?? record.months,
+            wage: newestByContract.wage ?? record.wage,
+            nnSupportPct: newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct ?? record.nnSupportPct ?? (record as any).nn_support_pct,
+            dpSupportPct: newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct ?? record.dpSupportPct ?? (record as any).dp_support_pct,
+            amount: newestByContract.amount ?? record.amount,
+            paymentStatus: newestByContract.payment_status || (newestByContract as any).paymentStatus || record.paymentStatus || record.payment_status,
             members: (record.members && record.members.length > 0) ? record.members : (newestByUpdate.members || newestByContract.members)
           };
         }

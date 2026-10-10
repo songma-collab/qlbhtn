@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { RecordType, Policy } from '../context/types';
-import { recordService } from '../services/recordService';
+import { recordService, customerService } from '../services';
 import { isDateLocked, checkFinancialLockViolation } from '../utils/helpers';
 
 export interface UseRecordsStateOptions {
@@ -188,11 +188,23 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
         return false;
       }
 
-      setRecords(prev => prev.filter(r => r.id !== id));
+      const remainingRecords = records.filter(r => r.id !== id);
+      setRecords(remainingRecords);
       await fetchRecords();
       onRecordChanged?.();
       if (targetRecord) {
         addAuditLog?.('Xóa hồ sơ', `Xóa hồ sơ khách hàng ${targetRecord.name}`);
+        // Chữa lành và đồng bộ lại danh bạ khách hàng
+        const custKey = targetRecord.customer_key || (targetRecord as any).customerKey;
+        customerService.resyncCustomerFromRecords(
+          {
+            customerKey: custKey,
+            cccd: targetRecord.cccd,
+            bhxh: targetRecord.bhxh,
+            phone: targetRecord.phone
+          },
+          remainingRecords
+        ).catch(e => console.warn('[useRecordsState] resyncCustomerFromRecords failed:', e));
       }
       return true;
     } catch (error: any) {
@@ -224,9 +236,22 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
         return false;
       }
 
-      setRecords(prev => prev.filter(r => !ids.includes(r.id)));
+      const remainingRecords = records.filter(r => !ids.includes(r.id));
+      setRecords(remainingRecords);
       await fetchRecords();
       onRecordChanged?.();
+
+      const affectedKeys = new Set<string>();
+      records.filter(r => ids.includes(r.id)).forEach(r => {
+        const key = r.customer_key || (r as any).customerKey || r.cccd || r.bhxh;
+        if (key) affectedKeys.add(key);
+      });
+      for (const k of affectedKeys) {
+        customerService.resyncCustomerFromRecords(
+          { customerKey: k, cccd: k, bhxh: k },
+          remainingRecords
+        ).catch(() => {});
+      }
       return true;
     } catch (error: any) {
       console.error('[useRecordsState] Error bulk deleting records:', error);
@@ -281,6 +306,19 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
         addAuditLog?.('Hủy giao dịch', `Đã hủy giao dịch #${targetRecord.id} của khách hàng ${targetRecord.name}. Lý do: ${reason || 'Không có'}`);
         await fetchRecords();
         onRecordChanged?.();
+
+        const remainingRecords = records.map(r => r.id === targetRecord.id ? { ...r, payment_status: 'Đã hủy' as const } : r);
+        const custKey = targetRecord.customer_key || (targetRecord as any).customerKey;
+        customerService.resyncCustomerFromRecords(
+          {
+            customerKey: custKey,
+            cccd: targetRecord.cccd,
+            bhxh: targetRecord.bhxh,
+            phone: targetRecord.phone
+          },
+          remainingRecords
+        ).catch(() => {});
+
         showToast?.('Đã hủy giao dịch thành công!', 'success');
         return true;
       }

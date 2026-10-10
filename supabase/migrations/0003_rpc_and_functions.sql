@@ -2287,6 +2287,90 @@ BEGIN
 END;
 $$;
 
+-- 3.36. RPC Đồng bộ lại thông tin tóm tắt khách hàng từ hồ sơ thực tế (resync_customer_from_records)
+DROP FUNCTION IF EXISTS public.resync_customer_from_records(TEXT, TEXT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.resync_customer_from_records(
+    p_customer_key TEXT DEFAULT NULL,
+    p_cccd TEXT DEFAULT NULL,
+    p_bhxh TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    r_cust RECORD;
+    r_valid RECORD;
+    v_updated_count INT := 0;
+    v_deleted_count INT := 0;
+BEGIN
+    FOR r_cust IN 
+        SELECT id, customer_key, cccd, bhxh 
+        FROM public.customers 
+        WHERE (p_customer_key IS NULL AND p_cccd IS NULL AND p_bhxh IS NULL)
+           OR (p_customer_key IS NOT NULL AND customer_key = p_customer_key)
+           OR (p_cccd IS NOT NULL AND TRIM(p_cccd) != '' AND cccd = p_cccd)
+           OR (p_bhxh IS NOT NULL AND TRIM(p_bhxh) != '' AND bhxh = p_bhxh)
+    LOOP
+        SELECT * INTO r_valid
+        FROM public.records
+        WHERE (
+            (r_cust.customer_key IS NOT NULL AND customer_key = r_cust.customer_key)
+            OR (r_cust.cccd IS NOT NULL AND TRIM(r_cust.cccd) != '' AND cccd = r_cust.cccd)
+            OR (r_cust.bhxh IS NOT NULL AND TRIM(r_cust.bhxh) != '' AND bhxh = r_cust.bhxh)
+        )
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+        LIMIT 1;
+
+        IF r_valid.id IS NOT NULL THEN
+            UPDATE public.customers
+            SET
+                latest_record_id = r_valid.id,
+                from_month = r_valid.from_month,
+                to_month = r_valid.to_month,
+                next_payment = r_valid.next_payment,
+                next_payment_bhxh = CASE WHEN r_valid.type = 'BHXH' THEN r_valid.next_payment ELSE NULL END,
+                next_payment_bhyt = CASE WHEN r_valid.type = 'BHYT' THEN r_valid.next_payment ELSE NULL END,
+                payment_status = r_valid.payment_status,
+                latest_amount = r_valid.amount,
+                latest_date = r_valid.date::date,
+                status = COALESCE(r_valid.status, 'Đang tham gia'),
+                total_amount_paid = GREATEST(0, COALESCE((
+                    SELECT SUM(amount) FROM public.records 
+                    WHERE ((r_cust.customer_key IS NOT NULL AND customer_key = r_cust.customer_key) 
+                        OR (r_cust.cccd IS NOT NULL AND cccd = r_cust.cccd) 
+                        OR (r_cust.bhxh IS NOT NULL AND bhxh = r_cust.bhxh))
+                      AND payment_status = 'Đã thu tiền'
+                ), 0)),
+                total_contributions = GREATEST(0, COALESCE((
+                    SELECT COUNT(*) FROM public.records 
+                    WHERE ((r_cust.customer_key IS NOT NULL AND customer_key = r_cust.customer_key) 
+                        OR (r_cust.cccd IS NOT NULL AND cccd = r_cust.cccd) 
+                        OR (r_cust.bhxh IS NOT NULL AND bhxh = r_cust.bhxh))
+                      AND payment_status = 'Đã thu tiền'
+                ), 0)),
+                updated_at = NOW()
+            WHERE id = r_cust.id;
+
+            v_updated_count := v_updated_count + 1;
+        ELSE
+            -- Không còn bất kỳ giao dịch hợp lệ nào: xóa khỏi customers
+            DELETE FROM public.customers WHERE id = r_cust.id;
+            v_deleted_count := v_deleted_count + 1;
+        END IF;
+    END LOOP;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'updated_customers', v_updated_count,
+        'deleted_customers', v_deleted_count,
+        'message', 'Đã đồng bộ lại dữ liệu danh bạ khách hàng thành công.'
+    );
+END;
+$$;
+
 -- ======================================================================
 -- 4. CẤP QUYỀN THỰC THI (EXECUTE GRANTS)
 -- ======================================================================
@@ -2317,3 +2401,4 @@ GRANT EXECUTE ON FUNCTION public.sync_system_policies(JSONB) TO authenticated, s
 GRANT EXECUTE ON FUNCTION public.is_financial_period_locked(TIMESTAMP WITH TIME ZONE) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(text) TO authenticated, service_role, anon;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(timestamptz) TO authenticated, service_role, anon;
+GRANT EXECUTE ON FUNCTION public.resync_customer_from_records(TEXT, TEXT, TEXT) TO authenticated, service_role;
