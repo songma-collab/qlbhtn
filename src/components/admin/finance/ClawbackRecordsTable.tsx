@@ -74,7 +74,7 @@ export const ClawbackRecordsTable: React.FC<ClawbackRecordsTableProps> = ({
               <th className="py-3 px-3 text-right">Thu Hồi Hoa Hồng</th>
               <th className="py-3 px-3">Cán Bộ Thu</th>
               <th className="py-3 px-3">Hình Thức</th>
-              <th className="py-3 px-3 text-center">Thao Tác</th>
+              <th className="py-3 px-3 text-center font-bold whitespace-nowrap">THAO TÁC</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
@@ -162,32 +162,32 @@ export const ClawbackRecordsTable: React.FC<ClawbackRecordsTableProps> = ({
                       </span>
                     </td>
                     <td className="py-3 px-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
                           type="button"
                           onClick={() => onViewRecord(r)}
-                          className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors cursor-pointer"
+                          className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 hover:scale-110 active:scale-95 rounded-lg transition-all cursor-pointer"
                           title="Xem chi tiết bút toán"
                         >
-                          <Eye className="w-4 h-4" />
+                          <Eye className="w-5 h-5" />
                         </button>
                         {isAdminOrManager && (
                           <>
                             <button
                               type="button"
                               onClick={() => onEditRecord(r)}
-                              className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-500 hover:text-amber-700 hover:bg-amber-50 hover:scale-110 active:scale-95 rounded-lg transition-all cursor-pointer"
                               title="Chỉnh sửa bút toán"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-5 h-5" />
                             </button>
                             <button
                               type="button"
                               onClick={() => onDeleteRecord(r)}
-                              className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                              className="p-1.5 text-slate-500 hover:text-rose-700 hover:bg-rose-50 hover:scale-110 active:scale-95 rounded-lg transition-all cursor-pointer"
                               title="Xóa bút toán"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-5 h-5" />
                             </button>
                           </>
                         )}

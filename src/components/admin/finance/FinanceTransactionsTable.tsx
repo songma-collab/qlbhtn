@@ -96,7 +96,7 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
               <th className="p-4">Nhân Viên Thu</th>
               <th className="p-4">Trạng Thái</th>
               <th className="p-4 text-center">Chuyển BHXH</th>
-              <th className="p-4 text-center">Thao Tác</th>
+              <th className="p-4 text-center font-bold whitespace-nowrap">THAO TÁC</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -263,41 +263,41 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                       )}
                     </td>
                     <td className="p-4 text-center">
-                      <div className="flex items-center justify-center gap-1">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button 
                           type="button"
                           onClick={() => { setVietQrRecord(r); setIsVietQrOpen(true); }}
-                          className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 hover:scale-110 active:scale-95 transition-all cursor-pointer" 
                           title="Mã VietQR nộp tiền (NAPAS 247)"
                         >
-                          <QrCode size={15} />
+                          <QrCode size={18} />
                         </button>
                         <button 
                           type="button"
                           onClick={() => r.id && handlePrintReceipt(r.id)} 
                           disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 disabled:opacity-40 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:scale-110 active:scale-95 disabled:opacity-40 transition-all cursor-pointer" 
                           title="In biên lai thu tiền"
                         >
-                          <Printer size={15} />
+                          <Printer size={18} />
                         </button>
                         <button 
                           type="button"
                           onClick={() => r.id && handleExportReceiptImage(r.id)} 
                           disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-40 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:scale-110 active:scale-95 disabled:opacity-40 transition-all cursor-pointer" 
                           title="Xuất file ảnh biên lai"
                         >
-                          <Image size={15} />
+                          <Image size={18} />
                         </button>
                         <button 
                           type="button"
                           onClick={() => r.id && confirmDelete(r.id)} 
                           disabled={!r.id || recLocked || Boolean(isSub)} 
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-40 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:scale-110 active:scale-95 disabled:opacity-40 transition-all cursor-pointer" 
                           title={isSub ? "Không thể xóa hồ sơ đã chuyển cơ quan BHXH" : "Xóa"}
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={18} />
                         </button>
                       </div>
                     </td>

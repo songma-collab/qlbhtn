@@ -148,60 +148,60 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
 
       {/* Footer actions */}
       <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between gap-1 text-slate-500">
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => onViewHistory(c)}
-            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
             title="Xem lịch sử đóng phí"
           >
-            <History size={15} />
+            <History size={18} />
           </button>
           <button
             type="button"
             onClick={() => onVietQrClick(c)}
-            className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
             title="Mã VietQR nộp tiền"
           >
-            <QrCode size={15} />
+            <QrCode size={18} />
           </button>
           <button
             type="button"
             onClick={() => onCopyZalo(c)}
-            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
             title="Sao chép tin nhắn Zalo đôn đốc"
           >
-            <Copy size={15} />
+            <Copy size={18} />
           </button>
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => onExtend(c)}
-            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
             title="Gia hạn hồ sơ"
           >
-            <RefreshCw size={15} />
+            <RefreshCw size={18} />
           </button>
           {canEdit && (
             <button
               type="button"
               onClick={() => onEdit(c)}
-              className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 hover:scale-110 active:scale-95 transition-all cursor-pointer"
               title="Chỉnh sửa hồ sơ"
             >
-              <Edit size={15} />
+              <Edit size={18} />
             </button>
           )}
           {canDelete && (
             <button
               type="button"
               onClick={() => onDelete(c)}
-              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition cursor-pointer"
+              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:scale-110 active:scale-95 transition-all cursor-pointer"
               title="Xóa khách hàng"
             >
-              <Trash2 size={15} />
+              <Trash2 size={18} />
             </button>
           )}
         </div>

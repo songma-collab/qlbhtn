@@ -75,7 +75,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               <th className="p-4">Hạn đóng tiếp</th>
               <th className="p-4">Trạng Thái Đóng</th>
               <th className="p-4">Trạng Thái KH</th>
-              <th className="p-4 text-center">Thao Tác</th>
+              <th className="p-4 text-center font-bold whitespace-nowrap">THAO TÁC</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -200,80 +200,80 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     />
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-center gap-1">
+                    <div className="flex items-center justify-center gap-1.5">
                       <button 
                         type="button"
                         onClick={() => r.id && onStatusClick(r)} 
                         disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Đổi trạng thái Đang tham gia / Dừng đóng"
                       >
-                        <UserCheck size={15} />
+                        <UserCheck size={18} />
                       </button>
                       <button 
                         type="button"
                         onClick={() => onParticipationClick(r)} 
-                        className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Hồ sơ tham gia trước đây"
                       >
-                        <History size={15} />
+                        <History size={18} />
                       </button>
                       <button 
                         type="button"
                         onClick={() => onViewHistory(r)} 
                         disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Xem kết quả tra cứu quá trình"
                       >
-                        <Eye size={15} />
+                        <Eye size={18} />
                       </button>
                       <button 
                         type="button"
                         onClick={() => onVietQrClick(r)} 
                         disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Mã VietQR nộp tiền"
                       >
-                        <QrCode size={15} />
+                        <QrCode size={18} />
                       </button>
                       {currentUser?.role !== 'Nhân viên' && (
                         <button 
                           type="button"
                           onClick={() => r.id && onAssignClick(r.id)} 
                           disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 disabled:opacity-50 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                           title="Phân công nhân viên"
                         >
-                          <UserPlus size={15} />
+                          <UserPlus size={18} />
                         </button>
                       )}
                       <button 
                         type="button"
                         onClick={() => r.id && onCopyZalo(r)} 
                         disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Sao chép tin nhắn Zalo"
                       >
-                        <Copy size={15} />
+                        <Copy size={18} />
                       </button>
                       <button 
                         type="button"
                         onClick={() => r.id && onExtendClick(r)} 
                         disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 disabled:opacity-50 transition cursor-pointer" 
+                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                         title="Gia hạn hồ sơ"
                       >
-                        <Zap size={15} />
+                        <Zap size={18} />
                       </button>
                       {canEditCustomer && (
                         <button 
                           type="button"
                           onClick={() => r.id && onEditClick(r)} 
                           disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50 disabled:opacity-50 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                           title="Sửa thông tin"
                         >
-                          <Edit size={15} />
+                          <Edit size={18} />
                         </button>
                       )}
                       {canDeleteCustomer && (
@@ -281,10 +281,10 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                           type="button"
                           onClick={() => r.id && onDeleteClick(r.id)} 
                           disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 disabled:opacity-50 transition cursor-pointer" 
+                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
                           title="Xóa"
                         >
-                          <Trash2 size={15} />
+                          <Trash2 size={18} />
                         </button>
                       )}
                     </div>

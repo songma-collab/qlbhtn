@@ -4,7 +4,7 @@ import { CONSTANTS } from '../../utils/constants';
 import { formatMoney, getInt, getLocalYYYYMMDD } from '../../utils/helpers';
 import { formatMonthInputMask, formatDateInputMask, formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
 import { getPolicyValueForDate } from '../../utils/calculations';
-import { SlidersHorizontal, Calendar, Info, ChevronDown, ChevronUp, FileDown, Download, AlertTriangle, History, Plus, Zap, FileSpreadsheet, FileText, TrendingUp, Receipt, Trash2, Camera, Lock, UserCheck } from 'lucide-react';
+import { SlidersHorizontal, Calendar, Info, ChevronDown, ChevronUp, FileDown, Download, AlertTriangle, History, Plus, Zap, FileSpreadsheet, FileText, Receipt, Trash2, Camera, Lock, UserCheck } from 'lucide-react';
 import { protectWorksheetFormulas, validateExcelFile } from '../../utils/excelSecurity';
 import { callGeminiOcrClientSide } from '../../utils/geminiFallback';
 import { compressImageForOcr, normalizeOcrPeriods, PeriodItem } from '../../utils/ocrHelper';
@@ -22,9 +22,6 @@ const BHXH1LanCalc = () => {
   const [periods, setPeriods] = useState<Period[]>([]);
   const [eligibleDate, setEligibleDate] = useState('');
   const [showResults, setShowResults] = useState(false);
-  const [simSalary, setSimSalary] = useState('');
-  const [simYears, setSimYears] = useState(10);
-  const [simResult, setSimResult] = useState<any>(null);
   const [systemCore, setSystemCore] = useState<any>({ ready: false });
   const [calcTuat, setCalcTuat] = useState(false);
   const [deathDate, setDeathDate] = useState('');
@@ -439,25 +436,6 @@ const BHXH1LanCalc = () => {
   };
 
   calc1LanRef.current = calc1Lan;
-
-  const handleSimulate = () => {
-    if (!systemCore || !systemCore.ready) return showAlert("Chưa phân tích", "Vui lòng bấm phân tích quyền lợi trước khi chạy chiến lược hưu trí!", "info");
-
-    const target = getInt(simSalary);
-    const extra = simYears || 0;
-    if (target <= 0 || extra <= 0) return showAlert("Thiếu dữ liệu", "Vui lòng nhập đủ mục tiêu và số năm.", "warning");
-
-    let totalF = systemCore.mCount + (extra * 12);
-
-    let fY = (function (m) { let y = Math.floor(m / 12), r = m % 12; return r >= 7 ? y + 1.0 : (r >= 1 ? y + 0.5 : y); })(totalF);
-    if (fY < 15) return showAlert("Không khả thi", "Cần tối thiểu 15 năm để nhận lương hưu. Lộ trình này chỉ đạt " + fY + " năm.", "error");
-
-    let prF = Math.min(75, (gender === 'female' ? 45 + (fY - 15) * 2 : (fY <= 20 ? 40 + (fY - 15) * 1 : 45 + (fY - 20) * 2)));
-    let reqMbq = target / (prF / 100);
-    let monthly = (reqMbq * totalF - (systemCore.mbq * systemCore.mCount)) / (extra * 12);
-
-    setSimResult({ prF, reqMbq, monthly });
-  };
 
   const downloadTemplate = async () => {
     const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
@@ -1212,33 +1190,6 @@ const BHXH1LanCalc = () => {
                 </div>
               </div>
             )}
-
-            <div className="bg-slate-800 text-white p-6 rounded-2xl shadow-lg">
-              <h4 className="font-bold text-[#0ea5e9] uppercase mb-4 text-sm flex items-center"><TrendingUp size={16} className="mr-2" /> Chiến lược hưu trí</h4>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Lương hưu mục tiêu</label>
-                  <input type="text" value={simSalary} onChange={e => {
-                    let v = e.target.value.replace(/\D/g, "");
-                    setSimSalary(v ? new Intl.NumberFormat('vi-VN').format(Number(v)) : "");
-                  }} className="w-full p-3 rounded-xl border border-gray-600 text-sm bg-gray-700 text-white focus:border-[#0ea5e9] h-[40px] outline-none" placeholder="Ví dụ: 10,000,000" />
-                </div>
-                <div>
-                  <label className="block text-xs font-semibold text-gray-400 mb-1">Số năm định đóng thêm</label>
-                  <input type="number" value={simYears} onChange={e => setSimYears(Number(e.target.value))} className="w-full p-3 rounded-xl border border-gray-600 text-sm bg-gray-700 text-white focus:border-[#0ea5e9] h-[40px] outline-none" />
-                </div>
-                <button onClick={handleSimulate} className="bg-[#004182] text-white font-bold py-2 h-[40px] rounded-xl hover:bg-blue-800 transition text-sm">Phân Tích Lộ Trình</button>
-              </div>
-              {simResult && (
-                <div className="mt-5 bg-white/5 p-4 rounded-xl border border-white/10">
-                  <div className="grid grid-cols-3 text-center divide-x divide-white/10">
-                    <div><p className="text-[10px] text-slate-400 uppercase font-bold">Tỷ lệ hưu tương lai</p><p className="text-2xl font-black text-[#0ea5e9]">{simResult.prF}%</p></div>
-                    <div><p className="text-[10px] text-slate-400 uppercase font-bold">Mbq Mục tiêu</p><p className="text-xl font-bold text-white">{formatMoney(simResult.reqMbq)}</p></div>
-                    <div><p className="text-[10px] text-slate-400 uppercase font-bold">Cần đóng mỗi tháng</p><p className="text-xl font-black text-[#FDB913]">{simResult.monthly > 0 ? formatMoney(simResult.monthly) : '0 đ'}</p></div>
-                  </div>
-                </div>
-              )}
-            </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
               <div className="bg-gray-100 px-4 py-3 border-b border-gray-200 flex justify-between items-center">
