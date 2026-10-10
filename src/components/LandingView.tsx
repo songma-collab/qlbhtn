@@ -99,18 +99,28 @@ const LandingView = () => {
 
       // Map dữ liệu đầy đủ sang giao diện SearchResultModal
       const mappedHistory = processHistory.map((r: any) => ({
+        id: r.id,
         name: r.name || r.masked_name || 'Khách hàng',
         cccd: r.cccd || r.masked_cccd || '',
-        type: r.type,
+        bhxh: r.bhxh || '',
+        type: r.type || searchType,
         fromMonth: r.fromMonth || r.from_month || r.frommonth || '',
         toMonth: r.toMonth || r.to_month || r.tomonth || '',
+        from_month: r.fromMonth || r.from_month || r.frommonth || '',
+        to_month: r.toMonth || r.to_month || r.tomonth || '',
         months: Number(r.months) || 1,
+        method: r.method || (r.months ? (r.months === 1 ? 'Đóng hằng tháng' : `Đóng ${r.months} tháng`) : ''),
         income: Number(r.income) || 0,
         amount: Number(r.amount) || 0,
         nextPayment: r.nextPayment || r.next_payment || r.nextpayment || '',
+        next_payment: r.nextPayment || r.next_payment || r.nextpayment || '',
         status: r.status || 'Đang tham gia',
         paymentStatus: r.paymentStatus || r.payment_status || r.paymentstatus || 'Đã thu tiền',
-        date: r.date || r.registration_date || ''
+        payment_status: r.paymentStatus || r.payment_status || r.paymentstatus || 'Đã thu tiền',
+        actionType: r.actionType || r.action_type || '',
+        action_type: r.actionType || r.action_type || '',
+        date: r.date || r.registration_date || '',
+        notes: r.notes || r.note || ''
       }));
 
       setSearchResult(mappedHistory);

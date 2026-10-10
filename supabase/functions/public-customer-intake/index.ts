@@ -1,17 +1,26 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
-const DEFAULT_ALLOWED_ORIGINS = ["http://localhost:3000", "http://localhost:5173"];
+const DEFAULT_ALLOWED_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:4173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
+  "http://127.0.0.1:4173"
+];
 
 function getCorsHeaders(req: Request) {
   const origin = req.headers.get("Origin") || "";
   const configuredOrigins = (Deno.env.get("APP_ALLOWED_ORIGINS") || "")
     .split(",").map((value) => value.trim()).filter(Boolean);
   const allowedOrigins = configuredOrigins.length ? configuredOrigins : DEFAULT_ALLOWED_ORIGINS;
-  const isAllowed = allowedOrigins.includes(origin);
+  const isAllowed = allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "null",
-    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-captcha-token",
+    "Access-Control-Allow-Origin": isAllowed ? origin : (origin || "*"),
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-captcha-token, cf-turnstile-response",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
 }

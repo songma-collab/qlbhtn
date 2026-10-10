@@ -49,6 +49,7 @@ describe('Kiểm thử Giữ nguyên Phương thức đóng & Mức thu nhập k
     name: 'Lò Thị Nga',
     cccd: '014198012345',
     bhxh: '1421010199',
+    phone: '0988776655',
     type: 'BHXH',
     action_type: 'Gia hạn',
     method: 'Đóng hằng tháng',
@@ -67,9 +68,9 @@ describe('Kiểm thử Giữ nguyên Phương thức đóng & Mức thu nhập k
     const sorted = [...list].sort(compareRecordsByContractLatest);
 
     // Bản ghi đã thu tiền (paidRecordNga) phải được chọn đứng đầu
-    expect(sorted[0].id).toBe(101);
-    expect(sorted[0].income).toBe(1600000);
-    expect(sorted[0].method).toBe('Đóng 3 tháng');
+    expect(sorted[0]!.id).toBe(101);
+    expect(sorted[0]!.income).toBe(1600000);
+    expect(sorted[0]!.method).toBe('Đóng 3 tháng');
   });
 
   it('2. getRecordEndMonthIndex tính toán thứ tự thời gian chính xác theo năm và tháng toán học', () => {
@@ -121,17 +122,18 @@ describe('Kiểm thử Giữ nguyên Phương thức đóng & Mức thu nhập k
     const sortedByContract = [...activeRecords].sort(compareRecordsByContractLatest);
     const newestByContract = sortedByContract[0];
 
-    expect(newestByContract.id).toBe(101);
-    expect(newestByContract.income).toBe(1600000);
+    expect(newestByContract).toBeDefined();
+    expect(newestByContract!.id).toBe(101);
+    expect(newestByContract!.income).toBe(1600000);
 
     // Bước 2: Chuẩn hóa phương thức đóng và số tháng
-    const methodVal = normalizeMethodValue(newestByContract.method, newestByContract.months);
-    const customMonths = Number(newestByContract.months) || (methodVal === '3' ? 3 : 1);
+    const methodVal = normalizeMethodValue(newestByContract!.method, newestByContract!.months);
+    const customMonths = Number(newestByContract!.months) || (methodVal === '3' ? 3 : 1);
     expect(methodVal).toBe('3');
     expect(customMonths).toBe(3);
 
     // Bước 3: Tính kỳ gia hạn tiếp theo nối tiếp kỳ 03/2026
-    const nextStartMonth = calculateNextRenewalMonth(newestByContract.to_month, newestByContract.next_payment);
+    const nextStartMonth = calculateNextRenewalMonth(newestByContract!.to_month, newestByContract!.next_payment);
     expect(nextStartMonth).toBe('04/2026');
 
     // Bước 4: Tính toán mức đóng BHXH tự nguyện cho kỳ mới

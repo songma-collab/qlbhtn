@@ -503,9 +503,9 @@ export const getSafeTimestamp = (dateVal?: any): number => {
     if (!s) return 0;
     if (/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) {
       const parts = s.split('/');
-      const d = parseInt(parts[0], 10);
-      const m = parseInt(parts[1], 10) - 1;
-      const y = parseInt(parts[2], 10);
+      const d = parseInt(parts[0] || '1', 10);
+      const m = parseInt(parts[1] || '1', 10) - 1;
+      const y = parseInt(parts[2] || '1970', 10);
       const dt = new Date(y, m, d);
       return isNaN(dt.getTime()) ? 0 : dt.getTime();
     }
