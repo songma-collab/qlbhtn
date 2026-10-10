@@ -75,7 +75,7 @@ const SystemSettings = () => {
       return formatMoney(Number(val));
     }
     if (type === 'investment_rate') {
-      return `${val} %`;
+      return `${val} %/tháng`;
     }
     if (type === 'cpi_index') {
       try {
@@ -301,6 +301,24 @@ const SystemSettings = () => {
     }
   };
 
+  const handleActivateFromTimeline = async (id: number, parameterType: string, policyName?: string) => {
+    const perm = checkPolicyMutationPermission(currentUser);
+    if (!perm.allowed) {
+      showToast(perm.reason || 'Bạn không có quyền thực hiện chức năng này', 'error');
+      return;
+    }
+
+    try {
+      await activatePolicy(id, parameterType);
+      if (addAuditLog) {
+        await addAuditLog('Kích hoạt Chính sách', `Kích hoạt áp dụng chính sách: "${policyName || id}" (Loại: ${parameterType}, ID: ${id})`);
+      }
+      showToast(`Đã áp dụng chính sách "${policyName || id}" thành công!`);
+    } catch (err: any) {
+      showToast('Lỗi khi áp dụng: ' + (err?.message || 'Không thể kích hoạt'), 'error');
+    }
+  };
+
   const handleSyncDefaultPolicies = async () => {
     const perm = checkPolicyMutationPermission(currentUser);
     if (!perm.allowed) {
@@ -414,7 +432,7 @@ const SystemSettings = () => {
           {activeTab === 'timeline' ? (
             <PolicyTimelineVisualizer
               policies={policies || []}
-              onActivatePolicy={activatePolicy}
+              onActivatePolicy={handleActivateFromTimeline}
               isAdmin={Boolean(currentUser?.role === 'Admin' || currentUser?.role === 'admin')}
             />
           ) : activeTab === 'vietqr_settings' ? (

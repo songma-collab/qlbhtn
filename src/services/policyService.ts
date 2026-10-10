@@ -112,10 +112,17 @@ export const policyService = {
     const numId = Number(id);
     if (isNaN(numId)) return { success: false, error: new Error('Invalid policy ID') };
     try {
+      const typesToDeactivate = 
+        (parameterType === 'commission' || parameterType === 'commission_rates')
+          ? ['commission', 'commission_rates']
+          : (parameterType === 'nn_support_rates' || parameterType === 'bhxh_voluntary_support')
+          ? ['nn_support_rates', 'bhxh_voluntary_support']
+          : [parameterType];
+
       const { error: deactivateErr } = await supabase
         .from('policies')
         .update({ is_active: false })
-        .eq('parameter_type', parameterType);
+        .in('parameter_type', typesToDeactivate);
 
       if (deactivateErr) throw deactivateErr;
 
