@@ -302,6 +302,11 @@ const SystemSettings = () => {
       showToast(perm.reason || 'Bạn không có quyền thực hiện chức năng này', 'error');
       return;
     }
+    const targetPolicy = policies.find(p => p.id === id || p.name === name);
+    if (targetPolicy?.is_active) {
+      showToast('Không thể xóa chính sách đang được áp dụng! Vui lòng chuyển áp dụng sang chính sách khác trước khi xóa.', 'error');
+      return;
+    }
     setPolicyToDelete({ id, name });
     setDeleteConfirmOpen(true);
   };
@@ -309,11 +314,15 @@ const SystemSettings = () => {
   const handleConfirmDelete = async () => {
     if (!policyToDelete) return;
     try {
-      await deletePolicy(policyToDelete.id);
+      const success = await deletePolicy(policyToDelete.id, policyToDelete.name);
+      if (success === false) {
+        showToast('Không thể xóa chính sách này. Vui lòng kiểm tra quyền quản trị viên.', 'error');
+        return;
+      }
       if (addAuditLog) {
         await addAuditLog('Xóa Chính sách', `Đã xóa chính sách: "${policyToDelete.name}" (ID: ${policyToDelete.id})`);
       }
-      showToast('Đã xóa chính sách thành công');
+      showToast(`Đã xóa chính sách "${policyToDelete.name}" thành công`);
     } catch (err) {
       showToast('Lỗi khi xóa: ' + (err as Error).message, 'error');
     } finally {
@@ -668,13 +677,23 @@ const SystemSettings = () => {
                       >
                         <Edit2 size={16} />
                       </button>
-                      <button 
-                        onClick={() => handleDeleteClick(policy.id!, policy.name)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition cursor-pointer"
-                        title="Xóa"
-                      >
-                        <Trash2 size={16} />
-                      </button>
+                      {policy.is_active ? (
+                        <button 
+                          disabled
+                          className="p-2 text-gray-300 cursor-not-allowed rounded-lg opacity-40"
+                          title="Chính sách đang được áp dụng (không thể xóa)"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleDeleteClick(policy.id!, policy.name)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                          title="Xóa chính sách này"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );

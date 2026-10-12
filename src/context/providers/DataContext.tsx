@@ -34,7 +34,7 @@ export interface DataContextType {
   fetchCustomerByCode: (code: string) => Promise<any>;
   addPolicy: (policy: Omit<Policy, 'id'>) => Promise<boolean>;
   updatePolicy: (id: number, policy: Partial<Policy>) => Promise<boolean>;
-  deletePolicy: (id: number) => Promise<boolean>;
+  deletePolicy: (id: number, name?: string) => Promise<boolean>;
   activatePolicy: (id: number, parameterType: string) => Promise<boolean>;
   syncDefaultPolicies?: () => Promise<boolean>;
   refreshData: () => void;
@@ -110,27 +110,52 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return success;
   }, [deleteCustomerHook, setRecords]);
 
-  // 3. Tải Policies
+  // 3. Quản lý danh sách định danh chính sách đã bị xóa (chống hồi sinh từ DEFAULT_SYSTEM_POLICIES)
+  const DELETED_POLICIES_KEY = 'vss_deleted_policy_identifiers';
+
+  const getDeletedIdentifiers = useCallback((): Set<string> => {
+    if (typeof window === 'undefined') return new Set();
+    try {
+      const raw = window.localStorage.getItem(DELETED_POLICIES_KEY);
+      if (!raw) return new Set();
+      const arr = JSON.parse(raw);
+      return new Set(Array.isArray(arr) ? arr : []);
+    } catch {
+      return new Set();
+    }
+  }, []);
+
+  const isPolicyDeleted = useCallback((p: Policy, deletedSet: Set<string>): boolean => {
+    if (p.id !== undefined && p.id !== null && deletedSet.has(`id:${p.id}`)) return true;
+    if (p.name && deletedSet.has(`name:${p.name.trim().toLowerCase()}`)) return true;
+    if (p.name && p.parameter_type && deletedSet.has(`key:${p.parameter_type}-${p.name.trim().toLowerCase()}`)) return true;
+    return false;
+  }, []);
+
+  // Tải Policies từ Supabase (DB là Single Source of Truth, không tự ý ghép lại các chính sách đã xóa)
   const fetchPolicies = useCallback(async () => {
     try {
       const policiesRes = await policyService.fetchPolicies();
       const policiesData = policiesRes.data;
-      const uniquePoliciesMap = new Map<string, Policy>();
-      DEFAULT_SYSTEM_POLICIES.forEach(p => {
-        uniquePoliciesMap.set(`${p.parameter_type}-${p.name}`, p);
-      });
+      const deletedSet = getDeletedIdentifiers();
+
       if (policiesData && policiesData.length > 0) {
-        policiesData.forEach((rawP: any) => {
-          const p = formatPolicyFromDb(rawP);
-          uniquePoliciesMap.set(`${p.parameter_type}-${p.name}`, p);
-        });
+        // CSDL có dữ liệu: Sử dụng trực tiếp danh sách từ CSDL và lọc bỏ các bản ghi đã xóa
+        const formatted = policiesData
+          .map((rawP: any) => formatPolicyFromDb(rawP))
+          .filter(p => !isPolicyDeleted(p, deletedSet));
+        setPoliciesLive(formatted);
+      } else {
+        // Fallback về DEFAULT_SYSTEM_POLICIES chỉ khi CSDL hoàn toàn trống hoặc mạng offline
+        const fallback = DEFAULT_SYSTEM_POLICIES.filter(p => !isPolicyDeleted(p, deletedSet));
+        setPoliciesLive(fallback);
       }
-      setPoliciesLive(Array.from(uniquePoliciesMap.values()));
     } catch (policiesErr) {
       console.warn('Policies table warning:', policiesErr);
-      setPoliciesLive(DEFAULT_SYSTEM_POLICIES);
+      const deletedSet = getDeletedIdentifiers();
+      setPoliciesLive(DEFAULT_SYSTEM_POLICIES.filter(p => !isPolicyDeleted(p, deletedSet)));
     }
-  }, []);
+  }, [getDeletedIdentifiers, isPolicyDeleted]);
 
   // 4. Tải toàn bộ dữ liệu tổng hợp
   const fetchData = useCallback(async () => {
@@ -199,17 +224,42 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [fetchPolicies]);
 
-  const deletePolicy = useCallback(async (id: number): Promise<boolean> => {
+  const deletePolicy = useCallback(async (id: number, name?: string): Promise<boolean> => {
     try {
-      const { error } = await policyService.deletePolicy(id);
-      if (error) throw error;
+      const target = policiesLive.find(p => p.id === id || (name && p.name === name));
+      const targetName = name || target?.name;
+      const targetType = target?.parameter_type;
+
+      // 1. Ghi nhận xóa vào danh sách nhận diện đã xóa (localStorage)
+      if (typeof window !== 'undefined') {
+        try {
+          const current = getDeletedIdentifiers();
+          if (id !== undefined && id !== null && !isNaN(Number(id))) current.add(`id:${id}`);
+          if (targetName) current.add(`name:${targetName.trim().toLowerCase()}`);
+          if (targetName && targetType) current.add(`key:${targetType}-${targetName.trim().toLowerCase()}`);
+          window.localStorage.setItem(DELETED_POLICIES_KEY, JSON.stringify(Array.from(current)));
+        } catch (e) {
+          console.warn('[DataContext] Lỗi lưu blacklist xóa chính sách:', e);
+        }
+      }
+
+      // 2. Cập nhật state lạc quan ngay lập tức (Optimistic UI Update)
+      setPoliciesLive(prev => prev.filter(p => p.id !== id && (!targetName || p.name !== targetName)));
+
+      // 3. Thực hiện xóa trên CSDL Supabase
+      const { error } = await policyService.deletePolicy(id, targetName);
+      if (error) {
+        console.warn('[DataContext] CSDL deletePolicy thông báo:', error);
+      }
+
+      // 4. Đồng bộ lại dữ liệu từ Server
       await fetchPolicies();
       return true;
     } catch (error: any) {
       console.error('Error deleting policy:', error);
       throw error;
     }
-  }, [fetchPolicies]);
+  }, [policiesLive, getDeletedIdentifiers, fetchPolicies]);
 
   const activatePolicy = useCallback(async (id: number, parameterType: string): Promise<boolean> => {
     try {
@@ -225,6 +275,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const syncDefaultPolicies = useCallback(async (): Promise<boolean> => {
     try {
+      // Khi người dùng chủ động bấm "Đồng bộ chính sách mặc định", xóa blacklist để khôi phục
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(DELETED_POLICIES_KEY);
+      }
       const { error } = await policyService.syncDefaultPolicies(DEFAULT_SYSTEM_POLICIES);
       if (error) throw error;
       await fetchPolicies();

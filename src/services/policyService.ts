@@ -84,20 +84,62 @@ export const policyService = {
   },
 
   /**
-   * Xóa chính sách theo ID
+   * Xóa chính sách theo ID (kèm hỗ trợ tên chính sách và RPC delete_policy_safe)
    */
-  async deletePolicy(id: number | string | undefined): Promise<{ success: boolean; error: Error | null }> {
-    if (!id) return { success: false, error: new Error('Missing policy ID') };
-    const numId = Number(id);
-    if (isNaN(numId)) return { success: false, error: new Error('Invalid policy ID') };
-    try {
-      const { error } = await supabase
-        .from('policies')
-        .delete()
-        .eq('id', numId);
+  async deletePolicy(id: number | string | undefined, policyName?: string): Promise<{ success: boolean; error: Error | null; count?: number }> {
+    if (!id && !policyName) return { success: false, error: new Error('Thiếu ID hoặc tên chính sách cần xóa') };
+    const numId = id ? Number(id) : NaN;
 
-      if (error) throw error;
-      return { success: true, error: null };
+    try {
+      // 1. Thử gọi RPC bảo mật delete_policy_safe nếu có sẵn trên CSDL
+      if (!isNaN(numId)) {
+        try {
+          const { data: rpcRes, error: rpcErr } = await supabase.rpc('delete_policy_safe', {
+            p_id: numId
+          });
+          if (!rpcErr && rpcRes && typeof rpcRes === 'object') {
+            if ((rpcRes as any).success === false) {
+              return { success: false, error: new Error((rpcRes as any).error || (rpcRes as any).message || 'Không thể xóa chính sách') };
+            }
+            if ((rpcRes as any).success === true) {
+              return { success: true, error: null, count: (rpcRes as any).deleted_count ?? 1 };
+            }
+          }
+        } catch (_) {
+          // Bỏ qua lỗi RPC nếu chưa tạo trên CSDL, tiếp tục xóa trực tiếp
+        }
+      }
+
+      // 2. Xóa trực tiếp theo ID trong bảng public.policies
+      let deletedRows: any[] = [];
+      if (!isNaN(numId)) {
+        const { data: delById, error: errById } = await supabase
+          .from('policies')
+          .delete()
+          .eq('id', numId)
+          .select();
+
+        if (errById) throw errById;
+        if (delById && delById.length > 0) {
+          deletedRows = delById;
+        }
+      }
+
+      // 3. Fallback: Nếu không tìm thấy dòng theo ID nhưng có tên chính sách, thử xóa theo name
+      if (deletedRows.length === 0 && policyName) {
+        const { data: delByName, error: errByName } = await supabase
+          .from('policies')
+          .delete()
+          .eq('name', policyName)
+          .select();
+
+        if (errByName) throw errByName;
+        if (delByName && delByName.length > 0) {
+          deletedRows = delByName;
+        }
+      }
+
+      return { success: true, error: null, count: deletedRows.length };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi deletePolicy:', err);
       return { success: false, error: err };

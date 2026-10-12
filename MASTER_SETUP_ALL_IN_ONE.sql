@@ -1276,8 +1276,8 @@ CREATE POLICY "policies_read_all" ON public.policies
 
 CREATE POLICY "policies_write_admin_only" ON public.policies
   FOR ALL TO authenticated
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
+  USING (public.is_admin() OR public.is_manager_or_admin())
+  WITH CHECK (public.is_admin() OR public.is_manager_or_admin());
 
 -- ---------------------------------------------------------------------
 -- 3.3. RLS BẢNG AUDITLOGS (Nhật ký hệ thống bất biến)
@@ -3779,6 +3779,62 @@ BEGIN
 END;
 $$;
 
+-- 3.23. RPC Xóa chính sách hệ thống an toàn (delete_policy_safe)
+DROP FUNCTION IF EXISTS public.delete_policy_safe(BIGINT) CASCADE;
+CREATE OR REPLACE FUNCTION public.delete_policy_safe(p_id BIGINT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_deleted_count INT := 0;
+  v_policy_name TEXT;
+  v_param_type TEXT;
+  v_is_active BOOLEAN;
+BEGIN
+  -- 1. Kiểm tra quyền hạn Quản trị viên hoặc Quản lý
+  IF NOT (public.is_admin() OR public.is_manager_or_admin() OR auth.role() = 'service_role') THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Quyền truy cập bị từ chối: Chỉ Quản trị viên/Quản lý mới có quyền xóa chính sách.'
+    );
+  END IF;
+
+  -- 2. Kiểm tra tồn tại của chính sách
+  SELECT name, parameter_type, COALESCE(is_active, false)
+  INTO v_policy_name, v_param_type, v_is_active
+  FROM public.policies
+  WHERE id = p_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object(
+      'success', true,
+      'deleted_count', 0,
+      'message', 'Chính sách không tồn tại hoặc đã được xóa trước đó.'
+    );
+  END IF;
+
+  -- 3. Ngăn chặn xóa chính sách đang được kích hoạt áp dụng
+  IF v_is_active THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', format('Không thể xóa chính sách "%s" đang được kích hoạt áp dụng! Vui lòng chuyển áp dụng sang mốc khác trước khi xóa.', v_policy_name)
+    );
+  END IF;
+
+  -- 4. Thực thi xóa an toàn
+  DELETE FROM public.policies WHERE id = p_id;
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'deleted_count', v_deleted_count,
+    'message', format('Đã xóa thành công chính sách "%s" (ID: %s).', v_policy_name, p_id)
+  );
+END;
+$$;
+
 -- 3.36. RPC Đồng bộ lại thông tin tóm tắt khách hàng từ hồ sơ thực tế (resync_customer_from_records)
 DROP FUNCTION IF EXISTS public.resync_customer_from_records(TEXT, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.resync_customer_from_records(
@@ -3904,6 +3960,7 @@ GRANT EXECUTE ON FUNCTION public.log_security_audit_event(TEXT, TEXT, JSONB) TO 
 GRANT EXECUTE ON FUNCTION public.save_customer_participation(TEXT, JSONB, INT, INT, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.save_rbac_permissions(JSONB, JSONB) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_system_policies(JSONB) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.delete_policy_safe(BIGINT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_financial_period_locked(TIMESTAMP WITH TIME ZONE) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(text) TO authenticated, service_role, anon;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(timestamptz) TO authenticated, service_role, anon;

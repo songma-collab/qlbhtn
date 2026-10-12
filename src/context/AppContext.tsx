@@ -92,7 +92,7 @@ export interface AppContextType {
 
   addPolicy: (policy: Omit<Policy, 'id'>) => Promise<boolean>;
   updatePolicy: (id: number, policy: Partial<Policy>) => Promise<boolean>;
-  deletePolicy: (id: number) => Promise<boolean>;
+  deletePolicy: (id: number, name?: string) => Promise<boolean>;
   activatePolicy: (id: number, parameterType: string) => Promise<boolean>;
   syncDefaultPolicies?: (() => Promise<boolean>) | undefined;
 

@@ -19,7 +19,7 @@ export interface PolicyContextType {
   setSettings: (settings: Partial<SettingsType>) => Promise<boolean>;
   addPolicy: (policy: Omit<Policy, 'id'>) => Promise<boolean>;
   updatePolicy: (id: number, policy: Partial<Policy>) => Promise<boolean>;
-  deletePolicy: (id: number) => Promise<boolean>;
+  deletePolicy: (id: number, name?: string) => Promise<boolean>;
   activatePolicy: (id: number, parameterType: string) => Promise<boolean>;
 }
 
@@ -132,9 +132,10 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
     }
   };
 
-  const deletePolicy = async (id: number): Promise<boolean> => {
+  const deletePolicy = async (id: number, name?: string): Promise<boolean> => {
     try {
-      const { error } = await policyService.deletePolicy(id);
+      setPolicies(prev => prev.filter(p => p.id !== id && (!name || p.name !== name)));
+      const { error } = await policyService.deletePolicy(id, name);
       if (error) throw error;
       await fetchPoliciesAndSettings();
       return true;
