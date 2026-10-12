@@ -147,6 +147,20 @@ export const PolicyProvider: React.FC<{ children: ReactNode }> = ({ children }) 
 
   const activatePolicy = async (id: number, parameterType: string): Promise<boolean> => {
     try {
+      const typesToDeactivate = 
+        (parameterType === 'commission' || parameterType === 'commission_rates')
+          ? ['commission', 'commission_rates']
+          : (parameterType === 'nn_support_rates' || parameterType === 'bhxh_voluntary_support')
+          ? ['nn_support_rates', 'bhxh_voluntary_support']
+          : [parameterType];
+
+      setPolicies(prev => prev.map(p => {
+        if (typesToDeactivate.includes(p.parameter_type)) {
+          return { ...p, is_active: p.id === id };
+        }
+        return p;
+      }));
+
       const { error } = await policyService.activatePolicy(id, parameterType);
       if (error) throw error;
       await fetchPoliciesAndSettings();

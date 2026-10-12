@@ -154,6 +154,19 @@ export const policyService = {
     const numId = Number(id);
     if (isNaN(numId)) return { success: false, error: new Error('Invalid policy ID') };
     try {
+      // 1. Thử gọi RPC activate_policy_safe nếu có trong CSDL
+      try {
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('activate_policy_safe', {
+          p_id: numId,
+          p_param_type: parameterType
+        });
+        if (!rpcErr && rpcRes && typeof rpcRes === 'object' && (rpcRes as any).success === true) {
+          return { success: true, error: null };
+        }
+      } catch (_) {
+        // Fallback update trực tiếp
+      }
+
       const typesToDeactivate = 
         (parameterType === 'commission' || parameterType === 'commission_rates')
           ? ['commission', 'commission_rates']

@@ -302,9 +302,15 @@ const SystemSettings = () => {
       showToast(perm.reason || 'Bạn không có quyền thực hiện chức năng này', 'error');
       return;
     }
+    const sameTypePolicies = policies.filter(p => p.parameter_type === activeTab);
+    if (sameTypePolicies.length <= 1) {
+      showToast('Không thể xóa vì đây là chính sách duy nhất của danh mục này!', 'error');
+      return;
+    }
     const targetPolicy = policies.find(p => p.id === id || p.name === name);
-    if (targetPolicy?.is_active) {
-      showToast('Không thể xóa chính sách đang được áp dụng! Vui lòng chuyển áp dụng sang chính sách khác trước khi xóa.', 'error');
+    const activeCount = sameTypePolicies.filter(p => p.is_active).length;
+    if (targetPolicy?.is_active && activeCount === 1) {
+      showToast('Không thể xóa chính sách đang áp dụng duy nhất! Vui lòng chuyển áp dụng sang chính sách khác trước khi xóa.', 'error');
       return;
     }
     setPolicyToDelete({ id, name });
@@ -509,6 +515,23 @@ const SystemSettings = () => {
 
           {/* Policy cards list */}
           <div className="space-y-4">
+            {/* Cảnh báo khi có từ 2 chính sách cùng hiển thị Đang áp dụng (trùng lặp) */}
+            {currentTabPolicies.filter(p => p.is_active).length > 1 && (
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl flex items-center justify-between text-xs text-amber-950 gap-3 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-xl">⚠️</span>
+                  <div>
+                    <p className="font-bold text-amber-950 text-sm">
+                      Phát hiện {currentTabPolicies.filter(p => p.is_active).length} chính sách đang cùng hiển thị "Đang áp dụng" (trùng lặp).
+                    </p>
+                    <p className="text-amber-800 text-xs mt-0.5">
+                      Bạn có thể bấm <strong>"Đặt làm mốc duy nhất"</strong> trên mốc muốn giữ, hoặc bấm biểu tượng <strong>Thùng rác</strong> để xóa bỏ mốc thừa.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {currentTabPolicies.length === 0 ? (
               <div className="text-center py-12 px-6 bg-slate-50/50 rounded-2xl border border-dashed border-gray-200">
                 <FileText className="mx-auto text-gray-400 mb-3" size={42} />
@@ -523,7 +546,10 @@ const SystemSettings = () => {
               </div>
             ) : (
               currentTabPolicies.map((policy) => {
+                const activeCount = currentTabPolicies.filter(p => p.is_active).length;
                 const isPolicyActive = policy.is_active;
+                const isSoleActive = isPolicyActive && activeCount === 1;
+                const canDelete = currentTabPolicies.length > 1 && !isSoleActive;
                 return (
                   <div 
                     key={policy.id || `${policy.parameter_type}-${policy.name}`} 
@@ -547,8 +573,12 @@ const SystemSettings = () => {
                             </span>
                           )}
                           {isPolicyActive && (
-                            <span className="text-[10px] bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1">
-                              ✓ Đang áp dụng
+                            <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider flex items-center gap-1 ${
+                              activeCount > 1 
+                                ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                                : 'bg-emerald-100 text-emerald-700'
+                            }`}>
+                              {activeCount > 1 ? '⚠️ Đang trùng áp dụng' : '✓ Đang áp dụng'}
                             </span>
                           )}
                         </div>
@@ -655,19 +685,24 @@ const SystemSettings = () => {
                     </div>
 
                     <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
-                      {isPolicyActive ? (
+                      {isSoleActive ? (
                         <button 
                           disabled 
-                          className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-400 cursor-not-allowed border border-slate-200"
+                          className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 text-slate-500 cursor-default border border-slate-200 flex items-center gap-1.5"
                         >
-                          Đang áp dụng
+                          <CheckCircle size={14} className="text-emerald-600" /> Đang áp dụng
                         </button>
                       ) : (
                         <button 
                           onClick={() => handleActivate(policy.id!, policy.name)}
-                          className="px-4 py-2 rounded-xl text-xs font-bold text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition shadow-sm cursor-pointer"
+                          className={`px-4 py-2 rounded-xl text-xs font-bold transition shadow-sm cursor-pointer ${
+                            policy.is_active 
+                              ? 'text-amber-800 bg-amber-50 border border-amber-200 hover:bg-amber-100 font-extrabold'
+                              : 'text-blue-600 bg-blue-50 border border-blue-100 hover:bg-blue-100'
+                          }`}
+                          title="Kích hoạt chính sách này làm mốc áp dụng duy nhất"
                         >
-                          Áp dụng mốc này
+                          {policy.is_active ? 'Đặt làm mốc duy nhất' : 'Áp dụng mốc này'}
                         </button>
                       )}
                       <button 
@@ -677,19 +712,19 @@ const SystemSettings = () => {
                       >
                         <Edit2 size={16} />
                       </button>
-                      {policy.is_active ? (
+                      {canDelete ? (
                         <button 
-                          disabled
-                          className="p-2 text-gray-300 cursor-not-allowed rounded-lg opacity-40"
-                          title="Chính sách đang được áp dụng (không thể xóa)"
+                          onClick={() => handleDeleteClick(policy.id!, policy.name)}
+                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition cursor-pointer"
+                          title={policy.is_active ? "Xóa chính sách trùng lặp này (mốc còn lại sẽ giữ áp dụng)" : "Xóa chính sách này"}
                         >
                           <Trash2 size={16} />
                         </button>
                       ) : (
                         <button 
-                          onClick={() => handleDeleteClick(policy.id!, policy.name)}
-                          className="p-2 text-gray-400 hover:text-red-500 hover:bg-slate-50 rounded-lg transition cursor-pointer"
-                          title="Xóa chính sách này"
+                          disabled
+                          className="p-2 text-gray-300 cursor-not-allowed rounded-lg opacity-40"
+                          title="Chính sách đang áp dụng duy nhất (không thể xóa)"
                         >
                           <Trash2 size={16} />
                         </button>

@@ -3792,6 +3792,7 @@ DECLARE
   v_policy_name TEXT;
   v_param_type TEXT;
   v_is_active BOOLEAN;
+  v_same_type_count INT := 0;
 BEGIN
   -- 1. Kiểm tra quyền hạn Quản trị viên hoặc Quản lý
   IF NOT (public.is_admin() OR public.is_manager_or_admin() OR auth.role() = 'service_role') THEN
@@ -3815,15 +3816,31 @@ BEGIN
     );
   END IF;
 
-  -- 3. Ngăn chặn xóa chính sách đang được kích hoạt áp dụng
-  IF v_is_active THEN
+  -- 3. Kiểm tra số lượng chính sách trong cùng danh mục
+  SELECT count(*) INTO v_same_type_count
+  FROM public.policies
+  WHERE parameter_type = v_param_type;
+
+  IF v_same_type_count <= 1 THEN
     RETURN jsonb_build_object(
       'success', false,
-      'error', format('Không thể xóa chính sách "%s" đang được kích hoạt áp dụng! Vui lòng chuyển áp dụng sang mốc khác trước khi xóa.', v_policy_name)
+      'error', format('Không thể xóa vì "%s" là chính sách duy nhất của danh mục "%s"!', v_policy_name, v_param_type)
     );
   END IF;
 
-  -- 4. Thực thi xóa an toàn
+  -- 4. Nếu chính sách cần xóa đang là active, tự động kích hoạt chính sách còn lại gần nhất
+  IF v_is_active THEN
+    UPDATE public.policies
+    SET is_active = true
+    WHERE id = (
+      SELECT id FROM public.policies 
+      WHERE parameter_type = v_param_type AND id != p_id 
+      ORDER BY effective_date DESC, id DESC 
+      LIMIT 1
+    );
+  END IF;
+
+  -- 5. Thực thi xóa an toàn
   DELETE FROM public.policies WHERE id = p_id;
   GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
 
@@ -3831,6 +3848,65 @@ BEGIN
     'success', true,
     'deleted_count', v_deleted_count,
     'message', format('Đã xóa thành công chính sách "%s" (ID: %s).', v_policy_name, p_id)
+  );
+END;
+$$;
+
+-- 3.24. RPC Kích hoạt áp dụng chính sách duy nhất (activate_policy_safe)
+DROP FUNCTION IF EXISTS public.activate_policy_safe(BIGINT, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.activate_policy_safe(BIGINT) CASCADE;
+CREATE OR REPLACE FUNCTION public.activate_policy_safe(p_id BIGINT, p_param_type TEXT DEFAULT NULL)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_type TEXT;
+  v_name TEXT;
+BEGIN
+  -- 1. Kiểm tra quyền hạn Quản trị viên hoặc Quản lý
+  IF NOT (public.is_admin() OR public.is_manager_or_admin() OR auth.role() = 'service_role') THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Quyền truy cập bị từ chối: Chỉ Quản trị viên/Quản lý mới có quyền kích hoạt chính sách.'
+    );
+  END IF;
+
+  -- 2. Lấy thông tin chính sách
+  SELECT parameter_type, name INTO v_type, v_name
+  FROM public.policies
+  WHERE id = p_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Không tìm thấy chính sách cần kích hoạt.');
+  END IF;
+
+  v_type := COALESCE(p_param_type, v_type);
+
+  -- 3. Hủy kích hoạt toàn bộ các chính sách khác trong cùng nhóm
+  IF v_type IN ('commission', 'commission_rates') THEN
+    UPDATE public.policies
+    SET is_active = false
+    WHERE parameter_type IN ('commission', 'commission_rates') AND id != p_id;
+  ELSIF v_type IN ('nn_support_rates', 'bhxh_voluntary_support') THEN
+    UPDATE public.policies
+    SET is_active = false
+    WHERE parameter_type IN ('nn_support_rates', 'bhxh_voluntary_support') AND id != p_id;
+  ELSE
+    UPDATE public.policies
+    SET is_active = false
+    WHERE parameter_type = v_type AND id != p_id;
+  END IF;
+
+  -- 4. Kích hoạt chính sách được chọn
+  UPDATE public.policies
+  SET is_active = true
+  WHERE id = p_id;
+
+  RETURN jsonb_build_object(
+    'success', true, 
+    'message', format('Đã kích hoạt áp dụng thành công chính sách "%s" (ID: %s).', v_name, p_id)
   );
 END;
 $$;
@@ -3961,6 +4037,7 @@ GRANT EXECUTE ON FUNCTION public.save_customer_participation(TEXT, JSONB, INT, I
 GRANT EXECUTE ON FUNCTION public.save_rbac_permissions(JSONB, JSONB) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.sync_system_policies(JSONB) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.delete_policy_safe(BIGINT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.activate_policy_safe(BIGINT, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_financial_period_locked(TIMESTAMP WITH TIME ZONE) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(text) TO authenticated, service_role, anon;
 GRANT EXECUTE ON FUNCTION public.safe_cast_date(timestamptz) TO authenticated, service_role, anon;

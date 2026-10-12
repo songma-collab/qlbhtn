@@ -244,7 +244,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       }
 
       // 2. Cập nhật state lạc quan ngay lập tức (Optimistic UI Update)
-      setPoliciesLive(prev => prev.filter(p => p.id !== id && (!targetName || p.name !== targetName)));
+      setPoliciesLive(prev => {
+        const remaining = prev.filter(p => p.id !== id && (!targetName || p.name !== targetName));
+        // Nếu chính sách bị xóa đang active, tự động kích hoạt chính sách còn lại cùng nhóm
+        if (target?.is_active && targetType) {
+          const sameType = remaining.filter(p => p.parameter_type === targetType);
+          const hasActive = sameType.some(p => p.is_active);
+          if (!hasActive && sameType.length > 0) {
+            const sorted = [...sameType].sort((a, b) => (b.effective_date || '').localeCompare(a.effective_date || ''));
+            if (sorted[0]) {
+              sorted[0].is_active = true;
+            }
+          }
+        }
+        return remaining;
+      });
 
       // 3. Thực hiện xóa trên CSDL Supabase
       const { error } = await policyService.deletePolicy(id, targetName);
@@ -263,6 +277,21 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const activatePolicy = useCallback(async (id: number, parameterType: string): Promise<boolean> => {
     try {
+      const typesToDeactivate = 
+        (parameterType === 'commission' || parameterType === 'commission_rates')
+          ? ['commission', 'commission_rates']
+          : (parameterType === 'nn_support_rates' || parameterType === 'bhxh_voluntary_support')
+          ? ['nn_support_rates', 'bhxh_voluntary_support']
+          : [parameterType];
+
+      // Optimistic update: đặt id thành active và toàn bộ các chính sách khác trong nhóm thành inactive
+      setPoliciesLive(prev => prev.map(p => {
+        if (typesToDeactivate.includes(p.parameter_type)) {
+          return { ...p, is_active: p.id === id };
+        }
+        return p;
+      }));
+
       const { error } = await policyService.activatePolicy(id, parameterType);
       if (error) throw error;
       await fetchPolicies();
