@@ -107,7 +107,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
   const isAdmin = currentUser?.role === 'Admin' || currentUser?.role === 'admin' || currentUser?.role === 'Quản lý';
 
   const [activeFinanceTab, setActiveFinanceTab] = useState<'transactions' | 'batches'>('transactions');
-  const [showCashflowStatement, setShowCashflowStatement] = useState<boolean>(true);
+  const [showCashflowStatement, setShowCashflowStatement] = useState<boolean>(false);
 
   // Trạng thái bộ lọc hợp nhất được đồng bộ hóa với sessionStorage
   const [filterState, setFilterState] = useState<TransactionFilterState>(() => {
@@ -377,8 +377,11 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
     let submittedToAgency = 0;     // Đã chuyển nộp cơ quan BHXH
     let unsubmittedToAgency = 0;   // Đã thu tiền nhưng chưa nộp BHXH
-    let countSubmitted = 0;
-    let countUnsubmitted = 0;
+    let countSubmittedRecords = 0; // Số hồ sơ/giao dịch đã nộp thành công
+    let countUnsubmitted = 0;      // Số hồ sơ chờ nộp
+
+    const submittedBatches = new Set<string>();
+    let unassignedBatchRecordCount = 0;
 
     let totalCommissionPaid = 0;   // Hoa hồng phát sinh cho giao dịch đã thu
     let totalClawback = 0;         // Bù trừ âm / thu hồi
@@ -403,7 +406,14 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
         if (isSubmittedBHXH) {
           submittedToAgency += amt;
-          countSubmitted++;
+          countSubmittedRecords++;
+
+          const batchKey = (r.submission_batch || r.submissionBatch || '').trim();
+          if (batchKey) {
+            submittedBatches.add(batchKey);
+          } else {
+            unassignedBatchRecordCount++;
+          }
         } else {
           unsubmittedToAgency += amt;
           countUnsubmitted++;
@@ -416,6 +426,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         countCancelled++;
       }
     });
+
+    // Số đợt nộp thực tế: Đếm các mã đợt duy nhất (submission_batch).
+    // Nếu có hồ sơ đã nộp nhưng chưa gán mã đợt thì gom tính là 1 đợt chưa định danh.
+    const countSubmittedBatches = submittedBatches.size + (unassignedBatchRecordCount > 0 ? 1 : 0);
 
     // Tồn quỹ tiền mặt/tài khoản đại lý thu hộ thực tế = Thực thu từ khách hàng - Tiền đã nộp cơ quan BHXH
     // Lưu ý nghiệp vụ: Tiền hoa hồng chi trả nhân viên do cơ quan BHXH trích kinh phí chuyển về cho đại lý,
@@ -431,7 +445,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       countCancelled,
       submittedToAgency,
       unsubmittedToAgency,
-      countSubmitted,
+      countSubmitted: countSubmittedBatches,
+      countSubmittedBatches,
+      countSubmittedRecords,
       countUnsubmitted,
       totalCommissionPaid,
       totalCommissionFromBHXH: totalCommissionPaid,

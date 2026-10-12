@@ -21,6 +21,8 @@ export interface CashflowSummaryData {
   countPending: number;
   countCancelled: number;
   countSubmitted: number;
+  countSubmittedBatches?: number;
+  countSubmittedRecords?: number;
   countUnsubmitted: number;
   totalCollected: number;
   totalPending: number;
@@ -58,7 +60,9 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
         role="button"
         tabIndex={0}
         onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') setShowCashflowStatement(prev => !prev); }}
-        className="p-4 bg-slate-50/80 border-b border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer select-none hover:bg-slate-100/70 transition"
+        className={`p-4 bg-slate-50/80 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer select-none hover:bg-slate-100/70 transition ${
+          showCashflowStatement ? 'border-b border-slate-200' : ''
+        }`}
       >
         <div className="flex items-center gap-2.5">
           <Landmark size={18} className="text-[#004182] shrink-0" />
@@ -90,8 +94,13 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
             )}
           </div>
 
-          <div className="text-slate-400 pl-1">
-            {showCashflowStatement ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <div className="flex items-center gap-1.5 text-slate-500 pl-1">
+            <span className="text-[11px] font-medium hidden sm:inline text-slate-500">
+              {showCashflowStatement ? 'Thu gọn' : 'Xem chi tiết'}
+            </span>
+            <div className="p-1 rounded-md bg-white border border-slate-200 text-slate-500 hover:text-slate-800">
+              {showCashflowStatement ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+            </div>
           </div>
         </div>
       </div>
@@ -169,7 +178,7 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
                       2. TIỀN NỘP CƠ QUAN BHXH
                     </span>
                     <span className="text-[11px] text-slate-500 font-mono">
-                      {cashflowSummary.countSubmitted} đợt nộp
+                      {cashflowSummary.countSubmittedBatches ?? cashflowSummary.countSubmitted} đợt nộp
                     </span>
                   </div>
                   <div className="space-y-2.5 text-xs">
@@ -182,13 +191,13 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
                     <div className="flex justify-between items-center text-slate-500">
                       <span>Đợt nộp hoàn thành:</span>
                       <span className="font-mono tabular-nums text-right font-semibold">
-                        {cashflowSummary.countSubmitted} đợt
+                        {cashflowSummary.countSubmittedBatches ?? cashflowSummary.countSubmitted} đợt
                       </span>
                     </div>
                     <div className="flex justify-between items-center text-slate-500">
                       <span>Hồ sơ đã nộp thành công:</span>
                       <span className="font-mono tabular-nums text-right font-semibold">
-                        {cashflowSummary.countPaid - cashflowSummary.countUnsubmitted} hồ sơ
+                        {cashflowSummary.countSubmittedRecords ?? (cashflowSummary.countPaid - cashflowSummary.countUnsubmitted)} hồ sơ
                       </span>
                     </div>
                   </div>
@@ -234,7 +243,7 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
                       <span className="text-slate-600">Tỷ lệ hoàn thành nộp BHXH:</span>
                       <span className="font-mono tabular-nums text-right font-bold text-[#004182]">
                         {cashflowSummary.countPaid > 0 
-                          ? `${Math.round(((cashflowSummary.countPaid - cashflowSummary.countUnsubmitted) / cashflowSummary.countPaid) * 100)}%` 
+                          ? `${Math.round(((cashflowSummary.countSubmittedRecords ?? (cashflowSummary.countPaid - cashflowSummary.countUnsubmitted)) / cashflowSummary.countPaid) * 100)}%` 
                           : '0%'}
                       </span>
                     </div>
