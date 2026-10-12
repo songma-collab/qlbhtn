@@ -4063,7 +4063,15 @@ SECURITY DEFINER
 SET search_path = public, pg_temp
 AS $$
 BEGIN
-  RAISE EXCEPTION 'BẢO MẬT HỆ THỐNG: Bảng nhật ký kiểm toán (auditlogs) là dữ liệu bất biến (Append-Only). Mọi hành vi UPDATE, DELETE hoặc TRUNCATE đều bị nghiêm cấm!'
+  -- NGOẠI LỆ HỢP LỆ: Cho phép dọn dẹp dữ liệu kiểm toán quá hạn 90 ngày (Chính sách lưu trữ 90 ngày - 90-Day Retention Policy)
+  IF TG_OP = 'DELETE' AND (
+    current_setting('app.is_audit_cleanup', true) = 'true'
+    OR OLD.timestamp < (NOW() - INTERVAL '90 days')
+  ) THEN
+    RETURN OLD;
+  END IF;
+
+  RAISE EXCEPTION 'BẢO MẬT HỆ THỐNG: Bảng nhật ký kiểm toán (auditlogs) là dữ liệu bất biến (Append-Only). Mọi hành vi UPDATE, DELETE trái phép hoặc TRUNCATE đều bị nghiêm cấm!'
     USING ERRCODE = '42501';
 END;
 $$;
@@ -4082,6 +4090,42 @@ CREATE TRIGGER trigger_prevent_auditlog_truncate
   BEFORE TRUNCATE ON public.auditlogs
   FOR EACH STATEMENT
   EXECUTE FUNCTION public.enforce_auditlog_immutability();
+
+-- RPC Dọn dẹp nhật ký kiểm toán quá hạn 90 ngày (cleanup_old_audit_logs)
+DROP FUNCTION IF EXISTS public.cleanup_old_audit_logs() CASCADE;
+CREATE OR REPLACE FUNCTION public.cleanup_old_audit_logs()
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_deleted_count INT := 0;
+BEGIN
+  -- Chỉ quản trị viên hoặc service_role mới được phép dọn dẹp
+  IF NOT public.is_manager_or_admin() AND auth.role() IS DISTINCT FROM 'service_role' THEN
+    RAISE EXCEPTION 'Quyền truy cập bị từ chối: Chỉ Quản trị viên mới có quyền chạy dọn dẹp nhật ký kiểm toán.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  PERFORM set_config('app.is_audit_cleanup', 'true', true);
+
+  DELETE FROM public.auditlogs
+  WHERE timestamp < (NOW() - INTERVAL '90 days');
+
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+  PERFORM set_config('app.is_audit_cleanup', 'false', true);
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'deleted_count', v_deleted_count,
+    'message', format('Đã dọn dẹp %s bản ghi nhật ký kiểm toán cũ hơn 90 ngày', v_deleted_count)
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.cleanup_old_audit_logs() TO authenticated, service_role;
 
 -- ======================================================================
 -- 2. BẢO VỆ KHÓA KỲ TÀI CHÍNH ĐỘNG (FINANCIAL PERIOD LOCKING)
@@ -4780,8 +4824,25 @@ BEGIN
     v_action := 'Thêm mới hồ sơ';
     v_details := format('Tạo hồ sơ #%s (%s) cho khách hàng %s (CCCD/BHXH: %s - %s)', NEW.id, NEW.type, NEW.name, NEW.cccd, NEW.bhxh);
   ELSIF TG_OP = 'UPDATE' THEN
-    v_action := 'Cập nhật hồ sơ';
-    v_details := format('Cập nhật hồ sơ ID %s (%s - %s), Trạng thái thanh toán: %s -> %s', NEW.id, NEW.name, NEW.type, OLD.payment_status, NEW.payment_status);
+    -- CHỈ GHI LOG KHI CÓ BIẾN ĐỘNG TRỌNG YẾU:
+    -- 1. Thu tiền phát sinh (thay đổi trạng thái thanh toán hoặc số tiền)
+    -- 2. Thay đổi thông tin cá nhân cốt lõi (Họ tên, CCCD, Mã BHXH, Ngày sinh, Số điện thoại)
+    IF (OLD.payment_status IS DISTINCT FROM NEW.payment_status) OR (OLD.amount IS DISTINCT FROM NEW.amount) THEN
+      v_action := 'Thay đổi trạng thái thu tiền';
+      v_details := format('Hồ sơ #%s (%s): Trạng thái thanh toán đổi từ "%s" sang "%s", Số tiền: %s VNĐ', 
+        NEW.id, NEW.name, COALESCE(OLD.payment_status, 'Chờ thanh toán'), NEW.payment_status, NEW.amount);
+    ELSIF (OLD.name IS DISTINCT FROM NEW.name)
+       OR (OLD.cccd IS DISTINCT FROM NEW.cccd)
+       OR (OLD.bhxh IS DISTINCT FROM NEW.bhxh)
+       OR (OLD.dob IS DISTINCT FROM NEW.dob)
+       OR (OLD.phone IS DISTINCT FROM NEW.phone) THEN
+      v_action := 'Cập nhật thông tin cá nhân';
+      v_details := format('Cập nhật nhân thân hồ sơ #%s: Họ tên "%s", CCCD "%s", BHXH "%s"', 
+        NEW.id, NEW.name, COALESCE(NEW.cccd, 'N/A'), COALESCE(NEW.bhxh, 'N/A'));
+    ELSE
+      -- BỎ QUA các cập nhật phụ (notes, timestamps, cờ hệ thống...) để tiết kiệm dung lượng lưu trữ
+      RETURN NEW;
+    END IF;
   ELSIF TG_OP = 'DELETE' THEN
     v_action := 'Xóa hồ sơ';
     v_details := format('Xóa hồ sơ ID %s của khách hàng %s (%s)', OLD.id, OLD.name, OLD.type);

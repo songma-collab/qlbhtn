@@ -147,6 +147,7 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
         console.warn('[useCustomersState] RPC delete_customer_cascade failed, executing direct cascade fallback:', res.error);
         const fbRes = await customerService.deleteCustomerCascadeFallback(customerKey);
         if (!fbRes.success) throw fbRes.error;
+        addAuditLog?.('Xóa khách hàng liên đới', `Đã xóa khách hàng [${customerKey}] và các giao dịch liên quan qua phương thức trực tiếp`);
       } else if (!res.success) {
         showAlert?.('Từ chối xóa khách hàng', res.message || 'Không thể xóa khách hàng do ràng buộc an toàn dữ liệu.', 'warning');
         return false;
@@ -168,7 +169,7 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
       showAlert?.('Lỗi xóa hồ sơ khách hàng', error.message || 'Hệ thống từ chối xóa hồ sơ khách hàng này.', 'error');
       return false;
     }
-  }, [fetchCustomers, onCustomerChanged, showAlert]);
+  }, [addAuditLog, fetchCustomers, onCustomerChanged, showAlert]);
 
   const fetchCustomerByCode = useCallback(async (code: string): Promise<any> => {
     const clean = (code || '').replace(/\D/g, '');

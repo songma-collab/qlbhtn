@@ -103,14 +103,55 @@ export const sanitizeInput = (input: string): string => {
 };
 
 /**
+ * Danh sách các hành vi KHÔNG GHI NHẬT KÝ (Blacklist để giảm tải dung lượng lưu trữ)
+ * Các thao tác in ấn, xuất Excel, xem thông tin phụ hoặc cấu hình giao diện
+ */
+export const EXCLUDED_AUDIT_ACTIONS = new Set([
+  'In biên lai',
+  'Xuất ảnh biên lai',
+  'Xuất Excel Tài Chính',
+  'Xuất Excel Giao dịch Tài chính',
+  'Xuất Mẫu D03-TS',
+  'Xuất Mẫu D05-TS',
+  'Xuất danh sách khách hàng ra Excel',
+  'Xuất danh sách tuyến thu hiện trường',
+  'VIEW_UNMASKED_PII',
+  'EXPORT_D03_EXCEL',
+  'EXPORT_D05_EXCEL',
+  'Cài đặt thông số in ấn',
+  'homepage_settings_update',
+  'Cập nhật trang chủ',
+  'Nhật ký tiếp xúc khách hàng',
+  'Cập nhật trạng thái đôn đốc',
+  'Bulk Dispatch Reassignment'
+]);
+
+/**
+ * Kiểm tra xem hành động có phải là hành vi trọng yếu cần ghi nhật ký hay không
+ * Chỉ lưu: Biến động thu tiền, thêm/sửa/xóa hồ sơ, thông tin cá nhân, xóa khách hàng, nhân sự...
+ */
+export const isImportantAuditEvent = (action: string): boolean => {
+  if (!action || typeof action !== 'string') return false;
+  const trimmed = action.trim();
+  if (EXCLUDED_AUDIT_ACTIONS.has(trimmed)) return false;
+  return true;
+};
+
+/**
  * Ghi nhật ký kiểm toán bảo mật (Security Audit Logging)
  * Gọi RPC bảo mật server-side gắn kèm IP và định danh nhân viên
+ * Có cơ chế lọc thông minh chỉ lưu các hành động thực sự trọng yếu
  */
 export const logSecurityAudit = async (
   action: string,
   details: string,
   metadata: Record<string, any> = {}
 ): Promise<boolean> => {
+  // Lọc cổng chặn: Bỏ qua các thao tác in ấn, xuất file hoặc cập nhật phụ để tiết kiệm dung lượng
+  if (!isImportantAuditEvent(action)) {
+    return false;
+  }
+
   try {
     const { data, error } = await supabase.rpc('log_security_audit_event', {
       p_action: action,

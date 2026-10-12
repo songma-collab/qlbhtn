@@ -207,41 +207,73 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
     }
   }, [fetchAdminData, isAuthReady]);
 
+  const addAuditLog = useCallback(async (action: string, details: string) => {
+    try {
+      await logSecurityAudit(action, details);
+    } catch (err) {
+      console.warn('[AdminContext] addAuditLog warning:', err);
+    }
+  }, []);
+
   const addStaff = useCallback(async (newStaffData: StaffType): Promise<boolean> => {
     try {
       const { success, error } = await staffService.addStaff(newStaffData);
       if (error) throw error;
       await fetchAdminData();
+      await addAuditLog(
+        'Thêm mới nhân viên',
+        `Tạo tài khoản nhân sự: ${newStaffData.name} (${newStaffData.email}) - Vai trò: ${newStaffData.role || 'Nhân viên'}`
+      );
       return success;
     } catch (error: any) {
       console.error('Error adding staff:', error);
       throw error;
     }
-  }, [fetchAdminData]);
+  }, [addAuditLog, fetchAdminData]);
 
   const updateStaff = useCallback(async (id: string, updatedFields: Partial<StaffType>): Promise<boolean> => {
     try {
+      const target = staffLive.find(s => s.id === id);
       const { success, error } = await staffService.updateStaff(id, updatedFields);
       if (error) throw error;
       await fetchAdminData();
+
+      const changeParts: string[] = [];
+      if (updatedFields.status && target && updatedFields.status !== target.status) {
+        changeParts.push(`Trạng thái: "${target.status}" -> "${updatedFields.status}"`);
+      }
+      if (updatedFields.role && target && updatedFields.role !== target.role) {
+        changeParts.push(`Vai trò: "${target.role}" -> "${updatedFields.role}"`);
+      }
+      if (changeParts.length > 0) {
+        await addAuditLog(
+          'Cập nhật nhân viên',
+          `Cập nhật nhân sự [${target?.name || id}]: ${changeParts.join(', ')}`
+        );
+      }
       return success;
     } catch (error: any) {
       console.error('Error updating staff:', error);
       return false;
     }
-  }, [fetchAdminData]);
+  }, [addAuditLog, fetchAdminData, staffLive]);
 
   const deleteStaff = useCallback(async (id: string): Promise<boolean> => {
     try {
+      const target = staffLive.find(s => s.id === id);
       const { success, error } = await staffService.deleteStaff(id);
       if (error) throw error;
       await fetchAdminData();
+      await addAuditLog(
+        'Xóa nhân viên',
+        `Đã xóa nhân viên "${target?.name || id}" (${target?.email || 'N/A'}) khỏi hệ thống`
+      );
       return success;
     } catch (error: any) {
       console.error('Error deleting staff:', error);
       return false;
     }
-  }, [fetchAdminData]);
+  }, [addAuditLog, fetchAdminData, staffLive]);
 
   const updateSettings = useCallback(async (updatedFields: Partial<SettingsType>): Promise<boolean> => {
     try {
@@ -372,14 +404,6 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
       return false;
     }
   }, [fetchAdminData, policies, settingsLive]);
-
-  const addAuditLog = useCallback(async (action: string, details: string) => {
-    try {
-      await logSecurityAudit(action, details);
-    } catch (err) {
-      console.warn('[AdminContext] addAuditLog warning:', err);
-    }
-  }, []);
 
   const value = useMemo<AdminContextType>(() => ({
     currentUser,

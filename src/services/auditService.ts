@@ -7,13 +7,17 @@ import { AuditLogType } from '../context/types';
 
 export const auditService = {
   /**
-   * Lấy danh sách nhật ký kiểm toán hệ thống
+   * Lấy danh sách nhật ký kiểm toán hệ thống (Chính sách lưu trữ: 90 ngày gần nhất)
    */
   async fetchAuditLogs(limit: number = 500): Promise<{ data: AuditLogType[]; error: Error | null }> {
     try {
+      // Giới hạn thời gian tối đa 90 ngày gần nhất
+      const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
       const { data, error } = await supabase
         .from('auditlogs')
         .select('*')
+        .gte('timestamp', ninetyDaysAgo)
         .order('timestamp', { ascending: false })
         .limit(limit);
 
@@ -22,6 +26,29 @@ export const auditService = {
     } catch (err: any) {
       console.warn('[AuditService] fetchAuditLogs error:', err);
       return { data: [], error: err };
+    }
+  },
+
+  /**
+   * Dọn dẹp các bản ghi nhật ký kiểm toán cũ hơn 90 ngày khỏi cơ sở dữ liệu
+   */
+  async cleanupOldAuditLogs(): Promise<{ success: boolean; deletedCount?: number; error: Error | null }> {
+    try {
+      const { data, error } = await supabase.rpc('cleanup_old_audit_logs');
+      if (error) {
+        // Fallback xóa trực tiếp nếu RPC chưa được tạo
+        const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+        const { error: delErr } = await supabase
+          .from('auditlogs')
+          .delete()
+          .lt('timestamp', ninetyDaysAgo);
+        if (delErr) throw delErr;
+        return { success: true, error: null };
+      }
+      return { success: true, deletedCount: data?.deleted_count, error: null };
+    } catch (err: any) {
+      console.warn('[AuditService] cleanupOldAuditLogs error:', err?.message || err);
+      return { success: false, error: err };
     }
   },
 
