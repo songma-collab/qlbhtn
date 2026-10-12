@@ -417,8 +417,10 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       }
     });
 
-    // Tồn quỹ tiền mặt/tài khoản đại lý thực tế = Thực thu - Tiền đã nộp cơ quan BHXH - Hoa hồng chi trả
-    const netAgencyFunds = totalCollected - submittedToAgency - totalCommissionPaid;
+    // Tồn quỹ tiền mặt/tài khoản đại lý thu hộ thực tế = Thực thu từ khách hàng - Tiền đã nộp cơ quan BHXH
+    // Lưu ý nghiệp vụ: Tiền hoa hồng chi trả nhân viên do cơ quan BHXH trích kinh phí chuyển về cho đại lý,
+    // đại lý trung chuyển chi trả cho nhân viên, không trích từ nguồn kinh phí tự có của đại lý.
+    const netAgencyFunds = totalCollected - submittedToAgency;
 
     return {
       totalCollected,
@@ -432,6 +434,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       countSubmitted,
       countUnsubmitted,
       totalCommissionPaid,
+      totalCommissionFromBHXH: totalCommissionPaid,
       totalClawback,
       netAgencyFunds,
       totalTransactions: relevant.length
