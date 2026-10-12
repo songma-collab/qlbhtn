@@ -13,7 +13,8 @@ import {
   formatTitleCase,
   compareRecordsByContractLatest,
   normalizeMethodValue,
-  getMethodLabelFromValue
+  getMethodLabelFromValue,
+  prepareRenewalRecord
 } from '../../utils/helpers';
 import { calculateNextRenewalMonth, toUIDate, toUIMonth, toDbDate, toDbMonth, parseMonthAndYear } from '../../utils/dateStandardHelper';
 import { 
@@ -258,86 +259,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
   useEffect(() => {
     if (isOpen) {
       const effectiveRec = record || initialData;
-      let resolvedRec = effectiveRec;
-
-      // Tự động phục hồi thông tin kỳ đóng gần nhất nếu record truyền vào thiếu trường tài chính/kỳ hạn
-      if (effectiveRec && records && records.length > 0) {
-        const cleanCccd = (effectiveRec.cccd || effectiveRec.citizenId || '').replace(/\D/g, '');
-        const cleanBhxh = (effectiveRec.bhxh || effectiveRec.bhxhCode || (effectiveRec.type === 'BHXH' ? effectiveRec.code : '') || '').replace(/\D/g, '');
-        
-        const activeRecs = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
-        const matched = activeRecs.filter(r => {
-          if (effectiveRec.latest_record_id && r.id === effectiveRec.latest_record_id) return true;
-          const rCccd = (r.cccd || '').replace(/\D/g, '');
-          const rBhxh = (r.bhxh || '').replace(/\D/g, '');
-          const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
-          return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
-        });
-
-        if (matched.length > 0) {
-          // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
-          const sortedByContract = [...matched].sort(compareRecordsByContractLatest);
-          const newestByContract = sortedByContract[0];
-
-          // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
-          const sortedByUpdate = [...matched].sort((a, b) => {
-            const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
-            const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
-            if (upB !== upA) return upB - upA;
-            const dateA = new Date(a.date || a.created_at || 0).getTime();
-            const dateB = new Date(b.date || b.created_at || 0).getTime();
-            if (dateB !== dateA) return dateB - dateA;
-            return (Number(b.id) || 0) - (Number(a.id) || 0);
-          });
-          const newestByUpdate = sortedByUpdate[0];
-
-          if (newestByContract && newestByUpdate) {
-            const targetRecordId = typeof effectiveRec.id === 'number' && !isNaN(effectiveRec.id)
-              ? effectiveRec.id
-              : (Number(effectiveRec.latest_record_id) || newestByContract.id || newestByUpdate.id);
-
-            const hasRenewInMatched = matched.some(r => {
-              const a = String(r.action_type || (r as any).actionType || '').toLowerCase();
-              return a.includes('gia hạn') || a.includes('tái tục');
-            });
-            const inheritedActionType = hasRenewInMatched
-              ? 'Gia hạn'
-              : (newestByContract.action_type || (newestByContract as any).actionType || newestByUpdate.action_type || (newestByUpdate as any).actionType || effectiveRec.action_type || (effectiveRec as any).actionType);
-
-            resolvedRec = {
-              ...newestByContract,
-              ...newestByUpdate,
-              ...effectiveRec,
-              id: targetRecordId,
-              action_type: inheritedActionType,
-              actionType: inheritedActionType,
-              name: effectiveRec.name || newestByUpdate.name || newestByContract.name,
-              phone: effectiveRec.phone || newestByUpdate.phone || newestByContract.phone,
-              address: effectiveRec.address || newestByUpdate.address || newestByContract.address,
-              dob: effectiveRec.dob || newestByUpdate.dob || newestByContract.dob,
-              gender: effectiveRec.gender || newestByUpdate.gender || newestByContract.gender,
-              nation: effectiveRec.nation || newestByUpdate.nation || newestByContract.nation,
-              email: effectiveRec.email || newestByUpdate.email || newestByContract.email,
-              recvName: effectiveRec.recvName || (effectiveRec as any).recvname || effectiveRec.recv_name || newestByUpdate.recv_name || (newestByUpdate as any).recvName || newestByContract.recv_name || (newestByContract as any).recvName,
-              recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
-              recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
-              // CÁC TRƯỜNG HỢP ĐỒNG & TÀI CHÍNH: BẮT BUỘC ƯU TIÊN newestByContract (giao dịch thực tế)
-              income: (newestByContract.income && Number(newestByContract.income) > 0) ? newestByContract.income : effectiveRec.income,
-              method: newestByContract.method || effectiveRec.method,
-              fromMonth: newestByContract.from_month || (newestByContract as any).fromMonth || effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month,
-              toMonth: newestByContract.to_month || (newestByContract as any).toMonth || effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month,
-              nextPayment: newestByContract.next_payment || (newestByContract as any).nextPayment || effectiveRec.nextPayment || (effectiveRec as any).next_payment,
-              months: (newestByContract.months && Number(newestByContract.months) > 0) ? newestByContract.months : effectiveRec.months,
-              wage: newestByContract.wage ?? effectiveRec.wage,
-              nnSupportPct: newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct ?? effectiveRec.nnSupportPct ?? (effectiveRec as any).nn_support_pct,
-              dpSupportPct: newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct ?? effectiveRec.dpSupportPct ?? (effectiveRec as any).dp_support_pct,
-              amount: newestByContract.amount ?? effectiveRec.amount,
-              paymentStatus: newestByContract.payment_status || (newestByContract as any).paymentStatus || effectiveRec.paymentStatus || effectiveRec.payment_status,
-              members: (effectiveRec.members && effectiveRec.members.length > 0) ? effectiveRec.members : (newestByUpdate.members || newestByContract.members)
-            };
-          }
-        }
-      }
+      let resolvedRec = effectiveRec ? prepareRenewalRecord(effectiveRec, records) : null;
 
       const rec = resolvedRec ? {
         ...resolvedRec,
@@ -1309,17 +1231,18 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
 
   if (!isOpen) return null;
 
-  const rec = record ? {
-    ...record,
-    name: record.name || '',
-    method: record.method || '',
-    fromMonth: record.fromMonth || record.frommonth || record.from_month || '',
-    toMonth: record.toMonth || record.tomonth || record.to_month || '',
-    recvName: record.recvName || record.recvname || record.recv_name || '',
-    recvPhone: record.recvPhone || record.recvphone || record.recv_phone || '',
-    recvAddress: record.recvAddress || record.recvaddress || record.recv_address || '',
+  const effectiveRec = record || initialData;
+  const rec = effectiveRec ? {
+    ...effectiveRec,
+    name: effectiveRec.name || (effectiveRec as any).fullName || '',
+    method: effectiveRec.method || '',
+    fromMonth: effectiveRec.fromMonth || (effectiveRec as any).frommonth || effectiveRec.from_month || '',
+    toMonth: effectiveRec.toMonth || (effectiveRec as any).tomonth || effectiveRec.to_month || '',
+    recvName: effectiveRec.recvName || (effectiveRec as any).recvname || effectiveRec.recv_name || '',
+    recvPhone: effectiveRec.recvPhone || (effectiveRec as any).recvphone || effectiveRec.recv_phone || '',
+    recvAddress: effectiveRec.recvAddress || (effectiveRec as any).recvaddress || effectiveRec.recv_address || '',
   } : null;
-  const title = isRenew ? `Gia Hạn ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}` : (record ? 'Cập Nhật Thông Tin Hồ Sơ' : `Đăng Ký ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}`);
+  const title = isRenew ? `Gia Hạn ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}` : (effectiveRec ? 'Cập Nhật Thông Tin Hồ Sơ' : `Đăng Ký ${type === 'BHXH' ? 'BHXH Tự Nguyện' : 'BHYT Hộ Gia Đình'}`);
   const subtitleText = type === 'BHXH'
     ? (bhxhActionType === 'Tăng mới' ? 'Hồ sơ Tăng mới' : 'Hồ sơ Gia hạn')
     : (isRenew ? 'Hồ sơ Gia hạn' : (record ? 'Cập nhật' : 'Đăng ký mới'));

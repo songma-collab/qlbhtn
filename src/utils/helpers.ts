@@ -509,3 +509,110 @@ export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterT
   return latestCustomers;
 };
 
+/**
+ * Chuẩn hóa và làm giàu dữ liệu hồ sơ gia hạn BHXH / BHYT (Single Source of Truth)
+ * Kế thừa thông tin hợp đồng kỳ hạn mới nhất (newestByContract)
+ * và thông tin nhân khẩu mới nhất (newestByUpdate) theo chuẩn của Danh Bạ Khách Hàng.
+ */
+export const prepareRenewalRecord = (record: any, records: any[] = []): any => {
+  if (!record) return record;
+  let fullRecord = { ...record };
+
+  if (records && records.length > 0) {
+    const cleanCccd = (record.cccd || record.citizenId || '').replace(/\D/g, '');
+    const cleanBhxh = (record.bhxh || record.bhxhCode || (record.type === 'BHXH' ? record.code : '') || '').replace(/\D/g, '');
+    const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
+
+    const matched = activeRecords.filter(r => {
+      if (record.latest_record_id && (r.id === record.latest_record_id || r.id === Number(record.latest_record_id))) return true;
+      if (record.id && (r.id === record.id || r.id === Number(record.id))) return true;
+      const rCccd = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
+      const rBhxh = (r.bhxh || (r as any).bhxhCode || '').replace(/\D/g, '');
+      const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+      return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
+    });
+
+    if (matched.length > 0) {
+      // 1. Bản ghi có kỳ hạn mới nhất để tính kỳ gia hạn tiếp theo
+      const sortedByContract = [...matched].sort(compareRecordsByContractLatest);
+      const newestByContract = sortedByContract[0];
+
+      // 2. Bản ghi có thời điểm CẬP NHẬT GẦN NHẤT (ưu tiên thông tin nhân khẩu mới nhất)
+      const sortedByUpdate = [...matched].sort((a, b) => {
+        const upA = new Date(a.updated_at || a.date || a.created_at || 0).getTime();
+        const upB = new Date(b.updated_at || b.date || b.created_at || 0).getTime();
+        if (upB !== upA) return upB - upA;
+        const dateA = new Date(a.date || a.created_at || 0).getTime();
+        const dateB = new Date(b.date || b.created_at || 0).getTime();
+        if (dateB !== dateA) return dateB - dateA;
+        return (Number(b.id) || 0) - (Number(a.id) || 0);
+      });
+      const newestByUpdate = sortedByUpdate[0];
+
+      if (newestByContract && newestByUpdate) {
+        const targetRecordId = typeof record.id === 'number' && !isNaN(record.id)
+          ? record.id
+          : (Number(record.latest_record_id) || newestByContract.id || newestByUpdate.id);
+
+        const hasRenewInMatched = matched.some(r => {
+          const a = String(r.action_type || (r as any).actionType || '').toLowerCase();
+          return a.includes('gia hạn') || a.includes('tái tục');
+        });
+        const inheritedActionType = hasRenewInMatched
+          ? 'Gia hạn'
+          : (newestByContract.action_type || (newestByContract as any).actionType || newestByUpdate.action_type || (newestByUpdate as any).actionType || record.action_type || (record as any).actionType || 'Gia hạn');
+
+        fullRecord = {
+          ...newestByContract,
+          ...newestByUpdate,
+          ...record,
+          id: targetRecordId,
+          type: record.type || newestByContract.type || newestByUpdate.type || 'BHXH',
+          action_type: inheritedActionType,
+          actionType: inheritedActionType,
+          name: record.name || (record as any).fullName || newestByUpdate.name || newestByContract.name,
+          fullName: record.name || (record as any).fullName || newestByUpdate.name || newestByContract.name,
+          cccd: cleanCccd || newestByUpdate.cccd || newestByContract.cccd || '',
+          citizenId: cleanCccd || newestByUpdate.cccd || newestByContract.cccd || '',
+          bhxh: cleanBhxh || newestByUpdate.bhxh || newestByContract.bhxh || '',
+          bhxhCode: cleanBhxh || newestByUpdate.bhxh || newestByContract.bhxh || '',
+          phone: record.phone || newestByUpdate.phone || newestByContract.phone,
+          address: record.address || newestByUpdate.address || newestByContract.address,
+          dob: record.dob || newestByUpdate.dob || newestByContract.dob,
+          gender: record.gender || newestByUpdate.gender || newestByContract.gender,
+          nation: record.nation || newestByUpdate.nation || newestByContract.nation,
+          email: record.email || newestByUpdate.email || newestByContract.email,
+          recvName: record.recvName || (record as any).recvname || record.recv_name || newestByUpdate.recv_name || (newestByUpdate as any).recvName || newestByContract.recv_name || (newestByContract as any).recvName,
+          recvPhone: record.recvPhone || (record as any).recvphone || record.recv_phone || newestByUpdate.recv_phone || (newestByUpdate as any).recvPhone || newestByContract.recv_phone || (newestByContract as any).recvPhone,
+          recvAddress: record.recvAddress || (record as any).recvaddress || record.recv_address || newestByUpdate.recv_address || (newestByUpdate as any).recvAddress || newestByContract.recv_address || (newestByContract as any).recvAddress,
+          // CÁC TRƯỜNG HỢP ĐỒNG & TÀI CHÍNH: BẮT BUỘC ƯU TIÊN newestByContract (giao dịch thực tế)
+          income: (newestByContract.income != null && Number(newestByContract.income) > 0) ? newestByContract.income : (record.income || 1500000),
+          method: newestByContract.method || record.method,
+          fromMonth: newestByContract.from_month || (newestByContract as any).fromMonth || record.fromMonth || (record as any).frommonth || record.from_month,
+          toMonth: newestByContract.to_month || (newestByContract as any).toMonth || record.toMonth || (record as any).tomonth || record.to_month,
+          nextPayment: newestByContract.next_payment || (newestByContract as any).nextPayment || record.nextPayment || (record as any).next_payment,
+          months: (newestByContract.months != null && Number(newestByContract.months) > 0) ? newestByContract.months : (record.months || 1),
+          wage: newestByContract.wage != null ? newestByContract.wage : record.wage,
+          nnSupportPct: newestByContract.nn_support_pct ?? (newestByContract as any).nnSupportPct ?? record.nnSupportPct ?? (record as any).nn_support_pct,
+          dpSupportPct: newestByContract.dp_support_pct ?? (newestByContract as any).dpSupportPct ?? record.dpSupportPct ?? (record as any).dp_support_pct,
+          amount: newestByContract.amount != null ? newestByContract.amount : record.amount,
+          paymentStatus: newestByContract.payment_status || (newestByContract as any).paymentStatus || record.paymentStatus || record.payment_status,
+          members: (record.members && record.members.length > 0) ? record.members : (newestByUpdate.members || newestByContract.members)
+        };
+      }
+    }
+  }
+
+  // Đảm bảo action_type luôn chuẩn
+  if (!fullRecord.action_type && !fullRecord.actionType) {
+    fullRecord.action_type = 'Gia hạn';
+    fullRecord.actionType = 'Gia hạn';
+  } else if (!fullRecord.actionType) {
+    fullRecord.actionType = fullRecord.action_type;
+  } else if (!fullRecord.action_type) {
+    fullRecord.action_type = fullRecord.actionType;
+  }
+
+  return fullRecord;
+};
+

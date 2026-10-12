@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord } from '../../utils/helpers';
 import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -220,40 +220,9 @@ const PredictiveAnalytics: React.FC = () => {
   };
 
   const handleOpenRegister = (customer: any) => {
-    let fullRecord = customer;
-    if (customer && records && records.length > 0) {
-      const cleanCccd = (customer.cccd || customer.citizenId || '').replace(/\D/g, '');
-      const cleanBhxh = (customer.bhxh || customer.bhxhCode || '').replace(/\D/g, '');
-      const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
-      const matched = activeRecords.filter(r => {
-        if (customer.id && (r.id === customer.id || r.id === Number(customer.id))) return true;
-        const rCccd = (r.cccd || '').replace(/\D/g, '');
-        const rBhxh = (r.bhxh || '').replace(/\D/g, '');
-        const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
-        return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
-      });
-      if (matched.length > 0) {
-        matched.sort(compareRecordsByContractLatest);
-        const newest = matched[0];
-        if (newest) {
-          fullRecord = {
-            ...newest,
-            ...customer,
-            income: (newest.income && Number(newest.income) > 0) ? newest.income : customer.income,
-            method: newest.method || customer.method,
-            fromMonth: newest.from_month || (newest as any).fromMonth || customer.fromMonth || (customer as any).frommonth || customer.from_month,
-            toMonth: newest.to_month || (newest as any).toMonth || customer.toMonth || (customer as any).tomonth || customer.to_month,
-            nextPayment: newest.next_payment || (newest as any).nextPayment || customer.nextPayment || (customer as any).next_payment,
-            months: (newest.months && Number(newest.months) > 0) ? newest.months : customer.months,
-            wage: newest.wage ?? customer.wage,
-            nnSupportPct: newest.nn_support_pct ?? (newest as any).nnSupportPct ?? customer.nnSupportPct ?? customer.nn_support_pct,
-            dpSupportPct: newest.dp_support_pct ?? (newest as any).dpSupportPct ?? customer.dpSupportPct ?? customer.dp_support_pct
-          };
-        }
-      }
-    }
+    const fullRecord = customer ? prepareRenewalRecord(customer, records) : null;
     setSelectedCustomerForRegister(fullRecord);
-    setRegisterType(customer.type || fullRecord.type || 'BHXH');
+    setRegisterType((customer?.type || fullRecord?.type || 'BHXH') as 'BHXH' | 'BHYT');
     setRegisterModalOpen(true);
   };
 
@@ -654,6 +623,7 @@ const PredictiveAnalytics: React.FC = () => {
           onClose={() => setRegisterModalOpen(false)}
           type={registerType}
           record={selectedCustomerForRegister}
+          initialData={selectedCustomerForRegister}
           isRenew={true}
         />
       )}

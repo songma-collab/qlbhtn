@@ -8,7 +8,7 @@ import { UserProfileModal } from './modals/UserProfileModal';
 import RenewalReminderModal from './modals/RenewalReminderModal';
 import RegisterModal from './modals/RegisterModal';
 import { classifyRenewalRecords, RenewalUrgency } from '../utils/renewalDispatchHelper';
-import { formatMoney, getInitials } from '../utils/helpers';
+import { formatMoney, getInitials, prepareRenewalRecord } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 import { getTabFromPathname, getPathFromTab } from '../utils/adminRoutes';
 
@@ -132,23 +132,26 @@ const AdminView = () => {
   // Lắng nghe yêu cầu mở modal đăng ký / gia hạn toàn cục
   React.useEffect(() => {
     if (globalRegisterModal?.isOpen) {
+      const rec = globalRegisterModal.record || globalRegisterModal.initialData || null;
+      const fullRecord = rec ? (globalRegisterModal.isRenew ? prepareRenewalRecord(rec, records) : rec) : null;
       setRenewalRegisterModal({
         isOpen: true,
-        type: globalRegisterModal.type || 'BHXH',
-        record: globalRegisterModal.record || globalRegisterModal.initialData || null,
+        type: globalRegisterModal.type || fullRecord?.type || 'BHXH',
+        record: fullRecord,
         fromReminder: !!globalRegisterModal.fromReminder
       });
       setGlobalRegisterModal((prev: any) => ({ ...prev, isOpen: false }));
     }
-  }, [globalRegisterModal, setGlobalRegisterModal]);
+  }, [globalRegisterModal, setGlobalRegisterModal, records]);
 
   const handleOpenRenewalFromReminder = (rec: any) => {
     // Không đóng isRenewalReminderOpen để khi đóng form gia hạn hoặc gia hạn xong
     // người dùng vẫn ở lại popup Trung Tâm Quản Lý & Nhắc Hạn Hồ Sơ
+    const fullRecord = rec ? prepareRenewalRecord(rec, records) : null;
     setRenewalRegisterModal({
       isOpen: true,
-      type: (rec.type === 'BHYT' ? 'BHYT' : 'BHXH') as 'BHXH' | 'BHYT',
-      record: rec,
+      type: ((fullRecord?.type || rec?.type) === 'BHYT' ? 'BHYT' : 'BHXH') as 'BHXH' | 'BHYT',
+      record: fullRecord,
       fromReminder: true
     });
   };
@@ -1326,6 +1329,7 @@ const AdminView = () => {
           }}
           type={renewalRegisterModal.type}
           record={renewalRegisterModal.record}
+          initialData={renewalRegisterModal.record}
           isRenew={true}
         />
       )}

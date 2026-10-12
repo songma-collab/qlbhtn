@@ -9,6 +9,7 @@ import {
   VietQRConfig
 } from '../../../utils/vietqr';
 import { getStoredVietQRConfig } from '../../../utils/settingsHelper';
+import { getCommissionRateForRecord } from '../../../utils/calculations';
 
 interface RegisterSummaryProps {
   type: 'BHXH' | 'BHYT';
@@ -218,10 +219,16 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
           </span>
         </div>
         {type === 'BHXH' && appContext?.currentUser && (() => {
-          const effectiveRate = (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới' 
-            ? (commBHXHNewPct ?? 5) 
-            : (commBHXHRenewPct ?? 3);
-          const estimatedComm = Math.round(totalAmount * (effectiveRate / 100));
+          const simRecord = {
+            type: 'BHXH' as const,
+            action_type: (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')),
+            actionType: (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')),
+            months: bhxhCalc.customMonths || 1,
+            amount: totalAmount
+          };
+          const rateDec = getCommissionRateForRecord(simRecord, appContext?.policies, appContext?.settings);
+          const effectiveRate = Math.round(rateDec * 10000) / 100;
+          const estimatedComm = Math.round(totalAmount * rateDec);
           return (
             <div className="flex justify-between items-center text-xs text-blue-900 bg-blue-50/90 px-3 py-2 rounded-xl border border-blue-200 shadow-2xs">
               <span className="font-semibold flex items-center gap-1.5">

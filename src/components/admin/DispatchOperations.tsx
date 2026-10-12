@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord } from '../../utils/helpers';
 import { recordService, auditService } from '../../services';
 import {
   Users,
@@ -97,27 +97,8 @@ const DispatchOperations: React.FC = () => {
   const [isRenew, setIsRenew] = useState(false);
 
   const handleQuickRenew = (customer: CustomerItem) => {
-    const cleanCccd = (customer.cccd || '').replace(/\D/g, '');
-    const cleanBhxh = (customer.bhxh || '').replace(/\D/g, '');
-    const activeRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) !== 'Đã hủy');
-    const matching = activeRecords.filter(r => {
-      if (customer.id && (r.id === customer.id || r.id === Number(customer.id))) return true;
-      const rCccd = (r.cccd || '').replace(/\D/g, '');
-      const rBhxh = (r.bhxh || '').replace(/\D/g, '');
-      const rOld = (r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
-      return (cleanCccd && rCccd === cleanCccd) || (cleanBhxh && rBhxh === cleanBhxh) || (cleanBhxh && rOld === cleanBhxh);
-    });
-
-    if (matching.length > 0) {
-      matching.sort(compareRecordsByContractLatest);
-    }
-
-    const fullRecord = matching[0] || {
-      ...customer,
-      id: Number(customer.id) || undefined
-    };
-
-    setRegisterType(customer.type || (fullRecord as any).type || 'BHXH');
+    const fullRecord = customer ? prepareRenewalRecord(customer, records) : null;
+    setRegisterType((customer.type || (fullRecord as any)?.type || 'BHXH') as 'BHXH' | 'BHYT');
     setRegisterRecord(fullRecord);
     setIsRenew(true);
     setIsRegisterModalOpen(true);
@@ -1459,6 +1440,7 @@ const DispatchOperations: React.FC = () => {
           }}
           type={registerType}
           record={registerRecord}
+          initialData={registerRecord}
           isRenew={isRenew}
         />
       )}

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { toUIMonth, toUIDate, calculateNextRenewalMonth } from '../../utils/dateStandardHelper';
+import { prepareRenewalRecord } from '../../utils/helpers';
 import { formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
 import { 
   classifyRenewalRecords, 
@@ -80,12 +81,13 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
   // Mở form gia hạn 1 chạm đồng bộ trực tiếp
   const handleQuickRenewal = (record: any) => {
     const isBHYT = record.type === 'BHYT';
+    const fullRecord = prepareRenewalRecord(record, records);
     
-    let fromMonth = toUIMonth(record.fromMonth || record.from_month);
-    let toMonth = toUIMonth(record.toMonth || record.to_month);
+    let fromMonth = toUIMonth(fullRecord.fromMonth || fullRecord.from_month);
+    let toMonth = toUIMonth(fullRecord.toMonth || fullRecord.to_month);
     
-    if (!toMonth && record.nextPayment) {
-      const npDate = new Date(record.nextPayment);
+    if (!toMonth && fullRecord.nextPayment) {
+      const npDate = new Date(fullRecord.nextPayment);
       if (!isNaN(npDate.getTime())) {
         const prevMonthDate = new Date(npDate.getFullYear(), npDate.getMonth() - 1, 1);
         toMonth = `${String(prevMonthDate.getMonth() + 1).padStart(2, '0')}/${prevMonthDate.getFullYear()}`;
@@ -95,34 +97,35 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
       }
     }
 
-    const cccdVal = record.citizenId || record.cccd || '';
-    const codeVal = record.bhxhCode || record.bhytCode || record.code || '';
-    const nationVal = record.nation || (record.nnSupportPct === 30 || record.nnSupport === 30 ? 'Thiểu_số' : 'Kinh');
+    const cccdVal = fullRecord.citizenId || fullRecord.cccd || '';
+    const codeVal = fullRecord.bhxhCode || fullRecord.bhytCode || fullRecord.code || fullRecord.bhxh || '';
+    const nationVal = fullRecord.nation || (fullRecord.nnSupportPct === 30 || fullRecord.nnSupport === 30 ? 'Thiểu_số' : 'Kinh');
 
     const normalizedRecord = {
-      ...record,
-      name: record.name || record.fullName || '',
-      fullName: record.name || record.fullName || '',
+      ...fullRecord,
+      name: fullRecord.name || fullRecord.fullName || '',
+      fullName: fullRecord.name || fullRecord.fullName || '',
       cccd: cccdVal,
       citizenId: cccdVal,
       bhxh: isBHYT ? '' : codeVal,
       bhxhCode: isBHYT ? '' : codeVal,
       bhyt: isBHYT ? codeVal : '',
       bhytCode: isBHYT ? codeVal : '',
-      phone: record.phone || '',
-      dob: toUIDate(record.dob) || '',
-      gender: record.gender || 'Nam',
+      phone: fullRecord.phone || '',
+      dob: toUIDate(fullRecord.dob) || '',
+      gender: fullRecord.gender || 'Nam',
       nation: nationVal,
-      address: record.address || '',
-      method: record.method || 'Đóng hằng tháng',
+      address: fullRecord.address || '',
+      method: fullRecord.method || 'Đóng hằng tháng',
       fromMonth: fromMonth || '',
       toMonth: toMonth || '',
-      income: Number(record.income) || 1500000,
-      nnSupportPct: record.nnSupportPct != null ? Number(record.nnSupportPct) : (nationVal === 'Thiểu_số' ? 30 : 20),
-      dpSupportPct: record.dpSupportPct != null ? Number(record.dpSupportPct) : 0,
-      months: Number(record.months) || 1,
+      income: Number(fullRecord.income) || 1500000,
+      nnSupportPct: fullRecord.nnSupportPct != null ? Number(fullRecord.nnSupportPct) : (nationVal === 'Thiểu_số' ? 30 : 20),
+      dpSupportPct: fullRecord.dpSupportPct != null ? Number(fullRecord.dpSupportPct) : 0,
+      months: Number(fullRecord.months) || 1,
       actionType: 'Gia hạn',
-      originalRecordId: record.id
+      action_type: 'Gia hạn',
+      originalRecordId: fullRecord.id || record.id
     };
 
     if (onRenewCustomer) {
