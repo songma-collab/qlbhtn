@@ -174,34 +174,35 @@ export const exportD03TSStandardExcel = async ({
   let totalAmount = 0;
 
   validRecords.forEach((r, idx) => {
-    const staffName = staffList.find(s => s.id === r.staffId)?.name || r.staffId || 'Đại lý';
+    const staffName = staffList.find(s => s.id === r.staffId || s.id === r.staff_id)?.name || r.staffId || r.staff_id || 'Đại lý';
     const oldBhxh = getOldBhxh10(r, records);
     const amount = Number(r.amount) || 0;
     totalAmount += amount;
 
     // Phân tích thứ tự thành viên trong hộ gia đình nếu có
-    const orderInHousehold = r.subType || (r.members && r.members.length > 1 ? `Hộ ${r.members.length} người` : 'Người thứ 1');
+    const orderInHousehold = r.sub_type || r.subType || (r.members && r.members.length > 1 ? `Hộ ${r.members.length} người` : 'Người thứ 1');
     const baseStandardRate = 2530000 * 0.045; // 4.5% mức lương cơ sở
+    const supPct = r.support_pct != null ? r.support_pct : (r.supportPct != null ? r.supportPct : null);
 
     rows.push([
       { v: idx + 1, s: cellCenterStyle },
-      { v: r.name || '', s: cellTextStyle },
+      { v: r.name || r.full_name || (r as any).fullName || '', s: cellTextStyle },
       { v: oldBhxh || r.bhxh || '', s: cellCenterStyle },
-      { v: r.cccd || '', s: cellCenterStyle },
-      { v: formatDateVN(r.dob), s: cellCenterStyle },
+      { v: r.cccd || r.citizen_id || (r as any).citizenId || '', s: cellCenterStyle },
+      { v: formatDateVN(r.dob || r.birth_date), s: cellCenterStyle },
       { v: r.gender || '', s: cellCenterStyle },
       { v: r.address || '', s: cellTextStyle },
       { v: r.notes?.includes('KCB:') ? r.notes.split('KCB:')[1].trim() : 'Theo tuyến quy định', s: cellTextStyle },
       { v: orderInHousehold, s: cellCenterStyle },
       { v: Math.round(baseStandardRate), s: cellNumberStyle },
-      { v: r.supportPct ? `${r.supportPct}%` : '100%', s: cellCenterStyle },
+      { v: supPct != null ? `${supPct}%` : '100%', s: cellCenterStyle },
       { v: amount, s: cellNumberStyle },
       { v: Number(r.months) || 12, s: cellCenterStyle },
-      { v: formatMonthVN(r.fromMonth), s: cellCenterStyle },
-      { v: formatMonthVN(r.toMonth), s: cellCenterStyle },
+      { v: formatMonthVN(r.from_month || r.fromMonth || r.date), s: cellCenterStyle },
+      { v: formatMonthVN(r.to_month || r.toMonth), s: cellCenterStyle },
       { v: formatDateVN(r.date), s: cellCenterStyle },
       { v: r.id ? `BL-${r.id}` : '', s: cellCenterStyle },
-      { v: r.submissionBatch || batchCode || 'Chưa gắn đợt', s: cellCenterStyle },
+      { v: r.submission_batch || r.submissionBatch || batchCode || 'Chưa gắn đợt', s: cellCenterStyle },
       { v: staffName, s: cellTextStyle },
       { v: r.notes || '', s: cellTextStyle }
     ]);
@@ -322,13 +323,16 @@ export const getNNSupportCategoryLabel = (pct?: number | null): string => {
  * Kiểm tra hồ sơ D05-TS là đối tượng Gia hạn (Đóng_tiếp) hay Tăng mới (Tăng_mới):
  * - Đối tượng tăng mới -> ghi chú: P.Thức Tăng_mới
  * - Đối tượng gia hạn -> ghi chú: P.Thức Đóng_tiếp
+ * Hỗ trợ đầy đủ cả camelCase (UI/form) và snake_case (PostgreSQL/Supabase)
  */
 export const isD05TSRenew = (r: any): boolean => {
-  if (r.isRenew === true) return true;
-  if (r.isRenew === false) return false;
+  if (!r) return false;
+  if (r.isRenew === true || r.is_renew === true) return true;
+  if (r.isRenew === false || r.is_renew === false) return false;
 
-  const actionStr = String(r.actionType || '').trim().toLowerCase();
-  const subStr = String(r.subType || '').trim().toLowerCase();
+  const actionStr = String(r.action_type || r.actionType || '').trim().toLowerCase();
+  const statusStr = String(r.status || '').trim().toLowerCase();
+  const subStr = String(r.sub_type || r.subType || '').trim().toLowerCase();
   const noteStr = String(r.notes || '').trim().toLowerCase();
   const methodStr = String(r.method || '').trim().toLowerCase();
 
@@ -338,6 +342,10 @@ export const isD05TSRenew = (r: any): boolean => {
     actionStr.includes('đóng tiếp') ||
     actionStr.includes('tái tục') ||
     actionStr.includes('renew') ||
+    statusStr.includes('gia hạn') ||
+    statusStr.includes('đóng tiếp') ||
+    statusStr.includes('tái tục') ||
+    statusStr.includes('renew') ||
     subStr.includes('gia hạn') ||
     subStr.includes('đóng tiếp') ||
     subStr.includes('tái tục') ||
@@ -360,14 +368,15 @@ export const isD05TSRenew = (r: any): boolean => {
     actionStr.includes('đăng ký mới') ||
     actionStr.includes('tham gia mới') ||
     actionStr.includes('cấp mới') ||
-    actionStr.includes('mới') ||
+    statusStr.includes('tăng mới') ||
+    statusStr.includes('đăng ký mới') ||
+    statusStr.includes('tham gia mới') ||
+    statusStr.includes('mới') ||
     subStr.includes('tăng mới') ||
     subStr.includes('đăng ký mới') ||
     subStr.includes('tham gia mới') ||
     subStr.includes('cấp mới') ||
-    subStr.includes('mới') ||
     methodStr.includes('tăng mới') ||
-    methodStr.includes('mới') ||
     noteStr.includes('p.thức tăng_mới') ||
     noteStr.includes('tăng_mới') ||
     noteStr.includes('tăng mới') ||
@@ -384,7 +393,9 @@ export const isD05TSRenew = (r: any): boolean => {
  * Tạo chuỗi thông tin chi tiết cho cột 17 (Ghi chú) mẫu D05-TS chuẩn theo QĐ 490 và thực tế BHXH VN:
  * - Đối tượng tăng mới ghi: P.Thức Tăng_mới
  * - Đối tượng gia hạn ghi: P.Thức Đóng_tiếp
- * Ví dụ: "Đối tượng Khác, Dân tộc Thiểu_số, P.Thức Tăng_mới, SĐT 0961300522, Ngày sinh 30/03/1982, gmail bhxhtn1410@gmail.com, Ghi chú: Khách của chị Trang"
+ * - Người kinh ghi: Dân tộc Kinh (20%)
+ * - Người dân tộc thiểu số ghi: Dân tộc Thiểu_số (30%)
+ * Ví dụ: "Đối tượng Khác, Dân tộc Thiểu_số, P.Thức Đóng_tiếp, SĐT 0961300522, Ngày sinh 30/03/1982, gmail bhxhtn1410@gmail.com"
  */
 export const buildD05TSNotes = (
   r: any,
@@ -393,8 +404,9 @@ export const buildD05TSNotes = (
 ): string => {
   // 1. Phân loại đối tượng chính thức theo QĐ 490: Hộ_nghèo, Hộ_cận_nghèo, Khác
   let doiTuong = 'Đối tượng Khác';
-  if (r.supportType) {
-    doiTuong = `Đối tượng ${String(r.supportType).trim().replace(/\s+/g, '_')}`;
+  const supType = r.support_type || r.supportType;
+  if (supType) {
+    doiTuong = `Đối tượng ${String(supType).trim().replace(/\s+/g, '_')}`;
   } else if (nnSupportPct === 50) {
     doiTuong = 'Đối tượng Hộ_nghèo';
   } else if (nnSupportPct === 40) {
@@ -405,15 +417,18 @@ export const buildD05TSNotes = (
 
   // 2. Dân tộc: Thiểu_số, Kinh hoặc tên dân tộc cụ thể
   let danToc = 'Dân tộc Kinh';
-  if (r.nation) {
-    const n = String(r.nation).trim();
-    if (n === 'Thiểu_số' || n.toLowerCase().includes('thiểu số') || n.toLowerCase().includes('dân tộc thiểu số')) {
-      danToc = 'Dân tộc Thiểu_số';
-    } else if (n === 'Kinh') {
-      danToc = 'Dân tộc Kinh';
-    } else {
-      danToc = `Dân tộc ${n.replace(/\s+/g, '_')}`;
-    }
+  const nationStr = String(r.nation || '').trim();
+  const nationLower = nationStr.toLowerCase();
+  if (
+    nationStr === 'Thiểu_số' || 
+    nationLower.includes('thiểu số') || 
+    nationLower.includes('dân tộc thiểu số') || 
+    nationLower.includes('thieu_so') ||
+    (nationStr !== '' && nationLower !== 'kinh')
+  ) {
+    danToc = 'Dân tộc Thiểu_số';
+  } else if (nationLower === 'kinh') {
+    danToc = 'Dân tộc Kinh';
   } else if (nnSupportPct === 30) {
     danToc = 'Dân tộc Thiểu_số';
   }
@@ -424,10 +439,12 @@ export const buildD05TSNotes = (
   const pThucStr = `P.Thức ${pThuc}`;
 
   // 4. Số điện thoại liên hệ
-  const sdtStr = `SĐT ${r.phone || '0111111111'}`;
+  const phoneVal = r.phone || r.recv_phone || r.recvPhone || '0111111111';
+  const sdtStr = `SĐT ${phoneVal}`;
 
   // 5. Ngày tháng năm sinh (DD/MM/YYYY)
-  const dobFormatted = r.dob ? formatDateVN(r.dob) : '';
+  const dobVal = r.dob || r.birth_date || r.birthDate;
+  const dobFormatted = dobVal ? formatDateVN(dobVal) : '';
   const ngaySinhStr = `Ngày sinh ${dobFormatted}`;
 
   // 6. Gmail / Email liên hệ
@@ -678,25 +695,65 @@ export const exportD05TSStandardExcel = async ({
   let totalOtherSupport = 0;
 
   validRecords.forEach((r, idx) => {
-    const staff = staffList.find(s => s.id === r.staffId || s.name === r.staffId);
-    const staffCode = r.staffCode || staff?.staffCode || currentUser?.staffCode || (r.staffId && String(r.staffId).startsWith('NV') ? r.staffId : 'NV014184005160');
+    const staff = staffList.find(s => s.id === r.staffId || s.name === r.staffId || s.id === r.staff_id || s.name === r.staff_id);
+    const staffCode = r.staffCode || r.staff_code || staff?.staffCode || staff?.staff_code || currentUser?.staffCode || currentUser?.staff_code || (r.staffId && String(r.staffId).startsWith('NV') ? r.staffId : (r.staff_id && String(r.staff_id).startsWith('NV') ? r.staff_id : 'NV014184005160'));
     const oldBhxh = getOldBhxh10(r, records);
-    const amount = Number(r.amount) || 0;
     const months = Number(r.months) || 1;
     const income = Number(r.income) || (Number(r.wage) || 1500000);
     
-    // Tỷ lệ hỗ trợ NSNN theo Luật BHXH 2024: 50% (nghèo), 40% (cận nghèo), 30% (DTTS), 20% (khác)
-    const nnSupportPct = r.nnSupportPct != null ? Number(r.nnSupportPct) : (r.supportPct != null ? Number(r.supportPct) : 20);
-    const povertyStandard = Number(r.povertyStandardSnapshot) || 1500000;
-    const calcNNSupport = Math.round((povertyStandard * 0.22 * (nnSupportPct / 100)) * months);
-    const recNNSupport = r.nnSupportAmount != null ? Number(r.nnSupportAmount) : calcNNSupport;
-    
-    const dpSupportPct = Number(r.dpSupportPct) || 0;
-    const dpSupportAmount = Number(r.dpSupportAmount) || 0;
-    const otherSupportPct = Number(r.otherSupportPct) || 0;
-    const otherSupportAmount = Number(r.otherSupportAmount) || 0;
+    // Tỷ lệ hỗ trợ NSNN theo Luật BHXH 2024: 50% (nghèo), 40% (cận nghèo), 30% (DTTS), 20% (người Kinh/khác)
+    const nationStr = String(r.nation || '').trim().toLowerCase();
+    const isMinority = nationStr === 'thiểu_số' || 
+                       nationStr === 'thieu_so' || 
+                       nationStr.includes('thiểu số') || 
+                       nationStr.includes('thieu_so') || 
+                       nationStr.includes('dân tộc') || 
+                       (nationStr !== '' && nationStr !== 'kinh');
 
-    const basePrem = Number(r.basePremium) || Math.round(income * 0.22 * months);
+    let nnSupportPct: number;
+    const rawExplicitPct = r.nn_support_pct != null 
+      ? Number(r.nn_support_pct) 
+      : (r.nnSupportPct != null 
+          ? Number(r.nnSupportPct) 
+          : (r.support_pct != null 
+              ? Number(r.support_pct) 
+              : (r.supportPct != null ? Number(r.supportPct) : null)));
+
+    if (rawExplicitPct != null) {
+      if (rawExplicitPct === 50 || rawExplicitPct === 40) {
+        nnSupportPct = rawExplicitPct; // Hộ nghèo (50%) hoặc Hộ cận nghèo (40%)
+      } else if (isMinority) {
+        // Dân tộc thiểu số luôn được hỗ trợ 30% theo Luật BHXH 2024
+        nnSupportPct = Math.max(rawExplicitPct, 30);
+      } else {
+        nnSupportPct = rawExplicitPct;
+      }
+    } else {
+      // Mặc định: Dân tộc thiểu số là 30%, người Kinh là 20%
+      nnSupportPct = isMinority ? 30 : 20;
+    }
+
+    const povertyStandard = Number(r.povertyStandardSnapshot) || Number(r.poverty_standard_snapshot) || 1500000;
+    const calcNNSupport = Math.round((povertyStandard * 0.22 * (nnSupportPct / 100)) * months);
+    const recNNSupport = (r.nn_support_amount != null && rawExplicitPct === nnSupportPct)
+      ? Number(r.nn_support_amount)
+      : (r.nnSupportAmount != null && rawExplicitPct === nnSupportPct
+          ? Number(r.nnSupportAmount)
+          : calcNNSupport);
+    
+    const dpSupportPct = Number(r.dp_support_pct) || Number(r.dpSupportPct) || 0;
+    const dpSupportAmount = Number(r.dp_support_amount) || Number(r.dpSupportAmount) || 0;
+    const otherSupportPct = Number(r.other_support_pct) || Number(r.otherSupportPct) || 0;
+    const otherSupportAmount = Number(r.other_support_amount) || Number(r.otherSupportAmount) || 0;
+
+    const basePrem = Number(r.base_premium) || Number(r.basePremium) || Math.round(income * 0.22 * months);
+
+    // Số tiền người tham gia đóng: bảo đảm cân đối Cột 8 = Cột 9 + Cột 11 + Cột 13 + Cột 15
+    const rawAmount = Number(r.amount) || 0;
+    const expectedParticipantAmount = Math.max(0, basePrem - recNNSupport - dpSupportAmount - otherSupportAmount);
+    const amount = (rawAmount > 0 && Math.abs(rawAmount - expectedParticipantAmount) <= 100)
+      ? rawAmount
+      : (rawAmount > 0 ? rawAmount : expectedParticipantAmount);
 
     totalBasePremium += basePrem;
     totalAmount += amount;
@@ -706,25 +763,31 @@ export const exportD05TSStandardExcel = async ({
     totalOtherSupport += otherSupportAmount;
 
     // Số biên lai: nếu không có thì để rỗng ""
-    const receiptNum = r.receiptNumber || r.receiptCode || '';
-    const receiptDate = r.receiptDate 
-      ? formatDateVN(r.receiptDate) 
-      : (receiptNum && r.date ? formatDateVN(r.date) : '');
+    const receiptNum = r.receipt_number || r.receiptNumber || r.receipt_code || r.receiptCode || '';
+    const receiptDate = r.receipt_date 
+      ? formatDateVN(r.receipt_date) 
+      : (r.receiptDate 
+          ? formatDateVN(r.receiptDate) 
+          : (receiptNum && r.date ? formatDateVN(r.date) : ''));
+
+    // Từ tháng/năm: đọc đầy đủ from_month, fromMonth, from_month_date, date
+    const fromMonthVal = r.from_month || r.fromMonth || r.from_month_date || r.fromMonthDate || r.date;
+    const fromMonthFormatted = formatMonthVN(fromMonthVal);
 
     // Tạo chuỗi Ghi chú đầy đủ giống hình ảnh thực tế
     const notesStr = buildD05TSNotes(r, currentUser, nnSupportPct);
 
     rows.push([
       { v: idx + 1, s: cellCenterStyle },                                              // A: STT
-      { v: r.name || '', s: cellTextStyle },                                           // B: Họ và tên
+      { v: r.name || r.full_name || (r as any).fullName || '', s: cellTextStyle },    // B: Họ và tên
       { v: oldBhxh || r.bhxh || '', s: cellBhxhStyle },                                // C: Mã số BHXH (Màu đỏ theo ảnh)
-      { v: r.cccd || '', s: cellCenterStyle },                                         // 1: CCCD
+      { v: r.cccd || r.citizen_id || (r as any).citizenId || '', s: cellCenterStyle }, // 1: CCCD
       { v: r.address || '', s: cellTextStyle },                                        // 2: Địa chỉ
       { v: receiptDate, s: cellCenterStyle },                                          // 3: Ngày biên lai
       { v: receiptNum, s: cellCenterStyle },                                           // 4: Số biên lai
       { v: income, s: cellNumberStyle },                                               // 5: Mức thu nhập tháng BHXH
       { v: months, s: cellCenterStyle },                                               // 6: Số tháng đóng
-      { v: formatMonthVN(r.fromMonth), s: cellCenterStyle },                           // 7: Từ tháng/năm
+      { v: fromMonthFormatted, s: cellCenterStyle },                                   // 7: Từ tháng/năm
       { v: basePrem, s: cellNumberStyle },                                             // 8: Số tiền phải đóng theo quy định
       { v: amount, s: cellNumberStyle },                                               // 9: Người tham gia đóng
       { v: nnSupportPct, s: cellCenterStyle },                                         // 10: Tỷ lệ % NSNN

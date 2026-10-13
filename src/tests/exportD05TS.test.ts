@@ -292,4 +292,134 @@ describe('Kiểm thử Xuất Biểu Mẫu Chuẩn Quốc Gia D05-TS & D03-TS', 
     const note7 = buildD05TSNotes(rec7, { email: 'bhxhtn1410@gmail.com' }, 20);
     expect(note7).toContain('P.Thức Đóng_tiếp');
   });
+
+  it('9. Tỷ lệ % Nhà nước hỗ trợ: Người Kinh là 20%, Dân tộc thiểu số là 30%, Hộ nghèo 50%, Cận nghèo 40%', async () => {
+    const { isD05TSRenew, buildD05TSNotes } = await import('../utils/exportNationalStandardForms');
+
+    // Dân tộc thiểu số (Thiểu_số) -> 30%
+    const recMinority = {
+      name: 'Lò Thị Nga',
+      nation: 'Thiểu_số',
+      action_type: 'Gia hạn'
+    };
+    expect(isD05TSRenew(recMinority)).toBe(true);
+    const noteMinority = buildD05TSNotes(recMinority, {}, 30);
+    expect(noteMinority).toContain('Dân tộc Thiểu_số');
+    expect(noteMinority).toContain('P.Thức Đóng_tiếp');
+
+    // Dân tộc Kinh -> 20%
+    const recKinh = {
+      name: 'Nguyễn Văn Bốn',
+      nation: 'Kinh',
+      action_type: 'Tăng mới'
+    };
+    expect(isD05TSRenew(recKinh)).toBe(false);
+    const noteKinh = buildD05TSNotes(recKinh, {}, 20);
+    expect(noteKinh).toContain('Dân tộc Kinh');
+    expect(noteKinh).toContain('P.Thức Tăng_mới');
+  });
+
+  it('10. Nhận diện chuẩn xác Gia hạn (P.Thức Đóng_tiếp) vs Tăng mới (P.Thức Tăng_mới) từ các trường Supabase', async () => {
+    const { isD05TSRenew, buildD05TSNotes } = await import('../utils/exportNationalStandardForms');
+
+    // Case a: Dữ liệu Supabase có action_type: 'Gia hạn'
+    expect(isD05TSRenew({ action_type: 'Gia hạn' })).toBe(true);
+    expect(buildD05TSNotes({ action_type: 'Gia hạn', nation: 'Kinh' })).toContain('P.Thức Đóng_tiếp');
+
+    // Case b: Dữ liệu Supabase có status: 'Gia hạn'
+    expect(isD05TSRenew({ status: 'Gia hạn' })).toBe(true);
+    expect(buildD05TSNotes({ status: 'Gia hạn', nation: 'Thiểu_số' })).toContain('P.Thức Đóng_tiếp');
+
+    // Case c: Dữ liệu Supabase có is_renew: true
+    expect(isD05TSRenew({ is_renew: true })).toBe(true);
+    expect(buildD05TSNotes({ is_renew: true, nation: 'Kinh' })).toContain('P.Thức Đóng_tiếp');
+
+    // Case d: Dữ liệu Supabase có sub_type: 'Gia hạn'
+    expect(isD05TSRenew({ sub_type: 'Gia hạn' })).toBe(true);
+    expect(buildD05TSNotes({ sub_type: 'Gia hạn', nation: 'Kinh' })).toContain('P.Thức Đóng_tiếp');
+
+    // Case e: Dữ liệu Supabase có action_type: 'Tăng mới'
+    expect(isD05TSRenew({ action_type: 'Tăng mới' })).toBe(false);
+    expect(buildD05TSNotes({ action_type: 'Tăng mới', nation: 'Kinh' })).toContain('P.Thức Tăng_mới');
+
+    // Case f: Dữ liệu Supabase có status: 'Mới'
+    expect(isD05TSRenew({ status: 'Mới' })).toBe(false);
+    expect(buildD05TSNotes({ status: 'Mới', nation: 'Thiểu_số' })).toContain('P.Thức Tăng_mới');
+  });
+
+  it('11. Xuất D05-TS đầy đủ: Cột Tỷ lệ % (Cột 10), Tiền NSNN (Cột 11), Từ tháng/năm (Cột 7) và cân đối tài chính', async () => {
+    const recordsTest = [
+      {
+        id: 201,
+        type: 'BHXH',
+        name: 'Lò Thị Nga',
+        nation: 'Thiểu_số',
+        bhxh: '1420953015',
+        cccd: '014181005653',
+        address: 'Tổ dân phố 2',
+        months: 3,
+        from_month: '2026-10',
+        income: 1600000,
+        action_type: 'Gia hạn',
+        payment_status: 'Đã thanh toán',
+        date: '2026-10-10'
+      },
+      {
+        id: 202,
+        type: 'BHXH',
+        name: 'Nguyễn Văn Bốn',
+        nation: 'Kinh',
+        bhxh: '1421009268',
+        cccd: '014083001709',
+        address: 'Bản Ánh Trung, Xã Mường Hung',
+        months: 3,
+        from_month: '2026-10',
+        income: 4800000,
+        action_type: 'Tăng mới',
+        payment_status: 'Đã thanh toán',
+        date: '2026-10-10'
+      }
+    ];
+
+    const result = await exportD05TSStandardExcel({
+      records: recordsTest,
+      batchCode: 'DOT_KIEM_TRA_TI_LE',
+      periodLabel: 'Tháng 10 năm 2026'
+    });
+
+    expect(result.count).toBe(2);
+    expect(result.worksheet).toBeDefined();
+
+    const ws = result.worksheet;
+    // Row 16 (0-indexed r: 15): Lò Thị Nga (Dân tộc thiểu số)
+    // Cột H (c: 7): Mức thu nhập = 1.600.000
+    // Cột I (c: 8): Số tháng = 3
+    // Cột J (c: 9): Từ tháng/năm = 10/2026
+    expect(ws['J16']?.v).toBe('10/2026');
+    // Cột K (c: 10): Phải đóng quy định = 1.600.000 * 22% * 3 = 1.056.000
+    expect(ws['K16']?.v).toBe(1056000);
+    // Cột M (c: 12): Tỷ lệ % NSNN = 30% (Thiểu số)
+    expect(ws['M16']?.v).toBe(30);
+    // Cột N (c: 13): Tiền NSNN = 1.500.000 * 22% * 30% * 3 = 297.000
+    expect(ws['N16']?.v).toBe(297000);
+    // Cột L (c: 11): Người tham gia đóng = 1.056.000 - 297.000 = 759.000
+    expect(ws['L16']?.v).toBe(759000);
+    // Cột T (c: 19): Ghi chú có Dân tộc Thiểu_số và P.Thức Đóng_tiếp
+    expect(ws['T16']?.v).toContain('Dân tộc Thiểu_số');
+    expect(ws['T16']?.v).toContain('P.Thức Đóng_tiếp');
+
+    // Row 17 (0-indexed r: 16): Nguyễn Văn Bốn (Dân tộc Kinh)
+    expect(ws['J17']?.v).toBe('10/2026');
+    // Cột K: 4.800.000 * 22% * 3 = 3.168.000
+    expect(ws['K17']?.v).toBe(3168000);
+    // Cột M: Tỷ lệ % NSNN = 20% (Kinh)
+    expect(ws['M17']?.v).toBe(20);
+    // Cột N: Tiền NSNN = 1.500.000 * 22% * 20% * 3 = 198.000
+    expect(ws['N17']?.v).toBe(198000);
+    // Cột L: Người tham gia đóng = 3.168.000 - 198.000 = 2.970.000
+    expect(ws['L17']?.v).toBe(2970000);
+    // Cột T: Ghi chú có Dân tộc Kinh và P.Thức Tăng_mới
+    expect(ws['T17']?.v).toContain('Dân tộc Kinh');
+    expect(ws['T17']?.v).toContain('P.Thức Tăng_mới');
+  });
 });

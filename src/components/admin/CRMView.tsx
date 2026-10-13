@@ -555,7 +555,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào trong danh sách đang lọc để xuất mẫu D03-TS.', 'warning');
         return;
       }
-      await exportD03TSStandardExcel({ records: byhtRecords, staffList: staff, periodLabel: 'Danh sách khách hàng' });
+      await exportD03TSStandardExcel({ records: byhtRecords, staffList: staff, periodLabel: 'Danh sách khách hàng', currentUser });
       addAuditLog?.('Xuất Mẫu D03-TS', `Đã xuất ${byhtRecords.length} hồ sơ BHYT ra biểu mẫu D03-TS chuẩn BHXH VN`);
       showToast('Đã xuất thành công Mẫu D03-TS chuẩn BHXH VN!', 'success');
     } catch (err: any) {
@@ -570,7 +570,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào trong danh sách đang lọc để xuất mẫu D05-TS.', 'warning');
         return;
       }
-      await exportD05TSStandardExcel({ records: bhxhRecords, staffList: staff, periodLabel: 'Danh sách khách hàng' });
+      await exportD05TSStandardExcel({ records: bhxhRecords, staffList: staff, periodLabel: 'Danh sách khách hàng', currentUser });
       addAuditLog?.('Xuất Mẫu D05-TS', `Đã xuất ${bhxhRecords.length} hồ sơ BHXH ra biểu mẫu D05-TS chuẩn BHXH VN`);
       showToast('Đã xuất thành công Mẫu D05-TS chuẩn BHXH VN!', 'success');
     } catch (err: any) {

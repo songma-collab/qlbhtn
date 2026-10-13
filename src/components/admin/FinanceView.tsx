@@ -1038,7 +1038,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào để xuất Mẫu D03-TS.', 'warning');
         return;
       }
-      await exportD03TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel });
+      await exportD03TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
       addAuditLog?.('Xuất Mẫu D03-TS', `Xuất ${recordsToExport.length} hồ sơ ra biểu mẫu D03-TS`);
       showToast('Xuất Mẫu D03-TS chuẩn BHXH VN thành công!', 'success');
     } catch (err: any) {
@@ -1053,7 +1053,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào để xuất Mẫu D05-TS.', 'warning');
         return;
       }
-      await exportD05TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel });
+      await exportD05TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
       addAuditLog?.('Xuất Mẫu D05-TS', `Xuất ${recordsToExport.length} hồ sơ ra biểu mẫu D05-TS`);
       showToast('Xuất Mẫu D05-TS chuẩn BHXH VN thành công!', 'success');
     } catch (err: any) {
