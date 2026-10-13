@@ -176,6 +176,9 @@ export const exportD03TSStandardExcel = async ({
   validRecords.forEach((r, idx) => {
     const staffName = staffList.find(s => s.id === r.staffId || s.id === r.staff_id)?.name || r.staffId || r.staff_id || 'Đại lý';
     const oldBhxh = getOldBhxh10(r, records);
+    const cccd = String(r.cccd || r.citizen_id || (r as any).citizenId || '').trim();
+    // Đồng bộ mã số BHXH theo số CCCD theo Đề án 06
+    const bhxhCode = cccd || String(r.bhxh || oldBhxh || '').trim();
     const amount = Number(r.amount) || 0;
     totalAmount += amount;
 
@@ -187,8 +190,8 @@ export const exportD03TSStandardExcel = async ({
     rows.push([
       { v: idx + 1, s: cellCenterStyle },
       { v: r.name || r.full_name || (r as any).fullName || '', s: cellTextStyle },
-      { v: oldBhxh || r.bhxh || '', s: cellCenterStyle },
-      { v: r.cccd || r.citizen_id || (r as any).citizenId || '', s: cellCenterStyle },
+      { v: bhxhCode, s: cellCenterStyle, t: 's' },
+      { v: cccd, s: cellCenterStyle, t: 's' },
       { v: formatDateVN(r.dob || r.birth_date), s: cellCenterStyle },
       { v: r.gender || '', s: cellCenterStyle },
       { v: r.address || '', s: cellTextStyle },
@@ -777,11 +780,15 @@ export const exportD05TSStandardExcel = async ({
     // Tạo chuỗi Ghi chú đầy đủ giống hình ảnh thực tế
     const notesStr = buildD05TSNotes(r, currentUser, nnSupportPct);
 
+    // Đồng bộ mã số BHXH theo số CCCD theo Đề án 06
+    const cccd = String(r.cccd || r.citizen_id || (r as any).citizenId || '').trim();
+    const bhxhCode = cccd || String(r.bhxh || oldBhxh || '').trim();
+
     rows.push([
       { v: idx + 1, s: cellCenterStyle },                                              // A: STT
       { v: r.name || r.full_name || (r as any).fullName || '', s: cellTextStyle },    // B: Họ và tên
-      { v: oldBhxh || r.bhxh || '', s: cellBhxhStyle },                                // C: Mã số BHXH (Màu đỏ theo ảnh)
-      { v: r.cccd || r.citizen_id || (r as any).citizenId || '', s: cellCenterStyle }, // 1: CCCD
+      { v: bhxhCode, s: cellBhxhStyle, t: 's' },                                       // C: Mã số BHXH (Đồng bộ theo số CCCD - Màu đỏ)
+      { v: cccd, s: cellCenterStyle, t: 's' },                                         // 1: CCCD
       { v: r.address || '', s: cellTextStyle },                                        // 2: Địa chỉ
       { v: receiptDate, s: cellCenterStyle },                                          // 3: Ngày biên lai
       { v: receiptNum, s: cellCenterStyle },                                           // 4: Số biên lai

@@ -989,12 +989,16 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
   // Xuất file Excel
   const exportFinanceExcel = async () => {
-    if (filteredRecords.length === 0) {
+    const targetRecords = selectedIds.length > 0
+      ? filteredRecords.filter((r: any) => selectedIds.includes(r.id))
+      : filteredRecords;
+
+    if (targetRecords.length === 0) {
       showAlert('Trống dữ liệu', 'Không có giao dịch nào phù hợp với bộ lọc hiện tại để xuất Excel.', 'warning');
       return;
     }
     const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
-    const rows = filteredRecords.map((r: any) => {
+    const rows = targetRecords.map((r: any) => {
       const rate = getCommissionRateForRecord(r, policies, settings);
       const commAmount = Number(r.amount) * rate;
       const staffName = r.staffId === 'admin' ? 'Admin (Tự thu)' : (staff.find((s: any) => s.id === r.staffId)?.name || 'Hệ thống');
@@ -1004,7 +1008,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
         "Thời Gian Thu": formatDateVN(r.date),
         "Họ và Tên": r.name || "",
         "Mã ĐDCN / CCCD": r.cccd || "",
-        "Mã số BHXH": r.bhxh || "",
+        "Mã số BHXH": r.cccd || r.bhxh || "",
         "Loại Hình": r.type,
         "Hình Thức": r.actionType || (r.isAdjustment ? "Bù trừ âm" : "Mới"),
         "Kỳ Đóng": (r.fromMonth && r.toMonth) ? `${formatMonthVN(r.fromMonth)} - ${formatMonthVN(r.toMonth)}` : "",
@@ -1028,19 +1032,26 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     const fileName = `So_Giao_Dich_${currentType}_${Date.now()}.xlsx`;
     XLSX.writeFile(wb, fileName);
     addAuditLog?.('Xuất Excel Tài Chính', `Đã xuất ${rows.length} giao dịch ${currentType} ra file ${fileName}`);
-    showToast("Xuất dữ liệu giao dịch thành công!");
+    showToast(`Xuất dữ liệu cho ${rows.length} giao dịch thành công!`);
   };
 
   const handleExportD03TS = async () => {
     try {
-      const recordsToExport = filteredRecords.filter((r: any) => r.type === 'BHYT');
+      const recordsToExport = selectedIds.length > 0
+        ? filteredRecords.filter((r: any) => selectedIds.includes(r.id) && r.type === 'BHYT')
+        : filteredRecords.filter((r: any) => r.type === 'BHYT');
+
       if (recordsToExport.length === 0) {
-        showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào để xuất Mẫu D03-TS.', 'warning');
+        if (selectedIds.length > 0) {
+          showAlert('Trống dữ liệu', 'Trong các giao dịch bạn đã chọn không có hồ sơ BHYT nào để xuất Mẫu D03-TS.', 'warning');
+        } else {
+          showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào để xuất Mẫu D03-TS.', 'warning');
+        }
         return;
       }
       await exportD03TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
       addAuditLog?.('Xuất Mẫu D03-TS', `Xuất ${recordsToExport.length} hồ sơ ra biểu mẫu D03-TS`);
-      showToast('Xuất Mẫu D03-TS chuẩn BHXH VN thành công!', 'success');
+      showToast(`Xuất Mẫu D03-TS cho ${recordsToExport.length} hồ sơ thành công!`, 'success');
     } catch (err: any) {
       showAlert('Lỗi xuất D03-TS', err.message || '', 'error');
     }
@@ -1048,14 +1059,21 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
 
   const handleExportD05TS = async () => {
     try {
-      const recordsToExport = filteredRecords.filter((r: any) => r.type === 'BHXH');
+      const recordsToExport = selectedIds.length > 0
+        ? filteredRecords.filter((r: any) => selectedIds.includes(r.id) && r.type === 'BHXH')
+        : filteredRecords.filter((r: any) => r.type === 'BHXH');
+
       if (recordsToExport.length === 0) {
-        showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào để xuất Mẫu D05-TS.', 'warning');
+        if (selectedIds.length > 0) {
+          showAlert('Trống dữ liệu', 'Trong các giao dịch bạn đã chọn không có hồ sơ BHXH nào để xuất Mẫu D05-TS.', 'warning');
+        } else {
+          showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào để xuất Mẫu D05-TS.', 'warning');
+        }
         return;
       }
       await exportD05TSStandardExcel({ records: recordsToExport, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
       addAuditLog?.('Xuất Mẫu D05-TS', `Xuất ${recordsToExport.length} hồ sơ ra biểu mẫu D05-TS`);
-      showToast('Xuất Mẫu D05-TS chuẩn BHXH VN thành công!', 'success');
+      showToast(`Xuất Mẫu D05-TS cho ${recordsToExport.length} hồ sơ thành công!`, 'success');
     } catch (err: any) {
       showAlert('Lỗi xuất D05-TS', err.message || '', 'error');
     }
@@ -1172,7 +1190,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
             title="Xuất danh sách sổ quỹ ra Excel"
           >
             <FileDown size={15} className="mr-1 text-slate-500" />
-            <span>Xuất Excel</span>
+            <span>Xuất Excel {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
           </button>
 
           {currentType === 'BHXH' ? (
@@ -1183,7 +1201,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
               title="Xuất biểu mẫu D05-TS chuẩn BHXH"
             >
               <FileDown size={15} className="mr-1 text-[#004182]" />
-              <span>Mẫu D05-TS</span>
+              <span>Mẫu D05-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
             </button>
           ) : (
             <button
@@ -1193,7 +1211,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
               title="Xuất biểu mẫu D03-TS chuẩn BHYT"
             >
               <FileDown size={15} className="mr-1 text-emerald-600" />
-              <span>Mẫu D03-TS</span>
+              <span>Mẫu D03-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
             </button>
           )}
         </div>
@@ -1325,6 +1343,20 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
           handleCancelBatchSubmission={() => handleUnmarkSubmission(batchModalTargetIds)}
           allRecords={sourceRecords}
           type={currentType}
+          onExportBatchExcel={(batchCode, targetIds) => {
+            const recordsToExport = (targetIds && targetIds.length > 0)
+              ? sourceRecords.filter((r: any) => targetIds.includes(r.id) && r.type === currentType)
+              : sourceRecords.filter((r: any) => (r.submissionBatch === batchCode || r.submission_batch === batchCode) && r.type === currentType);
+            if (recordsToExport.length === 0) {
+              showAlert('Trống dữ liệu', `Không tìm thấy hồ sơ ${currentType} nào cho đợt này.`, 'warning');
+              return;
+            }
+            if (currentType === 'BHXH') {
+              exportD05TSStandardExcel({ records: recordsToExport, batchCode, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
+            } else {
+              exportD03TSStandardExcel({ records: recordsToExport, batchCode, staffList: staff, periodLabel: dateRange.periodLabel, currentUser });
+            }
+          }}
         />
       )}
 

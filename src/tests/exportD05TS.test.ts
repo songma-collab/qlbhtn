@@ -392,6 +392,9 @@ describe('Kiểm thử Xuất Biểu Mẫu Chuẩn Quốc Gia D05-TS & D03-TS', 
 
     const ws = result.worksheet;
     // Row 16 (0-indexed r: 15): Lò Thị Nga (Dân tộc thiểu số)
+    // Cột C (c: 2): Mã số BHXH đồng bộ theo số CCCD = 014181005653 (kiểu chuỗi 's' giữ số 0 ở đầu)
+    expect(ws['C16']?.v).toBe('014181005653');
+    expect(ws['C16']?.t).toBe('s');
     // Cột H (c: 7): Mức thu nhập = 1.600.000
     // Cột I (c: 8): Số tháng = 3
     // Cột J (c: 9): Từ tháng/năm = 10/2026
@@ -409,6 +412,9 @@ describe('Kiểm thử Xuất Biểu Mẫu Chuẩn Quốc Gia D05-TS & D03-TS', 
     expect(ws['T16']?.v).toContain('P.Thức Đóng_tiếp');
 
     // Row 17 (0-indexed r: 16): Nguyễn Văn Bốn (Dân tộc Kinh)
+    // Cột C (c: 2): Mã số BHXH đồng bộ theo số CCCD = 014083001709 (kiểu chuỗi 's' giữ số 0 ở đầu)
+    expect(ws['C17']?.v).toBe('014083001709');
+    expect(ws['C17']?.t).toBe('s');
     expect(ws['J17']?.v).toBe('10/2026');
     // Cột K: 4.800.000 * 22% * 3 = 3.168.000
     expect(ws['K17']?.v).toBe(3168000);
@@ -421,5 +427,44 @@ describe('Kiểm thử Xuất Biểu Mẫu Chuẩn Quốc Gia D05-TS & D03-TS', 
     // Cột T: Ghi chú có Dân tộc Kinh và P.Thức Tăng_mới
     expect(ws['T17']?.v).toContain('Dân tộc Kinh');
     expect(ws['T17']?.v).toContain('P.Thức Tăng_mới');
+  });
+
+  it('12. Cột C (Mã số BHXH) luôn ưu tiên CCCD (12 số) và fallback về bhxh cũ nếu không có CCCD', async () => {
+    const recordsFallback = [
+      {
+        id: 301,
+        type: 'BHXH',
+        name: 'Hồ Sơ Có CCCD',
+        cccd: '014195000123',
+        bhxh: '1420112233',
+        income: 1500000,
+        months: 1,
+        payment_status: 'Đã thanh toán'
+      },
+      {
+        id: 302,
+        type: 'BHXH',
+        name: 'Hồ Sơ Chưa Có CCCD (Chỉ có BHXH cũ)',
+        cccd: '',
+        bhxh: '1420998877',
+        income: 1500000,
+        months: 1,
+        payment_status: 'Đã thanh toán'
+      }
+    ];
+
+    const result = await exportD05TSStandardExcel({
+      records: recordsFallback,
+      periodLabel: 'Tháng 10/2026'
+    });
+
+    const ws = result.worksheet;
+    // Hồ sơ 1: Cột C ưu tiên CCCD 014195000123 thay vì mã 10 số cũ 1420112233
+    expect(ws['C16']?.v).toBe('014195000123');
+    expect(ws['C16']?.t).toBe('s');
+
+    // Hồ sơ 2: Cột C không có CCCD nên fallback về mã BHXH 10 số cũ 1420998877
+    expect(ws['C17']?.v).toBe('1420998877');
+    expect(ws['C17']?.t).toBe('s');
   });
 });

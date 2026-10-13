@@ -550,14 +550,21 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const handleExportD03TS = async () => {
     try {
-      const byhtRecords = filteredRecords.filter(r => r.type === 'BHYT');
+      const byhtRecords = selectedIds.length > 0
+        ? filteredRecords.filter(r => selectedIds.includes(r.id) && r.type === 'BHYT')
+        : filteredRecords.filter(r => r.type === 'BHYT');
+
       if (byhtRecords.length === 0) {
-        showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào trong danh sách đang lọc để xuất mẫu D03-TS.', 'warning');
+        if (selectedIds.length > 0) {
+          showAlert('Trống dữ liệu', 'Trong các khách hàng đã chọn không có hồ sơ BHYT nào để xuất mẫu D03-TS.', 'warning');
+        } else {
+          showAlert('Trống dữ liệu', 'Không có hồ sơ BHYT nào trong danh sách đang lọc để xuất mẫu D03-TS.', 'warning');
+        }
         return;
       }
       await exportD03TSStandardExcel({ records: byhtRecords, staffList: staff, periodLabel: 'Danh sách khách hàng', currentUser });
       addAuditLog?.('Xuất Mẫu D03-TS', `Đã xuất ${byhtRecords.length} hồ sơ BHYT ra biểu mẫu D03-TS chuẩn BHXH VN`);
-      showToast('Đã xuất thành công Mẫu D03-TS chuẩn BHXH VN!', 'success');
+      showToast(`Đã xuất thành công Mẫu D03-TS cho ${byhtRecords.length} hồ sơ!`, 'success');
     } catch (err: any) {
       showAlert('Lỗi xuất D03-TS', err.message || '', 'error');
     }
@@ -565,39 +572,52 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const handleExportD05TS = async () => {
     try {
-      const bhxhRecords = filteredRecords.filter(r => r.type === 'BHXH');
+      const bhxhRecords = selectedIds.length > 0
+        ? filteredRecords.filter(r => selectedIds.includes(r.id) && r.type === 'BHXH')
+        : filteredRecords.filter(r => r.type === 'BHXH');
+
       if (bhxhRecords.length === 0) {
-        showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào trong danh sách đang lọc để xuất mẫu D05-TS.', 'warning');
+        if (selectedIds.length > 0) {
+          showAlert('Trống dữ liệu', 'Trong các khách hàng đã chọn không có hồ sơ BHXH nào để xuất mẫu D05-TS.', 'warning');
+        } else {
+          showAlert('Trống dữ liệu', 'Không có hồ sơ BHXH nào trong danh sách đang lọc để xuất mẫu D05-TS.', 'warning');
+        }
         return;
       }
       await exportD05TSStandardExcel({ records: bhxhRecords, staffList: staff, periodLabel: 'Danh sách khách hàng', currentUser });
       addAuditLog?.('Xuất Mẫu D05-TS', `Đã xuất ${bhxhRecords.length} hồ sơ BHXH ra biểu mẫu D05-TS chuẩn BHXH VN`);
-      showToast('Đã xuất thành công Mẫu D05-TS chuẩn BHXH VN!', 'success');
+      showToast(`Đã xuất thành công Mẫu D05-TS cho ${bhxhRecords.length} hồ sơ!`, 'success');
     } catch (err: any) {
       showAlert('Lỗi xuất D05-TS', err.message || '', 'error');
     }
   };
 
   const exportExcel = async () => {
-    if (filteredRecords.length === 0) {
+    const targetRecords = selectedIds.length > 0
+      ? filteredRecords.filter(r => selectedIds.includes(r.id))
+      : filteredRecords;
+
+    if (targetRecords.length === 0) {
       showAlert("Trống dữ liệu", "Không có dữ liệu nào để xuất ra file Excel vào lúc này.", "warning");
       return;
     }
     const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
-    const data = filteredRecords.map((r: any) => {
+    const data = targetRecords.map((r: any) => {
       let isBHXH = r.type === 'BHXH' ? 'BHXH TN' : 'BHYT HGĐ';
       const staffName = r.staffId === 'admin' ? 'Admin (Tự đăng ký)' : (staff.find((s: any) => s.id === r.staffId)?.name || 'Hệ thống');
       const oldBhxh = getOldBhxh10(r, records);
+      const cccd = r.cccd || "";
+      const bhxhSync = cccd || r.bhxh || "";
       
       return {
         "Ngày đăng ký": formatDateVN(r.date),
         "Loại hình": isBHXH,
-        "Mã BHXH": r.bhxh || "",
+        "Mã BHXH (CCCD)": bhxhSync,
         "Mã BHXH cũ (10 số)": oldBhxh,
         "Họ và Tên": r.name || "",
         "Ngày sinh": formatDateVN(r.dob),
         "Giới tính": r.gender || "",
-        "CCCD": r.cccd || "",
+        "CCCD": cccd,
         "Số điện thoại": r.phone || "",
         "Email": r.email || "",
         "Địa chỉ": r.address || "",
@@ -620,7 +640,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     const fileName = `Danh_sach_Khach_hang_${selectedType}_${Date.now()}.xlsx`;
     XLSX.writeFile(wb, fileName);
     addAuditLog?.('Xuất danh sách khách hàng ra Excel', `Đã xuất ${data.length} hồ sơ ra file ${fileName}`);
-    showToast("Xuất dữ liệu thành công!");
+    showToast(`Xuất dữ liệu cho ${data.length} khách hàng thành công!`);
   };
 
   const handleExecuteFullImport = async (parsedData: ParsedExcelResult) => {
@@ -897,7 +917,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                 title="Xuất dữ liệu Excel"
               >
                 <FileDown size={15} className="mr-1 text-slate-500" />
-                <span>Dữ Liệu Thô</span>
+                <span>Dữ Liệu Thô {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
               </button>
               {(selectedType === 'BHYT' || selectedType === 'ALL') && (
                 <button
@@ -907,7 +927,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                   title="Xuất mẫu D03-TS chuẩn BHXH VN"
                 >
                   <FileDown size={15} className="mr-1 text-emerald-600" />
-                  <span>Mẫu D03-TS</span>
+                  <span>Mẫu D03-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
                 </button>
               )}
               {(selectedType === 'BHXH' || selectedType === 'ALL') && (
@@ -918,7 +938,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                   title="Xuất mẫu D05-TS chuẩn BHXH VN"
                 >
                   <FileDown size={15} className="mr-1 text-[#004182]" />
-                  <span>Mẫu D05-TS</span>
+                  <span>Mẫu D05-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
                 </button>
               )}
             </>
