@@ -467,10 +467,10 @@ export const exportD05TSStandardExcel = async ({
 
   const fontMain = 'Times New Roman';
   const borderThin = {
-    top: { style: 'thin', color: { rgb: '475569' } },
-    bottom: { style: 'thin', color: { rgb: '475569' } },
-    left: { style: 'thin', color: { rgb: '475569' } },
-    right: { style: 'thin', color: { rgb: '475569' } }
+    top: { style: 'thin', color: { rgb: '000000' } },
+    bottom: { style: 'thin', color: { rgb: '000000' } },
+    left: { style: 'thin', color: { rgb: '000000' } },
+    right: { style: 'thin', color: { rgb: '000000' } }
   };
 
   const headerMetaStyle = {
@@ -485,275 +485,191 @@ export const exportD05TSStandardExcel = async ({
 
   const formCodeStyle = {
     font: { name: fontMain, sz: 11, bold: true },
-    alignment: { horizontal: 'right', vertical: 'center' }
+    alignment: { horizontal: 'center', vertical: 'center' }
   };
 
   const formSubCodeStyle = {
     font: { name: fontMain, sz: 9, italic: true },
-    alignment: { horizontal: 'right', vertical: 'center' }
+    alignment: { horizontal: 'center', vertical: 'center' }
   };
 
   const titleStyle = {
-    font: { name: fontMain, sz: 14, bold: true, color: { rgb: '004182' } },
+    font: { name: fontMain, sz: 13, bold: true, color: { rgb: '000000' } },
     alignment: { horizontal: 'center', vertical: 'center' }
   };
 
   const subTitleStyle = {
-    font: { name: fontMain, sz: 11, italic: true },
+    font: { name: fontMain, sz: 11, bold: true, color: { rgb: '000000' } },
     alignment: { horizontal: 'center', vertical: 'center' }
   };
 
-  // Header xanh đậm chuẩn BHXH đồng nhất trên tất cả 4 cấp độ header
+  // Header nền trắng chữ đen viền mảnh chuẩn biểu mẫu Excel BHXH
   const tableHeaderStyle = {
-    font: { name: fontMain, sz: 9, bold: true, color: { rgb: 'FFFFFF' } },
-    fill: { fgColor: { rgb: '004182' } },
+    font: { name: fontMain, sz: 9, bold: true, color: { rgb: '000000' } },
+    fill: { fgColor: { rgb: 'FFFFFF' } },
     alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
     border: borderThin
   };
 
+  // Dòng ký hiệu cột (A, B, C, 1..17) in nghiêng, căn giữa, nền trắng viền mảnh
   const colCodeStyle = {
-    font: { name: fontMain, sz: 9, bold: true, italic: true, color: { rgb: '0F172A' } },
-    fill: { fgColor: { rgb: 'E2E8F0' } },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: borderThin
-  };
-
-  const groupHeaderStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '004182' } },
-    alignment: { horizontal: 'left', vertical: 'center' },
-    border: borderThin
-  };
-
-  const groupHeaderCenterStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '004182' } },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: borderThin
-  };
-
-  const subGroupHeaderStyle = {
-    font: { name: fontMain, sz: 9, bold: true, italic: true, color: { rgb: '1E293B' } },
-    alignment: { horizontal: 'left', vertical: 'center' },
-    border: borderThin
-  };
-
-  const subGroupHeaderCenterStyle = {
-    font: { name: fontMain, sz: 9, bold: true, italic: true, color: { rgb: '1E293B' } },
+    font: { name: fontMain, sz: 9, italic: true, color: { rgb: '000000' } },
+    fill: { fgColor: { rgb: 'FFFFFF' } },
     alignment: { horizontal: 'center', vertical: 'center' },
     border: borderThin
   };
 
   const cellTextStyle = {
-    font: { name: fontMain, sz: 10 },
+    font: { name: fontMain, sz: 9, color: { rgb: '000000' } },
     alignment: { horizontal: 'left', vertical: 'center', wrapText: true },
     border: borderThin
   };
 
   const cellCenterStyle = {
-    font: { name: fontMain, sz: 10 },
+    font: { name: fontMain, sz: 9, color: { rgb: '000000' } },
+    alignment: { horizontal: 'center', vertical: 'center' },
+    border: borderThin
+  };
+
+  // Cột C (Mã số BHXH) chữ ĐỎ nổi bật theo đúng hình ảnh thực tế
+  const cellBhxhStyle = {
+    font: { name: fontMain, sz: 9, bold: true, color: { rgb: 'FF0000' } },
     alignment: { horizontal: 'center', vertical: 'center' },
     border: borderThin
   };
 
   const cellNumberStyle = {
-    font: { name: fontMain, sz: 10 },
+    font: { name: fontMain, sz: 9, color: { rgb: '000000' } },
     alignment: { horizontal: 'right', vertical: 'center' },
     border: borderThin,
     numFmt: '#,##0'
   };
 
-  const totalBlueStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '004182' } },
+  const totalStyle = {
+    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '000000' } },
     alignment: { horizontal: 'center', vertical: 'center' },
     border: borderThin
   };
 
-  const totalBlueNumberStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '004182' } },
-    alignment: { horizontal: 'right', vertical: 'center' },
-    border: borderThin,
-    numFmt: '#,##0'
-  };
-
-  const grandTotalStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '991B1B' } },
-    fill: { fgColor: { rgb: 'FEE2E2' } },
-    alignment: { horizontal: 'center', vertical: 'center' },
-    border: borderThin
-  };
-
-  const grandTotalNumberStyle = {
-    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '991B1B' } },
-    fill: { fgColor: { rgb: 'FEE2E2' } },
+  const totalNumberStyle = {
+    font: { name: fontMain, sz: 10, bold: true, color: { rgb: '000000' } },
     alignment: { horizontal: 'right', vertical: 'center' },
     border: borderThin,
     numFmt: '#,##0'
   };
 
   const rows: any[][] = [];
+  const nowVN = new Date();
 
-  // Row 0 (Excel 1): Đơn vị thu & Mẫu D05-TS
+  // Helper format "Tháng M năm YYYY" cho tiêu đề
+  const formatMonthYearVN = (period?: string) => {
+    if (!period) {
+      return `Tháng ${nowVN.getMonth() + 1} năm ${nowVN.getFullYear()}`;
+    }
+    const match = period.match(/(?:Tháng\s*)?0?(\d{1,2})[/-](\d{4})/i);
+    if (match) {
+      return `Tháng ${parseInt(match[1], 10)} năm ${match[2]}`;
+    }
+    return period;
+  };
+
+  // Row 0 (Excel Row 1): Đơn vị thu (Col A) & Mẫu D05-TS (Col J..N)
   const row0 = Array(20).fill(null);
-  row0[0] = { v: `Tên đơn vị/Điểm thu: ${finalAgencyName}`, s: headerMetaStyle };
-  row0[19] = { v: 'Mẫu D05-TS', s: formCodeStyle };
+  row0[0] = { v: `Tên đơn vị: ${finalAgencyName}`, s: headerMetaNormalStyle };
+  row0[9] = { v: 'Mẫu D05-TS', s: formCodeStyle };
   rows.push(row0);
 
-  // Row 1 (Excel 2): Mã đơn vị + MST & QĐ 490
-  const taxCodeStr = currentUser?.taxCode || currentUser?.taxId ? `         MS thuế: ${currentUser.taxCode || currentUser.taxId}` : '';
+  // Row 1 (Excel Row 2): Mã đơn vị (MS thuế) (Col A) & QĐ 490 (Col J..N)
+  const taxCodeStr = currentUser?.taxCode || currentUser?.taxId ? `${currentUser.taxCode || currentUser.taxId}` : (finalAgencyCode || '');
   const row1 = Array(20).fill(null);
-  row1[0] = { v: `Mã đơn vị/Điểm thu: ${finalAgencyCode}${taxCodeStr}`, s: headerMetaNormalStyle };
-  row1[19] = { v: '(Ban hành kèm theo QĐ: 490/QĐ-BHXH ngày 28/03/2023 của BHXH Việt Nam)', s: formSubCodeStyle };
+  row1[0] = { v: `Mã đơn vị (MS thuế): ${taxCodeStr}`, s: headerMetaNormalStyle };
+  row1[9] = { v: '(Ban hành kèm theo QĐ: 490/QĐ-BHXH ngày 28/03/2023 của BHXH Việt Nam)', s: formSubCodeStyle };
   rows.push(row1);
 
-  // Row 2 (Excel 3): Địa chỉ
-  const agencyAddr = currentUser?.address || 'Huyện Sông Mã, Tỉnh Sơn La';
+  // Row 2 (Excel Row 3): Địa chỉ điểm thu (Col A)
+  const agencyAddr = currentUser?.address || 'Tổ dân phố 3, xã Sông Mã, tỉnh Sơn La';
   const row2 = Array(20).fill(null);
-  row2[0] = { v: `Địa chỉ: ${agencyAddr}`, s: headerMetaNormalStyle };
+  row2[0] = { v: `Địa chỉ điểm thu: ${agencyAddr}`, s: headerMetaNormalStyle };
   rows.push(row2);
 
-  // Row 3 (Excel 4): SĐT và Email
-  const agencyPhone = currentUser?.phone || '0912345678';
-  const agencyEmail = currentUser?.email || 'bhxhtn1410@gmail.com';
+  // Row 3 (Excel Row 4): Điện thoại (Col A) & Tiêu đề chính (Col E..N)
+  const agencyPhone = currentUser?.phone || '0972708321';
   const row3 = Array(20).fill(null);
-  row3[0] = { v: `Điện thoại: ${agencyPhone}    Email: ${agencyEmail}`, s: headerMetaNormalStyle };
+  row3[0] = { v: `Điện thoại: ${agencyPhone}`, s: headerMetaNormalStyle };
+  row3[4] = { v: 'DANH SÁCH NGƯỜI THAM GIA BẢO HIỂM XÃ HỘI TỰ NGUYỆN', s: titleStyle };
   rows.push(row3);
 
-  // Row 4 (Excel 5): Trống
+  // Row 4 (Excel Row 5): Tên NV / Đợt thu (Col A) & Tháng năm (Col E..N)
+  const staffNameDisplay = currentUser?.displayName || currentUser?.name || 'Nguyễn Thị Ngọc';
+  const row5LeftText = batchCode 
+    ? `${staffNameDisplay} - ${batchCode}` 
+    : (currentUser?.displayName ? `${currentUser.displayName} - ${finalAgencyName}` : `${staffNameDisplay} - Kv Sông MãD05ng09-09-26-8-4`);
+  const row4 = Array(20).fill(null);
+  row4[0] = { v: row5LeftText, s: headerMetaNormalStyle };
+  row4[4] = { v: formatMonthYearVN(finalPeriodLabel), s: subTitleStyle };
+  rows.push(row4);
+
+  // Rows 5..8 (Excel Rows 6..9): Dòng trống phân cách trước bảng dữ liệu (để bảng bắt đầu từ Row 10 đúng như ảnh)
   rows.push(Array(20).fill(null));
-
-  // Row 5 (Excel 6): Tiêu đề
-  const nowVN = new Date();
-  const row5 = Array(20).fill(null);
-  row5[0] = { v: 'DANH SÁCH NGƯỜI THAM GIA BẢO HIỂM XÃ HỘI TỰ NGUYỆN', s: titleStyle };
-  rows.push(row5);
-
-  // Row 6 (Excel 7): Đợt nộp & kỳ kê khai
-  const displayBatch = batchCode || 'Tất cả';
-  const displayPeriod = finalPeriodLabel || `Đợt_${nowVN.getFullYear()}${String(nowVN.getMonth() + 1).padStart(2, '0')}${String(nowVN.getDate()).padStart(2, '0')}_01`;
-  const row6 = Array(20).fill(null);
-  row6[0] = { v: `Đợt nộp: ${displayBatch} | Kỳ kê khai: ${displayPeriod}`, s: subTitleStyle };
-  rows.push(row6);
-
-  // Row 7 (Excel 8): Trống
+  rows.push(Array(20).fill(null));
+  rows.push(Array(20).fill(null));
   rows.push(Array(20).fill(null));
 
   // ================= BẢNG BIỂU D05-TS THEO QĐ 490 (20 CỘT: INDEX 0..19) =================
-  // Row 8 (Excel 9): Header cấp 1
-  rows.push([
-    { v: 'STT', s: tableHeaderStyle },                                      // 0: A
-    { v: 'Họ và tên', s: tableHeaderStyle },                                 // 1: B
-    { v: 'Mã số BHXH', s: tableHeaderStyle },                                // 2: C
-    { v: 'Số\nCCCD/CNTD/ĐD\nCN/hộ chiếu', s: tableHeaderStyle },            // 3: 1
-    { v: 'Địa chỉ', s: tableHeaderStyle },                                   // 4: 2
-    { v: 'Ngày biên lai', s: tableHeaderStyle },                             // 5: 3
-    { v: 'Số biên lai', s: tableHeaderStyle },                               // 6: 4
-    { v: 'Mức thu\nnhập tháng\nđóng BHXH', s: tableHeaderStyle },            // 7: 5
-    { v: 'Phương thức\nđóng', s: tableHeaderStyle },                         // 8: 6
-    { v: '', s: tableHeaderStyle },                                          // 9: 7
-    { v: 'Số tiền đóng', s: tableHeaderStyle },                              // 10: 8
-    { v: '', s: tableHeaderStyle },                                          // 11: 9
-    { v: '', s: tableHeaderStyle },                                          // 12: 10
-    { v: '', s: tableHeaderStyle },                                          // 13: 11
-    { v: '', s: tableHeaderStyle },                                          // 14: 12
-    { v: '', s: tableHeaderStyle },                                          // 15: 13
-    { v: '', s: tableHeaderStyle },                                          // 16: 14
-    { v: '', s: tableHeaderStyle },                                          // 17: 15
-    { v: 'Mã số nhân viên\nthu', s: tableHeaderStyle },                      // 18: 16
-    { v: 'Ghi chú', s: tableHeaderStyle }                                    // 19: 17
-  ]);
+  // Row 9 (Excel Row 10): Header cấp 1
+  const hRow1 = Array(20).fill(null).map(() => ({ v: '', s: tableHeaderStyle }));
+  hRow1[0] = { v: 'ST\nT', s: tableHeaderStyle };                                    // 0: A
+  hRow1[1] = { v: 'Họ và tên', s: tableHeaderStyle };                               // 1: B
+  hRow1[2] = { v: 'Mã số BHXH', s: tableHeaderStyle };                              // 2: C
+  hRow1[3] = { v: 'CCCD', s: tableHeaderStyle };                                    // 3: 1
+  hRow1[4] = { v: 'Địa chỉ', s: tableHeaderStyle };                                 // 4: 2
+  hRow1[5] = { v: 'Ngày biên\nlai', s: tableHeaderStyle };                          // 5: 3
+  hRow1[6] = { v: 'Số biên\nlai', s: tableHeaderStyle };                            // 6: 4
+  hRow1[7] = { v: 'Mức thu\nnhập\ntháng\nBHXH', s: tableHeaderStyle };              // 7: 5
+  hRow1[8] = { v: 'Phương thức\nđóng', s: tableHeaderStyle };                       // 8..9: 6..7
+  hRow1[10] = { v: 'Số tiền đóng', s: tableHeaderStyle };                           // 10..17: 8..15
+  hRow1[18] = { v: 'Mã số nhân\nviên thu', s: tableHeaderStyle };                   // 18: 16
+  hRow1[19] = { v: 'Ghi chú', s: tableHeaderStyle };                                // 19: 17
+  rows.push(hRow1);
 
-  // Row 9 (Excel 10): Header cấp 2
-  rows.push([
-    { v: '', s: tableHeaderStyle },                                          // 0
-    { v: '', s: tableHeaderStyle },                                          // 1
-    { v: '', s: tableHeaderStyle },                                          // 2
-    { v: '', s: tableHeaderStyle },                                          // 3
-    { v: '', s: tableHeaderStyle },                                          // 4
-    { v: '', s: tableHeaderStyle },                                          // 5
-    { v: '', s: tableHeaderStyle },                                          // 6
-    { v: '', s: tableHeaderStyle },                                          // 7
-    { v: 'Số\ntháng\nđóng', s: tableHeaderStyle },                           // 8
-    { v: 'Từ\ntháng/năm', s: tableHeaderStyle },                             // 9
-    { v: 'Số tiền phải đóng\ntheo quy định', s: tableHeaderStyle },          // 10
-    { v: 'Người tham gia\nđóng', s: tableHeaderStyle },                      // 11
-    { v: 'Trong đó', s: tableHeaderStyle },                                  // 12..17
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },                                          // 18
-    { v: '', s: tableHeaderStyle }                                           // 19
-  ]);
+  // Row 10 (Excel Row 11): Header cấp 2
+  const hRow2 = Array(20).fill(null).map(() => ({ v: '', s: tableHeaderStyle }));
+  hRow2[8] = { v: 'Số\ntháng\nđóng', s: tableHeaderStyle };                         // 8
+  hRow2[9] = { v: 'Từ\ntháng/nă\nm', s: tableHeaderStyle };                         // 9
+  hRow2[10] = { v: 'Số tiền\nphải đóng\ntheo quy\nđịnh', s: tableHeaderStyle };     // 10
+  hRow2[11] = { v: 'Người\ntham gia\nđóng', s: tableHeaderStyle };                  // 11
+  hRow2[12] = { v: 'Trong đó', s: tableHeaderStyle };                               // 12..17
+  rows.push(hRow2);
 
-  // Row 10 (Excel 11): Header cấp 3 (Nhóm hỗ trợ)
-  rows.push([
-    { v: '', s: tableHeaderStyle },                                          // 0..11
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: 'NSNN hỗ trợ theo quy\nđịnh', s: tableHeaderStyle },                // 12..13
-    { v: '', s: tableHeaderStyle },
-    { v: 'NSĐP hỗ trợ thêm', s: tableHeaderStyle },                          // 14..15
-    { v: '', s: tableHeaderStyle },
-    { v: 'Hỗ trợ khác', s: tableHeaderStyle },                               // 16..17
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },                                          // 18
-    { v: '', s: tableHeaderStyle }                                           // 19
-  ]);
+  // Row 11 (Excel Row 12): Header cấp 3
+  const hRow3 = Array(20).fill(null).map(() => ({ v: '', s: tableHeaderStyle }));
+  hRow3[12] = { v: 'NSNN hỗ trợ\ntheo quy định', s: tableHeaderStyle };             // 12..13
+  hRow3[14] = { v: 'Hỗ trợ', s: tableHeaderStyle };                                 // 14..17
+  rows.push(hRow3);
 
-  // Row 11 (Excel 12): Header cấp 4 (Tỷ lệ % / Số tiền)
-  rows.push([
-    { v: '', s: tableHeaderStyle },                                          // 0..11
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: '', s: tableHeaderStyle },
-    { v: 'Tỷ lệ %\nđược hỗ\ntrợ', s: tableHeaderStyle },                     // 12 (10)
-    { v: 'Số tiền', s: tableHeaderStyle },                                   // 13 (11)
-    { v: 'Tỷ lệ %\nđược hỗ\ntrợ', s: tableHeaderStyle },                     // 14 (12)
-    { v: 'Số tiền', s: tableHeaderStyle },                                   // 15 (13)
-    { v: 'Tỷ lệ %\nđược hỗ\ntrợ', s: tableHeaderStyle },                     // 16 (14)
-    { v: 'Số tiền', s: tableHeaderStyle },                                   // 17 (15)
-    { v: '', s: tableHeaderStyle },                                          // 18 (16)
-    { v: '', s: tableHeaderStyle }                                           // 19 (17)
-  ]);
+  // Row 12 (Excel Row 13): Header cấp 4
+  const hRow4 = Array(20).fill(null).map(() => ({ v: '', s: tableHeaderStyle }));
+  hRow4[14] = { v: 'NSĐP hỗ trợ\nthêm', s: tableHeaderStyle };                      // 14..15
+  hRow4[16] = { v: 'Hỗ trợ\nkhác', s: tableHeaderStyle };                          // 16..17
+  rows.push(hRow4);
 
-  // Row 12 (Excel 13): Ký hiệu cột chuẩn QĐ 490
+  // Row 13 (Excel Row 14): Header cấp 5 (Tỷ lệ % / Số tiền)
+  const hRow5 = Array(20).fill(null).map(() => ({ v: '', s: tableHeaderStyle }));
+  hRow5[12] = { v: 'Tỷ lệ\n%', s: tableHeaderStyle };                               // 12
+  hRow5[13] = { v: 'Số tiền', s: tableHeaderStyle };                                // 13
+  hRow5[14] = { v: 'Tỷ lệ\n%', s: tableHeaderStyle };                               // 14
+  hRow5[15] = { v: 'Số tiền', s: tableHeaderStyle };                                // 15
+  hRow5[16] = { v: 'Tỷ lệ\n%', s: tableHeaderStyle };                               // 16
+  hRow5[17] = { v: 'Số tiền', s: tableHeaderStyle };                                // 17
+  rows.push(hRow5);
+
+  // Row 14 (Excel Row 15): Dòng ký hiệu cột chuẩn QĐ 490 (A, B, C, 1..17)
   const subCols = [
     'A', 'B', 'C', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17'
   ];
   rows.push(subCols.map(c => ({ v: c, s: colCodeStyle })));
 
-  // Row 13 (Excel 14): Phân nhóm I. Tăng
-  rows.push([
-    { v: 'I', s: groupHeaderCenterStyle },
-    { v: 'Tăng', s: groupHeaderStyle },
-    ...Array(18).fill({ v: '', s: groupHeaderStyle })
-  ]);
-
-  // Row 14 (Excel 15): Phân nhóm con I.1. Người tham gia
-  rows.push([
-    { v: 'I.1', s: subGroupHeaderCenterStyle },
-    { v: 'Người tham gia', s: subGroupHeaderStyle },
-    ...Array(18).fill({ v: '', s: subGroupHeaderStyle })
-  ]);
-
-  // Dữ liệu người tham gia
+  // Dữ liệu người tham gia (Bắt đầu trực tiếp từ Excel Row 16, không phân nhóm I, II rườm rà)
   let totalBasePremium = 0;
   let totalAmount = 0;
   let totalNNSupportPct = 0;
@@ -791,7 +707,9 @@ export const exportD05TSStandardExcel = async ({
 
     // Số biên lai: nếu không có thì để rỗng ""
     const receiptNum = r.receiptNumber || r.receiptCode || '';
-    const receiptDate = r.date ? formatDateVN(r.date) : formatDateVN(getLocalYYYYMMDD());
+    const receiptDate = r.receiptDate 
+      ? formatDateVN(r.receiptDate) 
+      : (receiptNum && r.date ? formatDateVN(r.date) : '');
 
     // Tạo chuỗi Ghi chú đầy đủ giống hình ảnh thực tế
     const notesStr = buildD05TSNotes(r, currentUser, nnSupportPct);
@@ -799,87 +717,40 @@ export const exportD05TSStandardExcel = async ({
     rows.push([
       { v: idx + 1, s: cellCenterStyle },                                              // A: STT
       { v: r.name || '', s: cellTextStyle },                                           // B: Họ và tên
-      { v: oldBhxh || r.bhxh || '', s: cellCenterStyle },                              // C: Mã số BHXH
-      { v: r.cccd || '', s: cellCenterStyle },                                         // 1: Số CCCD/CNTD/ĐDCN
+      { v: oldBhxh || r.bhxh || '', s: cellBhxhStyle },                                // C: Mã số BHXH (Màu đỏ theo ảnh)
+      { v: r.cccd || '', s: cellCenterStyle },                                         // 1: CCCD
       { v: r.address || '', s: cellTextStyle },                                        // 2: Địa chỉ
       { v: receiptDate, s: cellCenterStyle },                                          // 3: Ngày biên lai
       { v: receiptNum, s: cellCenterStyle },                                           // 4: Số biên lai
-      { v: income, s: cellNumberStyle },                                               // 5: Mức thu nhập tháng
+      { v: income, s: cellNumberStyle },                                               // 5: Mức thu nhập tháng BHXH
       { v: months, s: cellCenterStyle },                                               // 6: Số tháng đóng
       { v: formatMonthVN(r.fromMonth), s: cellCenterStyle },                           // 7: Từ tháng/năm
-      { v: basePrem, s: cellNumberStyle },                                             // 8: Số tiền phải đóng quy định
+      { v: basePrem, s: cellNumberStyle },                                             // 8: Số tiền phải đóng theo quy định
       { v: amount, s: cellNumberStyle },                                               // 9: Người tham gia đóng
-      { v: nnSupportPct, s: cellCenterStyle },                                         // 10: Tỷ lệ % NSNN hỗ trợ (giá trị số để cộng)
-      { v: recNNSupport, s: cellNumberStyle },                                         // 11: Số tiền NSNN hỗ trợ
-      { v: dpSupportPct > 0 ? dpSupportPct : '', s: cellCenterStyle },                 // 12: Tỷ lệ % NSĐP hỗ trợ
-      { v: dpSupportAmount > 0 ? dpSupportAmount : '', s: cellNumberStyle },           // 13: Số tiền NSĐP hỗ trợ
-      { v: otherSupportPct > 0 ? otherSupportPct : '', s: cellCenterStyle },           // 14: Tỷ lệ % Hỗ trợ khác
-      { v: otherSupportAmount > 0 ? otherSupportAmount : '', s: cellNumberStyle },     // 15: Số tiền Hỗ trợ khác
+      { v: nnSupportPct, s: cellCenterStyle },                                         // 10: Tỷ lệ % NSNN
+      { v: recNNSupport, s: cellNumberStyle },                                         // 11: Số tiền NSNN
+      { v: dpSupportPct > 0 ? dpSupportPct : '', s: cellCenterStyle },                 // 12: Tỷ lệ % NSĐP
+      { v: dpSupportAmount > 0 ? dpSupportAmount : '', s: cellNumberStyle },           // 13: Số tiền NSĐP
+      { v: otherSupportPct > 0 ? otherSupportPct : '', s: cellCenterStyle },           // 14: Tỷ lệ % Khác
+      { v: otherSupportAmount > 0 ? otherSupportAmount : '', s: cellNumberStyle },     // 15: Số tiền Khác
       { v: staffCode, s: cellCenterStyle },                                            // 16: Mã số NV thu
-      { v: notesStr, s: cellTextStyle }                                                // 17: Ghi chú đầy đủ
+      { v: notesStr, s: cellTextStyle }                                                // 17: Ghi chú
     ]);
   });
 
-  // Hàng Cộng tăng: Col 0..9 merged, Col 10..19 các cột số
-  rows.push([
-    { v: 'Cộng tăng', s: totalBlueStyle },                                             // Col 0 (sẽ merge Col 0..9)
-    ...Array(9).fill({ v: '', s: totalBlueStyle }),                                    // Col 1..9
-    { v: totalBasePremium, s: totalBlueNumberStyle },                                  // Col 10: Cột 8
-    { v: totalAmount, s: totalBlueNumberStyle },                                       // Col 11: Cột 9
-    { v: totalNNSupportPct, s: totalBlueNumberStyle },                                 // Col 12: Cột 10 (Tổng tỷ lệ % NSNN)
-    { v: totalNNSupport, s: totalBlueNumberStyle },                                    // Col 13: Cột 11 (Tổng tiền NSNN)
-    { v: '', s: totalBlueStyle },                                                      // Col 14: Cột 12
-    { v: totalDPSupport, s: totalBlueNumberStyle },                                    // Col 15: Cột 13 (Số tiền NSĐP)
-    { v: '', s: totalBlueStyle },                                                      // Col 16: Cột 14
-    { v: totalOtherSupport, s: totalBlueNumberStyle },                                 // Col 17: Cột 15 (Số tiền Khác)
-    { v: '', s: totalBlueStyle },                                                      // Col 18: Cột 16
-    { v: '', s: totalBlueStyle }                                                       // Col 19: Cột 17
-  ]);
-
-  // Phân nhóm II. Giảm
-  rows.push([
-    { v: 'II', s: groupHeaderCenterStyle },
-    { v: 'Giảm', s: groupHeaderStyle },
-    ...Array(18).fill({ v: '', s: groupHeaderStyle })
-  ]);
-
-  rows.push([
-    { v: 'II.1', s: subGroupHeaderCenterStyle },
-    { v: 'Người tham gia', s: subGroupHeaderStyle },
-    ...Array(18).fill({ v: '', s: subGroupHeaderStyle })
-  ]);
-
-  // Hàng Cộng giảm
-  rows.push([
-    { v: 'Cộng giảm', s: totalBlueStyle },
-    ...Array(9).fill({ v: '', s: totalBlueStyle }),
-    { v: 0, s: totalBlueNumberStyle },
-    { v: 0, s: totalBlueNumberStyle },
-    { v: '', s: totalBlueStyle },
-    { v: 0, s: totalBlueNumberStyle },
-    { v: '', s: totalBlueStyle },
-    { v: 0, s: totalBlueNumberStyle },
-    { v: '', s: totalBlueStyle },
-    { v: 0, s: totalBlueNumberStyle },
-    { v: '', s: totalBlueStyle },
-    { v: '', s: totalBlueStyle }
-  ]);
-
-  // Total Summary Row: TỔNG CỘNG
-  rows.push([
-    { v: `TỔNG CỘNG (${validRecords.length} người tham gia)`, s: grandTotalStyle },
-    ...Array(9).fill({ v: '', s: grandTotalStyle }),
-    { v: totalBasePremium, s: grandTotalNumberStyle },
-    { v: totalAmount, s: grandTotalNumberStyle },
-    { v: totalNNSupportPct, s: grandTotalNumberStyle },
-    { v: totalNNSupport, s: grandTotalNumberStyle },
-    { v: '', s: grandTotalStyle },
-    { v: totalDPSupport, s: grandTotalNumberStyle },
-    { v: '', s: grandTotalStyle },
-    { v: totalOtherSupport, s: grandTotalNumberStyle },
-    { v: '', s: grandTotalStyle },
-    { v: '', s: grandTotalStyle }
-  ]);
+  // Hàng TỔNG CỘNG: Col 0..9 merged, Col 10..19 các cột số
+  const rowTotal = Array(20).fill(null).map(() => ({ v: '', s: totalStyle }));
+  rowTotal[0] = { v: 'TỔNG CỘNG', s: totalStyle };
+  rowTotal[10] = { v: totalBasePremium, s: totalNumberStyle };
+  rowTotal[11] = { v: totalAmount, s: totalNumberStyle };
+  rowTotal[13] = { v: totalNNSupport, s: totalNumberStyle };
+  if (totalDPSupport > 0) {
+    rowTotal[15] = { v: totalDPSupport, s: totalNumberStyle };
+  }
+  if (totalOtherSupport > 0) {
+    rowTotal[17] = { v: totalOtherSupport, s: totalNumberStyle };
+  }
+  rows.push(rowTotal);
 
   // Ghi chú dưới bảng theo mẫu QĐ 490
   const soDeNghiCap = validRecords.filter(r => !isD05TSRenew(r)).length;
@@ -893,12 +764,12 @@ export const exportD05TSStandardExcel = async ({
   rowGhiChu[0] = { v: '- Ghi chú: Cột 16 chỉ áp dụng đối với tổ chức dịch vụ thu BHXH tự nguyện BHYT.', s: { font: { name: fontMain, sz: 9, italic: true } } };
   rows.push(rowGhiChu);
 
-  // Signatures
+  // Dòng trống trước phần chữ ký
   rows.push(Array(20).fill(null));
 
   // Row Ngày tháng năm
   const rowNgayKyData = Array(20).fill(null);
-  rowNgayKyData[18] = {
+  rowNgayKyData[16] = {
     v: `Ngày ${nowVN.getDate()} tháng ${nowVN.getMonth() + 1} năm ${nowVN.getFullYear()}`,
     s: { font: { name: fontMain, sz: 10, italic: true }, alignment: { horizontal: 'center', vertical: 'center' } }
   };
@@ -914,7 +785,7 @@ export const exportD05TSStandardExcel = async ({
     v: 'CÁN BỘ THU TIỀN',
     s: { font: { name: fontMain, sz: 10, bold: true }, alignment: { horizontal: 'center', vertical: 'center' } }
   };
-  rowKyData[18] = {
+  rowKyData[16] = {
     v: 'TỔ CHỨC DỊCH VỤ THU',
     s: { font: { name: fontMain, sz: 10, bold: true }, alignment: { horizontal: 'center', vertical: 'center' } }
   };
@@ -930,7 +801,7 @@ export const exportD05TSStandardExcel = async ({
     v: '(Ký, ghi rõ họ tên)',
     s: { font: { name: fontMain, sz: 9, italic: true }, alignment: { horizontal: 'center', vertical: 'center' } }
   };
-  rowKyChuData[18] = {
+  rowKyChuData[16] = {
     v: '(Ký, ghi rõ họ tên, đóng dấu)',
     s: { font: { name: fontMain, sz: 9, italic: true }, alignment: { horizontal: 'center', vertical: 'center' } }
   };
@@ -939,105 +810,122 @@ export const exportD05TSStandardExcel = async ({
   const ws = XLSX.utils.aoa_to_sheet(rows);
 
   const N = validRecords.length;
-  const rowCongTang = 15 + N;
-  const rowNhomII = rowCongTang + 1;
-  const rowNhomII1 = rowCongTang + 2;
-  const rowCongGiam = rowCongTang + 3;
-  const rowTongCong = rowCongTang + 4;
-  const rowDeNghiCap = rowCongTang + 6;
-  const rowGhiChu16 = rowCongTang + 7;
-  const rowNgayKy = rowCongTang + 9;
-  const rowKy = rowCongTang + 10;
-  const rowKyChu = rowCongTang + 11;
+  const rowTongCongIdx = 15 + N;
+  const rowDeNghiCapIdx = rowTongCongIdx + 2;
+  const rowGhiChu16Idx = rowTongCongIdx + 3;
+  const rowNgayKyIdx = rowTongCongIdx + 5;
+  const rowKyIdx = rowTongCongIdx + 6;
+  const rowKyChuIdx = rowTongCongIdx + 7;
 
   ws['!merges'] = [
-    // Header Meta
-    { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
-    { s: { r: 0, c: 18 }, e: { r: 0, c: 19 } },
-    { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
-    { s: { r: 1, c: 14 }, e: { r: 1, c: 19 } },
-    { s: { r: 2, c: 0 }, e: { r: 2, c: 11 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 11 } },
+    // Header Meta Rows 1..5
+    { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },    // Row 1: Tên đơn vị (A..I)
+    { s: { r: 0, c: 9 }, e: { r: 0, c: 13 } },   // Row 1: Mẫu D05-TS (J..N)
+    { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },    // Row 2: Mã đơn vị (A..I)
+    { s: { r: 1, c: 9 }, e: { r: 1, c: 13 } },   // Row 2: QĐ 490 (J..N)
+    { s: { r: 2, c: 0 }, e: { r: 2, c: 8 } },    // Row 3: Địa chỉ (A..I)
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 3 } },    // Row 4: SĐT (A..D)
+    { s: { r: 3, c: 4 }, e: { r: 3, c: 13 } },   // Row 4: Tiêu đề danh sách (E..N)
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 3 } },    // Row 5: Tên NV / Đợt thu (A..D)
+    { s: { r: 4, c: 4 }, e: { r: 4, c: 13 } },   // Row 5: Tháng năm (E..N)
 
-    // Title
-    { s: { r: 5, c: 0 }, e: { r: 5, c: 19 } },
-    { s: { r: 6, c: 0 }, e: { r: 6, c: 19 } },
-
-    // Table Header merges
-    { s: { r: 8, c: 0 }, e: { r: 11, c: 0 } },  // STT (Col 0)
-    { s: { r: 8, c: 1 }, e: { r: 11, c: 1 } },  // Họ và tên (Col 1)
-    { s: { r: 8, c: 2 }, e: { r: 11, c: 2 } },  // Mã số BHXH (Col 2)
-    { s: { r: 8, c: 3 }, e: { r: 11, c: 3 } },  // Số CCCD (Col 3)
-    { s: { r: 8, c: 4 }, e: { r: 11, c: 4 } },  // Địa chỉ (Col 4)
-    { s: { r: 8, c: 5 }, e: { r: 11, c: 5 } },  // Ngày biên lai (Col 5)
-    { s: { r: 8, c: 6 }, e: { r: 11, c: 6 } },  // Số biên lai (Col 6)
-    { s: { r: 8, c: 7 }, e: { r: 11, c: 7 } },  // Mức thu nhập tháng (Col 7)
+    // Table Header Merges (Rows 10..14: r: 9..13)
+    { s: { r: 9, c: 0 }, e: { r: 13, c: 0 } },   // STT (Col 0)
+    { s: { r: 9, c: 1 }, e: { r: 13, c: 1 } },   // Họ và tên (Col 1)
+    { s: { r: 9, c: 2 }, e: { r: 13, c: 2 } },   // Mã số BHXH (Col 2)
+    { s: { r: 9, c: 3 }, e: { r: 13, c: 3 } },   // CCCD (Col 3)
+    { s: { r: 9, c: 4 }, e: { r: 13, c: 4 } },   // Địa chỉ (Col 4)
+    { s: { r: 9, c: 5 }, e: { r: 13, c: 5 } },   // Ngày biên lai (Col 5)
+    { s: { r: 9, c: 6 }, e: { r: 13, c: 6 } },   // Số biên lai (Col 6)
+    { s: { r: 9, c: 7 }, e: { r: 13, c: 7 } },   // Mức thu nhập tháng BHXH (Col 7)
 
     // Phương thức đóng (Col 8..9)
-    { s: { r: 8, c: 8 }, e: { r: 8, c: 9 } },   // Phương thức đóng (Row 8)
-    { s: { r: 9, c: 8 }, e: { r: 11, c: 8 } },  // Số tháng đóng (Col 8)
-    { s: { r: 9, c: 9 }, e: { r: 11, c: 9 } },  // Từ tháng/năm (Col 9)
+    { s: { r: 9, c: 8 }, e: { r: 9, c: 9 } },    // Phương thức đóng (Row 10: r: 9)
+    { s: { r: 10, c: 8 }, e: { r: 13, c: 8 } },  // Số tháng đóng (Col 8)
+    { s: { r: 10, c: 9 }, e: { r: 13, c: 9 } },  // Từ tháng/năm (Col 9)
 
     // Số tiền đóng (Col 10..17)
-    { s: { r: 8, c: 10 }, e: { r: 8, c: 17 } }, // Số tiền đóng (Row 8)
-    { s: { r: 9, c: 10 }, e: { r: 11, c: 10 } },// Số tiền phải đóng quy định (Col 10)
-    { s: { r: 9, c: 11 }, e: { r: 11, c: 11 } },// Người tham gia đóng (Col 11)
-    { s: { r: 9, c: 12 }, e: { r: 9, c: 17 } }, // Trong đó (Row 9, Col 12..17)
-    { s: { r: 10, c: 12 }, e: { r: 10, c: 13 } },// NSNN hỗ trợ (Row 10, Col 12..13)
-    { s: { r: 10, c: 14 }, e: { r: 10, c: 15 } },// NSĐP hỗ trợ thêm (Row 10, Col 14..15)
-    { s: { r: 10, c: 16 }, e: { r: 10, c: 17 } },// Hỗ trợ khác (Row 10, Col 16..17)
+    { s: { r: 9, c: 10 }, e: { r: 9, c: 17 } },  // Số tiền đóng (Row 10: r: 9)
+    { s: { r: 10, c: 10 }, e: { r: 13, c: 10 } },// Số tiền phải đóng quy định (Col 10)
+    { s: { r: 10, c: 11 }, e: { r: 13, c: 11 } },// Người tham gia đóng (Col 11)
+    { s: { r: 10, c: 12 }, e: { r: 10, c: 17 } },// Trong đó (Row 11: r: 10)
+    { s: { r: 11, c: 12 }, e: { r: 12, c: 13 } },// NSNN hỗ trợ theo quy định (Row 12..13: r: 11..12, Col 12..13)
+    { s: { r: 11, c: 14 }, e: { r: 11, c: 17 } },// Hỗ trợ (Row 12: r: 11, Col 14..17)
+    { s: { r: 12, c: 14 }, e: { r: 12, c: 15 } },// NSĐP hỗ trợ thêm (Row 13: r: 12, Col 14..15)
+    { s: { r: 12, c: 16 }, e: { r: 12, c: 17 } },// Hỗ trợ khác (Row 13: r: 12, Col 16..17)
 
-    { s: { r: 8, c: 18 }, e: { r: 11, c: 18 } },// Mã số nhân viên thu (Col 18)
-    { s: { r: 8, c: 19 }, e: { r: 11, c: 19 } },// Ghi chú (Col 19)
+    { s: { r: 9, c: 18 }, e: { r: 13, c: 18 } }, // Mã số nhân viên thu (Col 18)
+    { s: { r: 9, c: 19 }, e: { r: 13, c: 19 } }, // Ghi chú (Col 19)
 
-    // Groups & Totals merges (Từ cột A (c: 0) đến cột J (c: 9))
-    { s: { r: 13, c: 1 }, e: { r: 13, c: 19 } },// Nhóm I: Tăng
-    { s: { r: 14, c: 1 }, e: { r: 14, c: 19 } },// I.1: Người tham gia
-    { s: { r: rowCongTang, c: 0 }, e: { r: rowCongTang, c: 9 } }, // Cộng tăng
-    { s: { r: rowNhomII, c: 1 }, e: { r: rowNhomII, c: 19 } },   // Nhóm II: Giảm
-    { s: { r: rowNhomII1, c: 1 }, e: { r: rowNhomII1, c: 19 } }, // II.1: Người tham gia
-    { s: { r: rowCongGiam, c: 0 }, e: { r: rowCongGiam, c: 9 } },// Cộng giảm
-    { s: { r: rowTongCong, c: 0 }, e: { r: rowTongCong, c: 9 } },// TỔNG CỘNG
+    // Hàng TỔNG CỘNG: Từ cột A (c: 0) đến cột J (c: 9)
+    { s: { r: rowTongCongIdx, c: 0 }, e: { r: rowTongCongIdx, c: 9 } },
 
     // Bottom notes & signatures
-    { s: { r: rowDeNghiCap, c: 0 }, e: { r: rowDeNghiCap, c: 11 } },
-    { s: { r: rowGhiChu16, c: 0 }, e: { r: rowGhiChu16, c: 11 } },
-    { s: { r: rowNgayKy, c: 18 }, e: { r: rowNgayKy, c: 19 } },
-    { s: { r: rowKy, c: 1 }, e: { r: rowKy, c: 3 } },
-    { s: { r: rowKy, c: 7 }, e: { r: rowKy, c: 9 } },
-    { s: { r: rowKy, c: 18 }, e: { r: rowKy, c: 19 } },
-    { s: { r: rowKyChu, c: 1 }, e: { r: rowKyChu, c: 3 } },
-    { s: { r: rowKyChu, c: 7 }, e: { r: rowKyChu, c: 9 } },
-    { s: { r: rowKyChu, c: 18 }, e: { r: rowKyChu, c: 19 } }
+    { s: { r: rowDeNghiCapIdx, c: 0 }, e: { r: rowDeNghiCapIdx, c: 11 } },
+    { s: { r: rowGhiChu16Idx, c: 0 }, e: { r: rowGhiChu16Idx, c: 11 } },
+    { s: { r: rowNgayKyIdx, c: 16 }, e: { r: rowNgayKyIdx, c: 19 } },
+    { s: { r: rowKyIdx, c: 1 }, e: { r: rowKyIdx, c: 3 } },
+    { s: { r: rowKyIdx, c: 7 }, e: { r: rowKyIdx, c: 9 } },
+    { s: { r: rowKyIdx, c: 16 }, e: { r: rowKyIdx, c: 19 } },
+    { s: { r: rowKyChuIdx, c: 1 }, e: { r: rowKyChuIdx, c: 3 } },
+    { s: { r: rowKyChuIdx, c: 7 }, e: { r: rowKyChuIdx, c: 9 } },
+    { s: { r: rowKyChuIdx, c: 16 }, e: { r: rowKyChuIdx, c: 19 } }
   ];
 
+  // Chiều rộng cột căn chỉnh tối ưu cho khổ giấy A4 Ngang
   ws['!cols'] = [
-    { wch: 5 },   // A: STT
-    { wch: 22 },  // B: Họ và tên
-    { wch: 15 },  // C: Mã số BHXH
-    { wch: 18 },  // 1: CCCD
-    { wch: 32 },  // 2: Địa chỉ
-    { wch: 13 },  // 3: Ngày biên lai
-    { wch: 13 },  // 4: Số biên lai
-    { wch: 16 },  // 5: Mức thu nhập tháng đóng
-    { wch: 10 },  // 6: Số tháng đóng
-    { wch: 12 },  // 7: Từ tháng/năm
-    { wch: 16 },  // 8: Số tiền phải đóng quy định
-    { wch: 16 },  // 9: Người tham gia đóng
-    { wch: 10 },  // 10: Tỷ lệ % NSNN hỗ trợ
-    { wch: 14 },  // 11: Số tiền NSNN hỗ trợ
-    { wch: 10 },  // 12: Tỷ lệ % NSĐP hỗ trợ
-    { wch: 12 },  // 13: Số tiền NSĐP hỗ trợ
-    { wch: 10 },  // 14: Tỷ lệ % Hỗ trợ khác
-    { wch: 12 },  // 15: Số tiền Hỗ trợ khác
-    { wch: 16 },  // 16: Mã số nhân viên thu
-    { wch: 75 }   // 17: Ghi chú đầy đủ
+    { wch: 4.5 }, // A: STT
+    { wch: 19 },  // B: Họ và tên
+    { wch: 13 },  // C: Mã số BHXH
+    { wch: 14 },  // 1: CCCD
+    { wch: 24 },  // 2: Địa chỉ
+    { wch: 10 },  // 3: Ngày biên lai
+    { wch: 10 },  // 4: Số biên lai
+    { wch: 12 },  // 5: Mức thu nhập tháng BHXH
+    { wch: 7 },   // 6: Số tháng đóng
+    { wch: 9 },   // 7: Từ tháng/năm
+    { wch: 12 },  // 8: Số tiền phải đóng theo quy định
+    { wch: 12 },  // 9: Người tham gia đóng
+    { wch: 6 },   // 10: Tỷ lệ % NSNN hỗ trợ
+    { wch: 11 },  // 11: Số tiền NSNN hỗ trợ
+    { wch: 6 },   // 12: Tỷ lệ % NSĐP hỗ trợ
+    { wch: 10 },  // 13: Số tiền NSĐP hỗ trợ
+    { wch: 6 },   // 14: Tỷ lệ % Hỗ trợ khác
+    { wch: 10 },  // 15: Số tiền Hỗ trợ khác
+    { wch: 15 },  // 16: Mã số nhân viên thu
+    { wch: 45 }   // 17: Ghi chú đầy đủ
   ];
+
+  // Cấu hình Page Setup vừa vặn khổ giấy A4 Ngang (Landscape)
+  ws['!pageSetup'] = {
+    orientation: 'landscape',
+    paperSize: 9,         // A4 (210 x 297 mm)
+    fitToWidth: 1,        // Ép toàn bộ cột vừa 1 trang A4 ngang
+    fitToHeight: 0,       // Để chiều dọc cuộn tự nhiên theo số trang thực tế
+    scale: 100
+  };
+
+  ws['!sheetPr'] = {
+    pageSetUpPr: {
+      fitToPage: true
+    }
+  };
+
+  // Căn lề hẹp tối ưu diện tích in ấn bảng biểu nhiều cột
+  ws['!margins'] = {
+    left: 0.25,
+    right: 0.25,
+    top: 0.35,
+    bottom: 0.35,
+    header: 0.2,
+    footer: 0.2
+  };
 
   protectWorksheetFormulas(ws);
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'Mau_D05_TS');
+  // Sheet tab name chuẩn "D05" theo đúng mẫu ảnh thực tế
+  XLSX.utils.book_append_sheet(wb, ws, 'D05');
 
   const fileName = `Mau_D05_TS_${batchCode || 'BHXH'}_${getLocalYYYYMMDD()}.xlsx`;
   if (typeof window !== 'undefined' || process.env.NODE_ENV !== 'test') {
