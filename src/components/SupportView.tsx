@@ -55,7 +55,7 @@ const SupportView = () => {
         <meta property="og:title" content="Trung Tâm Trợ Giúp & Hướng Dẫn | Đại lý thu BHXH Sông Mã" />
         <meta property="og:description" content="Hướng dẫn tham gia Bảo hiểm xã hội tự nguyện, Bảo hiểm y tế hộ gia đình, giải đáp thắc mắc và liên hệ hotline Đại lý thu BHXH Sông Mã." />
       </Helmet>
-      <div className="max-w-[1360px] mx-auto px-6 pt-12 pb-12 sm:px-10 lg:px-12 text-left">
+      <div className="max-w-[1600px] mx-auto px-6 pt-12 pb-12 sm:px-10 lg:px-12 text-left">
         <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mb-4">Hỗ Trợ Khách Hàng</h2>
           <p className="text-slate-600 max-w-2xl mx-auto font-medium">

@@ -661,7 +661,7 @@ const BHXH1LanCalc = () => {
             <div className="space-y-4">
               <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-4">
                 {/* Cột Trái: Tháng/Năm nộp hồ sơ */}
-                <div className="w-full lg:flex-1 max-w-2xl">
+                <div className="w-full lg:flex-1">
                   <label className="block text-xs font-black text-slate-800 uppercase tracking-wider mb-2">
                     THÁNG/NĂM NỘP HỒ SƠ
                   </label>

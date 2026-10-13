@@ -211,7 +211,7 @@ const LandingView = () => {
           <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 w-44 sm:w-64 h-44 sm:h-64 rounded-full bg-teal-400/[0.09] blur-2xl pointer-events-none"></div>
         </div>
         
-        <div className="relative z-10 max-w-[1360px] mx-auto px-4 sm:px-8 lg:px-12 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start lg:items-center py-2 sm:py-4">
+        <div className="relative z-10 max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 w-full grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-start lg:items-center py-2 sm:py-4">
           <div className="lg:col-span-7 flex flex-col items-start gap-4 sm:gap-6 lg:gap-7">
             <div className="inline-flex items-center gap-2 sm:gap-3 bg-white/10 px-3.5 sm:px-4.5 py-2 sm:py-2.5 rounded-xl border border-white/20 backdrop-blur-sm shadow-sm">
               <span className="material-symbols-outlined text-secondary-bright fill-icon text-sm sm:text-base">verified</span>
@@ -223,7 +223,7 @@ const LandingView = () => {
               <span className="text-secondary-bright">{homepageConfig.heroTitleGreen || "Vững Bước Tương Lai."}</span>
             </h1>
             
-            <p className="font-body text-sm sm:text-lg lg:text-xl text-white/85 max-w-2xl leading-relaxed font-medium">
+            <p className="font-body text-sm sm:text-lg lg:text-xl text-white/85 max-w-3xl leading-relaxed font-medium">
               {homepageConfig.heroSubtitle || "Sổ BHXH điện tử thế hệ mới - Giải pháp an sinh thông minh, minh bạch và an toàn tuyệt đối cho mọi gia đình Việt."}
             </p>
             
@@ -250,7 +250,7 @@ const LandingView = () => {
             </div>
           </div>
           {/* 2 Action Cards (Right Column) - Tra cứu & Gia hạn Stacked */}
-          <div className="lg:col-span-5 w-full lg:max-w-md ml-auto flex flex-col gap-5 sm:gap-6">
+          <div className="lg:col-span-5 w-full lg:max-w-xl ml-auto flex flex-col gap-5 sm:gap-6">
             <div className="bg-white/95 rounded-xl p-3 shadow-lg">
               <TurnstileCaptcha onToken={setCaptchaToken} resetTrigger={captchaResetTrigger} />
             </div>

@@ -14,7 +14,7 @@ const PensionAssistantView = () => {
         <meta property="og:description" content="Thuật toán thông minh phân tích lộ trình đóng BHXH Tự Nguyện để đạt mức lương hưu mong muốn mà không gây áp lực tài chính." />
       </Helmet>
 
-      <main className="max-w-[1360px] mx-auto px-4 sm:px-8 lg:px-12 pt-8 pb-12 transition-opacity duration-300">
+      <main className="max-w-[1600px] mx-auto px-4 sm:px-8 lg:px-12 pt-8 pb-12 transition-opacity duration-300">
         {/* Switcher Tab Header */}
         <div className="flex justify-center mb-8">
           <div className="bg-gray-200/70 p-1.5 rounded-2xl flex items-center gap-1.5 border border-gray-300/60 shadow-inner">

@@ -95,7 +95,7 @@ const ContributionCalculationView: React.FC = () => {
       </Helmet>
 
       {/* Main Content Area */}
-      <main className="max-w-[1360px] w-full mx-auto px-4 sm:px-10 lg:px-12 py-8 sm:py-10 flex flex-col gap-8">
+      <main className="max-w-[1600px] w-full mx-auto px-4 sm:px-10 lg:px-12 py-8 sm:py-10 flex flex-col gap-8">
         
         {/* Interactive Calculator Container */}
         <section id="calc-combined" className="w-full bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 shadow-sm border border-gray-200/80 space-y-6">

@@ -29,7 +29,7 @@ const Navbar = () => {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-xs h-16 sm:h-20 lg:h-24 flex items-center">
-      <div className="max-w-[1360px] w-full mx-auto px-3 sm:px-8 lg:px-12 flex justify-between items-center relative">
+      <div className="max-w-[1600px] w-full mx-auto px-4 sm:px-8 lg:px-12 flex justify-between items-center relative">
         {/* Logo */}
         <div className="cursor-pointer flex items-center shrink-0 py-1" onClick={() => handleNavClick('/')}>
           <img 

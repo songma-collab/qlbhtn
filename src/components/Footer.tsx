@@ -3,7 +3,7 @@ import React from 'react';
 const Footer: React.FC = () => {
   return (
     <footer className="bg-white/95 backdrop-blur-md text-gray-600 py-4 overflow-hidden relative mt-auto w-full border-t border-[#E2E8F0] shadow-sm">
-      <div className="max-w-[1360px] mx-auto px-4 sm:px-10 lg:px-12 w-full flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-10 lg:px-12 w-full flex flex-col sm:flex-row justify-between items-center gap-3">
         <p className="text-gray-600 font-semibold text-xs text-center sm:text-left tracking-wide">
           © 2026 Đại lý thu BHXH Sông Mã. Bảo lưu mọi quyền.
         </p>
