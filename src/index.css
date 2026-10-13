@@ -22,8 +22,50 @@
   --shadow-custom-hover: 0px 8px 24px rgba(0, 65, 130, 0.08);
 }
 
+/* Tăng kích thước font cơ sở của toàn bộ hệ thống lên một chút (~106.25%) để hiển thị rõ nét, thoáng đãng, dễ đọc */
+html {
+  font-size: 16.8px;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (min-width: 640px) {
+  html {
+    font-size: 17px;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+@media print {
+  html {
+    font-size: 14px;
+  }
+}
+
 body {
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* Nâng cấp các kích thước font cố định siêu nhỏ (9px, 10px, 11px) để đảm bảo sắc nét và rõ ràng trên mọi màn hình */
+.text-\[9px\] {
+  font-size: 0.6875rem !important; /* ~11.7px */
+  line-height: 1rem;
+}
+.text-\[10px\] {
+  font-size: 0.725rem !important;  /* ~12.3px */
+  line-height: 1.05rem;
+}
+.text-\[11px\] {
+  font-size: 0.785rem !important;  /* ~13.3px */
+  line-height: 1.15rem;
 }
 
 /* Custom Scrollbar for Data Tables */
