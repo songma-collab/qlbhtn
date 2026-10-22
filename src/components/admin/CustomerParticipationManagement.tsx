@@ -55,6 +55,9 @@ export const CustomerParticipationManagement: React.FC = () => {
     for (const r of records) {
       if (!r || r.type !== 'BHXH') continue;
       if (r.paymentStatus === 'Đã hủy' || r.status === 'Đã hủy' || r.isAdjustment) continue;
+      const actionType = r.action_type || (r as any).actionType;
+      if (actionType === 'Nhập từ Excel') continue;
+      if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) continue;
 
       const m = Number(r.months) || 0;
       if (m <= 0) continue;

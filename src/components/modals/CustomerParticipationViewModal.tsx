@@ -22,7 +22,8 @@ import {
   transferCustomerTo1Lan,
   doesRecordMatchCustomer,
   calculateCustomerParticipationSupport,
-  calculatePeriodSupportedMonths
+  calculatePeriodSupportedMonths,
+  parseMonthAndYear
 } from '../../utils/customerParticipationHelper';
 import { normalizePeriod } from '../../utils/dateStandardHelper';
 
@@ -52,6 +53,9 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
         if (!r || r.type !== 'BHXH') return false;
         if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
         if (r.is_adjustment || (r as any).isAdjustment) return false;
+        const actionType = r.action_type || (r as any).actionType;
+        if (actionType === 'Nhập từ Excel') return false;
+        if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) return false;
         return doesRecordMatchCustomer(r, customer);
       })
       .sort((a, b) => {
@@ -60,6 +64,40 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
         return dateB - dateA;
       });
   }, [customer, records]);
+
+  // Định dạng hiển thị Kỳ đóng dạng MM/YYYY → MM/YYYY tương tự như Mục 1
+  const formatAgencyPeriod = (r: RecordType): string => {
+    const fMonth = r.from_month || (r as any).fromMonth;
+    const tMonth = r.to_month || (r as any).toMonth;
+    const durationMonths = Number(r.months) || 1;
+
+    if (!fMonth && !r.date && !(r as any).effective_date && !(r as any).effectiveDate) {
+      return '-';
+    }
+
+    const { month: sm, year: sy } = parseMonthAndYear(
+      fMonth,
+      r.date || r.effective_date || (r as any).effectiveDate
+    );
+    if (!sy || !sm) return '-';
+
+    let em = sm;
+    let ey = sy;
+    if (tMonth && typeof tMonth === 'string' && tMonth.trim()) {
+      const parsedTo = parseMonthAndYear(tMonth);
+      em = parsedTo.month;
+      ey = parsedTo.year;
+    } else {
+      const startTotal = sy * 12 + sm - 1;
+      const endTotal = startTotal + (durationMonths - 1);
+      ey = Math.floor(endTotal / 12);
+      em = (endTotal % 12) + 1;
+    }
+
+    const startStr = `${String(sm).padStart(2, '0')}/${sy}`;
+    const endStr = `${String(em).padStart(2, '0')}/${ey}`;
+    return `${startStr} → ${endStr}`;
+  };
 
   // Danh sách giai đoạn tại đại lý
   const agencyPeriods = useMemo(() => {
@@ -391,8 +429,8 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                         <td className="p-3 font-medium text-gray-700">
                           {r.date ? new Date(r.date).toLocaleDateString('vi-VN') : '-'}
                         </td>
-                        <td className="p-3 text-center font-mono font-bold text-emerald-700">
-                          {fMonth || '-'} {tMonth ? `→ ${tMonth}` : ''}
+                        <td className="p-3 text-center font-mono font-bold text-emerald-700 whitespace-nowrap">
+                          {formatAgencyPeriod(r)}
                         </td>
                         <td className="p-3 text-center font-black text-gray-900">
                           {r.months || 1} th

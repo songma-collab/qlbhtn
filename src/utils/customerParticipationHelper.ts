@@ -50,6 +50,9 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
     if (!r || r.type !== 'BHXH') return false;
     if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
     if (r.is_adjustment || (r as any).isAdjustment) return false;
+    const actionType = r.action_type || (r as any).actionType;
+    if (actionType === 'Nhập từ Excel') return false;
+    if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) return false;
     return doesRecordMatchCustomer(r, customer);
   });
 

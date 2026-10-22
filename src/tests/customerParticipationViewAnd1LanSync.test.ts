@@ -177,6 +177,46 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(periods[1]!.ey).toBe(2024);
       expect(periods[1]!.salary).toBe('6.000.000');
     });
+
+    it('bỏ qua bản ghi "Nhập từ Excel" và bản ghi không phát sinh tiền (amount <= 0)', () => {
+      const records: RecordType[] = [
+        {
+          id: 20,
+          cccd: '001200000002',
+          type: 'BHXH',
+          fromMonth: '2026-01',
+          toMonth: '2026-03',
+          months: 3,
+          amount: 891000,
+          wage: 1500000,
+          paymentStatus: 'Đã thu tiền'
+        } as any,
+        {
+          id: 21,
+          cccd: '001200000002',
+          type: 'BHXH',
+          months: 1,
+          amount: 0,
+          actionType: 'Nhập từ Excel',
+          paymentStatus: 'Đã thu tiền'
+        } as any,
+        {
+          id: 22,
+          cccd: '001200000002',
+          type: 'BHXH',
+          months: 1,
+          amount: 0,
+          paymentStatus: 'Đã thu tiền'
+        } as any
+      ];
+
+      const periods = extractAgencyPeriods(customer, records);
+      expect(periods.length).toBe(1);
+      expect(periods[0]!.sm).toBe(1);
+      expect(periods[0]!.sy).toBe(2026);
+      expect(periods[0]!.em).toBe(3);
+      expect(periods[0]!.ey).toBe(2026);
+    });
   });
 
   describe('buildCompleteParticipationPeriods', () => {
@@ -445,6 +485,34 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(nam).toBeDefined();
       expect(nam.compulsoryMonths).toBe(0);
       expect(nam.hasPrior).toBe(false);
+    });
+  });
+
+  describe('Định dạng hiển thị Kỳ đóng tại đại lý dạng MM/YYYY → MM/YYYY', () => {
+    it('chuyển đổi định dạng ISO YYYY-MM thành MM/YYYY → MM/YYYY tương tự Mục 1', () => {
+      const formatPeriodTest = (fMonth?: string, tMonth?: string, months: number = 1): string => {
+        const { month: sm, year: sy } = parseMonthAndYear(fMonth);
+        if (!sy || !sm) return '-';
+        let em = sm;
+        let ey = sy;
+        if (tMonth && typeof tMonth === 'string' && tMonth.trim()) {
+          const parsedTo = parseMonthAndYear(tMonth);
+          em = parsedTo.month;
+          ey = parsedTo.year;
+        } else {
+          const startTotal = sy * 12 + sm - 1;
+          const endTotal = startTotal + (months - 1);
+          ey = Math.floor(endTotal / 12);
+          em = (endTotal % 12) + 1;
+        }
+        return `${String(sm).padStart(2, '0')}/${sy} → ${String(em).padStart(2, '0')}/${ey}`;
+      };
+
+      expect(formatPeriodTest('2026-07', '2026-09', 3)).toBe('07/2026 → 09/2026');
+      expect(formatPeriodTest('2026-04', '2026-06', 3)).toBe('04/2026 → 06/2026');
+      expect(formatPeriodTest('2026-01', '2026-03', 3)).toBe('01/2026 → 03/2026');
+      expect(formatPeriodTest('2026-07', undefined, 3)).toBe('07/2026 → 09/2026');
+      expect(formatPeriodTest('2026-11', undefined, 3)).toBe('11/2026 → 01/2027');
     });
   });
 });
