@@ -109,15 +109,7 @@ export const sanitizeInput = (input: string): string => {
 export const EXCLUDED_AUDIT_ACTIONS = new Set([
   'In biên lai',
   'Xuất ảnh biên lai',
-  'Xuất Excel Tài Chính',
-  'Xuất Excel Giao dịch Tài chính',
-  'Xuất Mẫu D03-TS',
-  'Xuất Mẫu D05-TS',
-  'Xuất danh sách khách hàng ra Excel',
   'Xuất danh sách tuyến thu hiện trường',
-  'VIEW_UNMASKED_PII',
-  'EXPORT_D03_EXCEL',
-  'EXPORT_D05_EXCEL',
   'Cài đặt thông số in ấn',
   'homepage_settings_update',
   'Cập nhật trang chủ',
@@ -210,8 +202,8 @@ export const logPIIUnmaskAccess = async (
     if (logged) return true;
 
     const { error } = await supabase.from('auditlogs').insert([{
-      userId,
-      userName: currentUser?.name || 'Cán bộ quản lý',
+      user_id: userId,
+      user_name: currentUser?.name || 'Cán bộ quản lý',
       action,
       details: `[${timestamp}] ${detailText} | Target: ${targetCustomerId}`,
       timestamp
@@ -251,8 +243,8 @@ export const logExportExcelAudit = async (
     if (logged) return true;
 
     const { error } = await supabase.from('auditlogs').insert([{
-      userId,
-      userName: staffName,
+      user_id: userId,
+      user_name: staffName,
       action,
       details: detailText,
       timestamp

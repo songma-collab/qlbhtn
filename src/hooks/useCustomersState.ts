@@ -32,7 +32,7 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
     setIsLoadingCustomers(true);
     try {
       const staffId = !isAdmin && currentUser?.id ? currentUser.id : undefined;
-      const data = await customerService.fetchAllCustomers({ staff_id: staffId, limit: 2500 });
+      const data = await customerService.fetchAllCustomers({ staff_id: staffId });
       setCustomers(data);
       return data;
     } catch (err) {

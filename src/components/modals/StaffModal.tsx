@@ -12,7 +12,7 @@ interface StaffModalProps {
 
 const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => {
   const { staff, addStaff, updateStaff, showToast } = useAppContext();
-  const [formData, setFormData] = useState({ id: '', name: '', cccd: '', phone: '', email: '', area: '', status: 'Hoạt động', role: 'Nhân viên', username: '', staffCode: '' });
+  const [formData, setFormData] = useState({ id: '', name: '', cccd: '', phone: '', email: '', area: '', status: 'Đang hoạt động', role: 'Nhân viên', username: '', staffCode: '' });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -26,7 +26,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
           phone: s.phone || '', 
           email: s.email || '',
           area: s.area || '', 
-          status: s.status || 'Hoạt động', 
+          status: s.status === 'Tạm khóa' ? 'Tạm khóa' : 'Đang hoạt động', 
           role: s.role || 'Nhân viên',
           username: s.username || s.id || '',
           staffCode: s.staff_code || (s as any).staffCode || s.username || s.id || ''
@@ -34,7 +34,7 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
       } else {
         const randomNum = Math.floor(Math.random() * 90000 + 10000).toString();
         const generatedCode = 'NV' + randomNum;
-        setFormData({ id: '', name: '', cccd: '', phone: '', email: '', area: '', status: 'Hoạt động', role: 'Nhân viên', username: '', staffCode: generatedCode });
+        setFormData({ id: '', name: '', cccd: '', phone: '', email: '', area: '', status: 'Đang hoạt động', role: 'Nhân viên', username: '', staffCode: generatedCode });
       }
     }
   }, [isOpen, staffId, staff]);
@@ -113,8 +113,8 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">Trạng thái (*)</label>
-                <select value={formData.status || 'Hoạt động'} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full p-3 rounded-xl border border-gray-200 text-base outline-none focus:border-[#0ea5e9]">
-                  <option value="Hoạt động">Hoạt động</option>
+                <select value={formData.status || 'Đang hoạt động'} onChange={e => setFormData({...formData, status: e.target.value})} className="w-full p-3 rounded-xl border border-gray-200 text-base outline-none focus:border-[#0ea5e9]">
+                  <option value="Đang hoạt động">Đang hoạt động</option>
                   <option value="Tạm khóa">Tạm khóa</option>
                 </select>
               </div>

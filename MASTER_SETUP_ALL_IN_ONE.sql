@@ -5593,3 +5593,1790 @@ END $$;
 NOTIFY pgrst, 'reload schema';
 
 
+
+
+-- ======================================================================
+-- NÂNG CẤP KIẾN TRÚC GIAI ĐOẠN 1 (P0): BẢO MẬT, PHÂN QUYỀN RBAC & SIẾT CHẶT RPC
+-- ======================================================================
+-- ======================================================================
+-- BẢN VÁ BẢO MẬT P0: PHÂN QUYỀN RBAC, SIẾT CHẶT RPC & BẢO VỆ PII CÔNG DÂN
+-- File: supabase/migrations/20261022000001_fix_security_p0.sql
+-- Áp dụng cho: qlkh-bhxh-bhyt
+-- Mục đích:
+--   1. Thu hồi quyền execute từ anon trên các RPC public để bắt buộc đi qua Edge Function.
+--   2. Cập nhật RLS bảng customers và staff (chống nhân viên đọc/sửa dữ liệu của nhau).
+--   3. Cưỡng chế kiểm tra quyền is_manager_or_admin() / staff_id trong toàn bộ RPC SECURITY DEFINER.
+--   4. Che giấu mặt nạ PII trong public_get_renewal_info khi tra cứu từ cổng công khai.
+--   5. Chống giả mạo định danh user_id trong auditlogs.
+-- ======================================================================
+
+-- ----------------------------------------------------------------------
+-- PHẦN 1: THU HỒI QUYỀN THỰC THI TRỰC TIẾP CỦA ANON (SEC-04)
+-- Mọi truy cập công khai bắt buộc phải qua Edge Function có Turnstile CAPTCHA
+-- ----------------------------------------------------------------------
+REVOKE EXECUTE ON FUNCTION public.public_register_customer(JSONB) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.check_customer_exists(TEXT) FROM anon;
+
+-- Đảm bảo service_role và authenticated vẫn thực thi bình thường
+GRANT EXECUTE ON FUNCTION public.public_register_customer(JSONB) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_customer_exists(TEXT) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) TO service_role, authenticated;
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 2: SIẾT CHẶT ROW LEVEL SECURITY (RLS) BẢNG CUSTOMERS & STAFF (SEC-02)
+-- ----------------------------------------------------------------------
+
+-- 2.1. Bảng CUSTOMERS: Thay thế policy "customers_manage_authenticated" mở rộng quá mức
+DROP POLICY IF EXISTS "customers_manage_authenticated" ON public.customers;
+DROP POLICY IF EXISTS "customers_select_policy" ON public.customers;
+DROP POLICY IF EXISTS "customers_insert_policy" ON public.customers;
+DROP POLICY IF EXISTS "customers_update_policy" ON public.customers;
+DROP POLICY IF EXISTS "customers_delete_policy" ON public.customers;
+
+-- Nhân viên chỉ đọc khách hàng do mình phụ trách hoặc khách hàng chưa gán; Admin/Quản lý đọc toàn bộ
+CREATE POLICY "customers_select_policy" ON public.customers
+  FOR SELECT TO authenticated
+  USING (
+    public.is_manager_or_admin() 
+    OR staff_id = public.current_staff_id() 
+    OR staff_id IS NULL
+  );
+
+-- Nhân viên đang hoạt động được phép tạo khách hàng
+CREATE POLICY "customers_insert_policy" ON public.customers
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    public.is_active_staff()
+  );
+
+-- Nhân viên chỉ sửa khách hàng do mình phụ trách; Admin/Quản lý sửa toàn bộ
+CREATE POLICY "customers_update_policy" ON public.customers
+  FOR UPDATE TO authenticated
+  USING (
+    public.is_manager_or_admin() 
+    OR staff_id = public.current_staff_id()
+  )
+  WITH CHECK (
+    public.is_manager_or_admin() 
+    OR staff_id = public.current_staff_id()
+  );
+
+-- Chỉ Admin và Quản lý mới được phép xóa khách hàng
+CREATE POLICY "customers_delete_policy" ON public.customers
+  FOR DELETE TO authenticated
+  USING (
+    public.is_manager_or_admin()
+  );
+
+-- 2.2. Bảng STAFF: Gỡ bỏ điều kiện "OR status = 'Đang hoạt động'" làm lộ CCCD/SĐT nhân sự khác
+DROP POLICY IF EXISTS "staff_read_authenticated" ON public.staff;
+CREATE POLICY "staff_read_authenticated" ON public.staff
+  FOR SELECT TO authenticated
+  USING (
+    public.is_manager_or_admin() 
+    OR auth_user_id = auth.uid()
+    OR LOWER(TRIM(email)) = LOWER(TRIM(COALESCE(auth.jwt() ->> 'email', '')))
+  );
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 3: TỐI ƯU HÀM TÍNH HOA HỒNG SANG STABLE (LOẠI BỎ N+1)
+-- ----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_commission_rates_for_date(p_date DATE)
+RETURNS TABLE (
+  comm_bhxh_new NUMERIC,
+  comm_bhxh_renew NUMERIC,
+  comm_bhyt_new NUMERIC,
+  comm_bhyt_renew NUMERIC
+)
+LANGUAGE plpgsql
+STABLE
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_rec RECORD;
+  v_d DATE := COALESCE(p_date, CURRENT_DATE);
+BEGIN
+  -- Tìm chính sách hoa hồng hiệu lực tại thời điểm p_date
+  SELECT 
+    COALESCE((value->>'comm_bhxh_new')::numeric, (value->>'bhxh_new')::numeric, 17.5) as b_new,
+    COALESCE((value->>'comm_bhxh_renew')::numeric, (value->>'bhxh_renew')::numeric, 8.75) as b_renew,
+    COALESCE((value->>'comm_bhyt_new')::numeric, (value->>'bhyt_new')::numeric, 3.0) as y_new,
+    COALESCE((value->>'comm_bhyt_renew')::numeric, (value->>'bhyt_renew')::numeric, 2.5) as y_renew
+  INTO v_rec
+  FROM public.policies
+  WHERE parameter_type = 'commission_rate'
+    AND is_active = true
+    AND effective_date <= v_d
+  ORDER BY effective_date DESC
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN QUERY SELECT v_rec.b_new, v_rec.b_renew, v_rec.y_new, v_rec.y_renew;
+    RETURN;
+  END IF;
+
+  -- Fallback tra cứu trong settings
+  SELECT 
+    COALESCE(s.comm_bhxh_new, 17.5) AS b_new,
+    COALESCE(s.comm_bhxh_renew, 8.75) AS b_renew,
+    COALESCE(s.comm_bhyt_new, 3.0) AS y_new,
+    COALESCE(s.comm_bhyt_renew, 2.5) AS y_renew
+  INTO v_rec
+  FROM public.settings s
+  LIMIT 1;
+
+  IF FOUND THEN
+    RETURN QUERY SELECT v_rec.b_new, v_rec.b_renew, v_rec.y_new, v_rec.y_renew;
+    RETURN;
+  END IF;
+
+  RETURN QUERY SELECT 17.5::numeric, 8.75::numeric, 3.0::numeric, 2.5::numeric;
+END;
+$$;
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 4: VÁ CÁC RPC SECURITY DEFINER (SEC-01)
+-- ----------------------------------------------------------------------
+
+-- 4.1. RPC crm_search_customers: Cưỡng chế phân quyền theo staff_id
+DROP FUNCTION IF EXISTS public.crm_search_customers(TEXT, TEXT, TEXT, TEXT, DATE, DATE, INT, INT) CASCADE;
+CREATE OR REPLACE FUNCTION public.crm_search_customers(
+  p_type TEXT DEFAULT 'ALL',
+  p_search TEXT DEFAULT '',
+  p_staff_id TEXT DEFAULT 'all',
+  p_status TEXT DEFAULT 'all',
+  p_from_date DATE DEFAULT NULL,
+  p_to_date DATE DEFAULT NULL,
+  p_limit INT DEFAULT 50,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+  total_count BIGINT,
+  id UUID,
+  customer_key TEXT,
+  type TEXT,
+  name TEXT,
+  cccd TEXT,
+  bhxh TEXT,
+  old_bhxh TEXT,
+  phone TEXT,
+  address TEXT,
+  dob DATE,
+  gender TEXT,
+  status TEXT,
+  payment_status TEXT,
+  next_payment DATE,
+  next_payment_bhxh DATE,
+  next_payment_bhyt DATE,
+  latest_date DATE,
+  latest_amount NUMERIC,
+  staff_id TEXT,
+  total_contributions INT,
+  total_amount_paid NUMERIC,
+  has_bhxh BOOLEAN,
+  has_bhyt BOOLEAN,
+  prior_voluntary_months INT,
+  prior_compulsory_months INT,
+  prior_participation_notes TEXT,
+  from_month TEXT,
+  to_month TEXT,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+STABLE
+AS $$
+DECLARE
+  v_count BIGINT;
+  v_clean_search TEXT;
+  v_effective_staff_id TEXT;
+BEGIN
+  -- Kiểm tra quyền đăng nhập nhân sự
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Tài khoản không hợp lệ hoặc đã bị khóa.' USING ERRCODE = '42501';
+  END IF;
+
+  -- Nếu không phải Quản lý/Admin, bắt buộc lọc theo staff_id của chính mình
+  IF public.is_manager_or_admin() THEN
+    v_effective_staff_id := p_staff_id;
+  ELSE
+    v_effective_staff_id := public.current_staff_id();
+  END IF;
+
+  v_clean_search := LOWER(TRIM(COALESCE(p_search, '')));
+
+  SELECT COUNT(*) INTO v_count
+  FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
+  WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
+    AND (p_status = 'all' OR c.status = p_status)
+    AND (v_effective_staff_id = 'all' OR c.staff_id = v_effective_staff_id)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
+    AND (
+      v_clean_search = '' 
+      OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.cccd, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.old_bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
+    );
+
+  RETURN QUERY
+  SELECT 
+    v_count AS total_count,
+    c.id,
+    c.customer_key,
+    c.type,
+    c.name,
+    c.cccd,
+    c.bhxh,
+    c.old_bhxh,
+    c.phone,
+    c.address,
+    c.dob,
+    c.gender,
+    c.status,
+    COALESCE(c.payment_status, r.payment_status) AS payment_status,
+    COALESCE(c.next_payment, r.next_payment) AS next_payment,
+    c.next_payment_bhxh,
+    c.next_payment_bhyt,
+    COALESCE(c.latest_date, r.date::date) AS latest_date,
+    COALESCE(c.latest_amount, r.amount) AS latest_amount,
+    c.staff_id,
+    c.total_contributions,
+    c.total_amount_paid,
+    c.has_bhxh,
+    c.has_bhyt,
+    c.prior_voluntary_months,
+    c.prior_compulsory_months,
+    c.prior_participation_notes,
+    COALESCE(c.from_month, r.from_month) AS from_month,
+    COALESCE(c.to_month, r.to_month) AS to_month,
+    c.created_at,
+    c.updated_at
+  FROM public.customers c
+  LEFT JOIN public.records r ON c.latest_record_id = r.id
+  WHERE (p_type = 'ALL' OR c.type = UPPER(TRIM(p_type)) OR c.type = 'CẢ HAI')
+    AND (p_status = 'all' OR c.status = p_status)
+    AND (v_effective_staff_id = 'all' OR c.staff_id = v_effective_staff_id)
+    AND (p_from_date IS NULL OR COALESCE(c.next_payment, r.next_payment) >= p_from_date)
+    AND (p_to_date IS NULL OR COALESCE(c.next_payment, r.next_payment) <= p_to_date)
+    AND (
+      v_clean_search = '' 
+      OR LOWER(c.name) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.cccd, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.old_bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.phone, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(c.address, '')) LIKE '%' || v_clean_search || '%'
+    )
+  ORDER BY COALESCE(c.latest_date, r.date::date) DESC NULLS LAST, COALESCE(c.next_payment, r.next_payment) ASC NULLS LAST
+  LIMIT p_limit OFFSET p_offset;
+END;
+$$;
+
+-- 4.2. RPC finance_search_records: Cưỡng chế phân quyền theo staff_id
+DROP FUNCTION IF EXISTS public.finance_search_records(TEXT, TEXT, TEXT, TEXT, TEXT, DATE, DATE, INT, INT) CASCADE;
+CREATE OR REPLACE FUNCTION public.finance_search_records(
+  p_type TEXT DEFAULT 'ALL',
+  p_search TEXT DEFAULT '',
+  p_staff_id TEXT DEFAULT 'all',
+  p_payment_status TEXT DEFAULT 'all',
+  p_batch_code TEXT DEFAULT 'all',
+  p_from_date DATE DEFAULT NULL,
+  p_to_date DATE DEFAULT NULL,
+  p_limit INT DEFAULT 50,
+  p_offset INT DEFAULT 0
+)
+RETURNS TABLE (
+  total_count BIGINT,
+  id BIGINT,
+  date DATE,
+  name TEXT,
+  cccd TEXT,
+  phone TEXT,
+  address TEXT,
+  bhxh TEXT,
+  old_bhxh TEXT,
+  type TEXT,
+  sub_type TEXT,
+  action_type TEXT,
+  wage NUMERIC,
+  months INT,
+  amount NUMERIC,
+  commission NUMERIC,
+  status TEXT,
+  payment_status TEXT,
+  notes TEXT,
+  staff_id TEXT,
+  from_month TEXT,
+  to_month TEXT,
+  next_payment DATE,
+  is_submitted_bhxh BOOLEAN,
+  submission_batch TEXT,
+  submitted_date DATE,
+  is_adjustment BOOLEAN,
+  original_record_id BIGINT,
+  created_at TIMESTAMPTZ
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+STABLE
+AS $$
+DECLARE
+  v_count BIGINT;
+  v_clean_search TEXT;
+  v_effective_staff_id TEXT;
+BEGIN
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Tài khoản không hợp lệ hoặc đã bị khóa.' USING ERRCODE = '42501';
+  END IF;
+
+  IF public.is_manager_or_admin() THEN
+    v_effective_staff_id := p_staff_id;
+  ELSE
+    v_effective_staff_id := public.current_staff_id();
+  END IF;
+
+  v_clean_search := LOWER(TRIM(COALESCE(p_search, '')));
+
+  SELECT COUNT(*) INTO v_count
+  FROM public.records r
+  WHERE (p_type = 'ALL' OR r.type = UPPER(TRIM(p_type)))
+    AND (p_payment_status = 'all' OR r.payment_status = p_payment_status)
+    AND (v_effective_staff_id = 'all' OR r.staff_id = v_effective_staff_id)
+    AND (p_batch_code = 'all' OR r.submission_batch = p_batch_code)
+    AND (p_from_date IS NULL OR r.date::DATE >= p_from_date)
+    AND (p_to_date IS NULL OR r.date::DATE <= p_to_date)
+    AND (
+      v_clean_search = '' 
+      OR LOWER(r.name) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.cccd, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.old_bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.phone, '')) LIKE '%' || v_clean_search || '%'
+    );
+
+  RETURN QUERY
+  SELECT 
+    v_count AS total_count,
+    r.id,
+    r.date::DATE AS date,
+    r.name,
+    r.cccd,
+    r.phone,
+    r.address,
+    r.bhxh,
+    r.old_bhxh,
+    r.type,
+    r.sub_type,
+    r.action_type,
+    r.wage,
+    r.months,
+    r.amount,
+    r.commission,
+    r.status,
+    r.payment_status,
+    r.notes,
+    r.staff_id,
+    r.from_month,
+    r.to_month,
+    r.next_payment,
+    COALESCE(r.is_submitted_bhxh, false) AS is_submitted_bhxh,
+    r.submission_batch,
+    r.submitted_date,
+    COALESCE(r.is_adjustment, false) AS is_adjustment,
+    r.original_record_id,
+    r.created_at
+  FROM public.records r
+  WHERE (p_type = 'ALL' OR r.type = UPPER(TRIM(p_type)))
+    AND (p_payment_status = 'all' OR r.payment_status = p_payment_status)
+    AND (v_effective_staff_id = 'all' OR r.staff_id = v_effective_staff_id)
+    AND (p_batch_code = 'all' OR r.submission_batch = p_batch_code)
+    AND (p_from_date IS NULL OR r.date::DATE >= p_from_date)
+    AND (p_to_date IS NULL OR r.date::DATE <= p_to_date)
+    AND (
+      v_clean_search = '' 
+      OR LOWER(r.name) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.cccd, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.old_bhxh, '')) LIKE '%' || v_clean_search || '%'
+      OR LOWER(COALESCE(r.phone, '')) LIKE '%' || v_clean_search || '%'
+    )
+  ORDER BY COALESCE(r.date, r.created_at) DESC, r.id DESC
+  LIMIT p_limit OFFSET p_offset;
+END;
+$$;
+
+-- 4.3. RPC get_admin_finance_stats: Bắt buộc quyền Quản lý/Admin hoặc giới hạn theo nhân viên
+DROP FUNCTION IF EXISTS public.get_admin_finance_stats(text, text, text, text, text, text, text, text, text) CASCADE;
+CREATE OR REPLACE FUNCTION public.get_admin_finance_stats(
+  filter_type text DEFAULT 'all',
+  filter_staff text DEFAULT 'all',
+  filter_period text DEFAULT 'all',
+  start_date text DEFAULT '',
+  end_date text DEFAULT '',
+  search_txt text DEFAULT '',
+  action_type_filter text DEFAULT 'all',
+  payment_status_filter text DEFAULT 'all',
+  filter_submitted text DEFAULT 'all'
+) RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+STABLE
+AS $$
+DECLARE
+  total_revenue numeric;
+  total_pending numeric;
+  total_commission numeric;
+  v_effective_staff text;
+BEGIN
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Yêu cầu xác thực tài khoản.' USING ERRCODE = '42501';
+  END IF;
+
+  IF public.is_manager_or_admin() THEN
+    v_effective_staff := filter_staff;
+  ELSE
+    v_effective_staff := public.current_staff_id();
+  END IF;
+
+  SELECT 
+    COALESCE(SUM(CASE WHEN r.payment_status = 'Đã thu tiền' THEN r.amount ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN r.payment_status = 'Chờ thanh toán' THEN r.amount ELSE 0 END), 0),
+    COALESCE(SUM(
+      CASE 
+        WHEN r.payment_status = 'Đã thu tiền' AND r.commission IS NOT NULL THEN r.commission
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' AND (r.action_type = 'Đăng ký mới' OR r.action_type ILIKE '%mới%' OR r.action_type = 'new') 
+          THEN r.amount * (rates.comm_bhxh_new / 100.0)
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHXH' 
+          THEN r.amount * (rates.comm_bhxh_renew / 100.0)
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHYT' AND (r.action_type = 'Đăng ký mới' OR r.action_type ILIKE '%mới%' OR r.action_type = 'new') 
+          THEN r.amount * (rates.comm_bhyt_new / 100.0)
+        WHEN r.payment_status = 'Đã thu tiền' AND r.type = 'BHYT' 
+          THEN r.amount * (rates.comm_bhyt_renew / 100.0)
+        ELSE 0
+      END
+    ), 0)
+  INTO total_revenue, total_pending, total_commission
+  FROM public.records r
+  CROSS JOIN LATERAL public.get_commission_rates_for_date(public.safe_cast_date(r.date)) rates
+  WHERE (
+      (payment_status_filter = 'all' AND r.payment_status IN ('Đã thu tiền', 'Chờ thanh toán'))
+      OR (payment_status_filter = 'paid' AND r.payment_status = 'Đã thu tiền')
+      OR (payment_status_filter = 'pending' AND r.payment_status = 'Chờ thanh toán')
+      OR (r.payment_status = payment_status_filter)
+    )
+    AND r.action_type != 'Nhập từ Excel'
+    AND (filter_type = 'all' OR r.type = filter_type)
+    AND (v_effective_staff = 'all' OR r.staff_id = v_effective_staff)
+    AND (action_type_filter = 'all' OR r.action_type = action_type_filter)
+    AND (search_txt = '' OR r.name ILIKE '%' || search_txt || '%' OR r.cccd ILIKE '%' || search_txt || '%' OR r.bhxh ILIKE '%' || search_txt || '%')
+    AND (filter_period = 'all' OR start_date = '' OR end_date = '' OR (public.safe_cast_date(r.date) >= public.safe_cast_date(start_date) AND public.safe_cast_date(r.date) <= public.safe_cast_date(end_date)))
+    AND (
+      filter_submitted = 'all' 
+      OR (filter_submitted = 'submitted' AND r.is_submitted_bhxh = true)
+      OR (filter_submitted = 'unsubmitted' AND (r.is_submitted_bhxh = false OR r.is_submitted_bhxh IS NULL))
+      OR (filter_submitted LIKE 'batch_%' AND r.is_submitted_bhxh = true AND r.submission_batch = SUBSTRING(filter_submitted FROM 7))
+    );
+
+  RETURN json_build_object(
+    'totalRev', total_revenue,
+    'total_revenue', total_revenue,
+    'totalPending', total_pending,
+    'total_pending', total_pending,
+    'totalComm', total_commission,
+    'total_commission', total_commission
+  );
+END;
+$$;
+
+-- 4.4. RPC get_admin_dashboard_stats: Giới hạn theo quyền nhân viên
+DROP FUNCTION IF EXISTS public.get_admin_dashboard_stats(TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.get_admin_dashboard_stats(
+  p_staff_id TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+STABLE
+AS $$
+DECLARE
+  v_total_revenue NUMERIC := 0;
+  v_total_pending NUMERIC := 0;
+  v_total_records INT := 0;
+  v_total_customers INT := 0;
+  v_effective_staff_id TEXT;
+BEGIN
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Yêu cầu xác thực tài khoản.' USING ERRCODE = '42501';
+  END IF;
+
+  IF public.is_manager_or_admin() THEN
+    v_effective_staff_id := p_staff_id;
+  ELSE
+    v_effective_staff_id := public.current_staff_id();
+  END IF;
+
+  SELECT 
+    COALESCE(SUM(CASE WHEN r.payment_status = 'Đã thu tiền' THEN r.amount ELSE 0 END), 0),
+    COALESCE(SUM(CASE WHEN r.payment_status = 'Chờ thanh toán' THEN r.amount ELSE 0 END), 0),
+    COUNT(*)
+  INTO v_total_revenue, v_total_pending, v_total_records
+  FROM public.records r
+  WHERE (v_effective_staff_id IS NULL OR r.staff_id = v_effective_staff_id)
+    AND r.payment_status != 'Đã hủy';
+
+  SELECT COUNT(*) INTO v_total_customers
+  FROM public.customers c
+  WHERE (v_effective_staff_id IS NULL OR c.staff_id = v_effective_staff_id);
+
+  RETURN jsonb_build_object(
+    'totalRevenue', v_total_revenue,
+    'total_revenue', v_total_revenue,
+    'totalPending', v_total_pending,
+    'total_pending', v_total_pending,
+    'totalRecords', v_total_records,
+    'total_records', v_total_records,
+    'totalCustomers', v_total_customers,
+    'total_customers', v_total_customers
+  );
+END;
+$$;
+
+-- 4.5. RPC delete_record_safe: Chặn nhân viên xóa hồ sơ của nhau
+DROP FUNCTION IF EXISTS public.delete_record_safe(BIGINT) CASCADE;
+CREATE OR REPLACE FUNCTION public.delete_record_safe(p_record_id BIGINT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_rec RECORD;
+  v_user_name TEXT;
+  v_cust_key TEXT;
+  v_remaining_records INT := 0;
+  v_is_mgr_or_admin BOOLEAN := false;
+  v_deleted_count INT := 0;
+  v_my_staff_id TEXT;
+BEGIN
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Tài khoản không hợp lệ hoặc đã bị khóa.' USING ERRCODE = '42501';
+  END IF;
+
+  v_is_mgr_or_admin := public.is_manager_or_admin();
+  v_my_staff_id := public.current_staff_id();
+
+  SELECT id, name, type, staff_id,
+         COALESCE(is_submitted_bhxh, false) AS is_submitted,
+         payment_status AS p_status,
+         COALESCE(customer_key, public.generate_customer_key(type, bhxh, cccd, name, phone)) AS c_key,
+         cccd, bhxh, phone
+  INTO v_rec
+  FROM public.records
+  WHERE id = p_record_id;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Không tìm thấy hồ sơ giao dịch #' || p_record_id);
+  END IF;
+
+  -- 1. Chặn tuyệt đối xóa hồ sơ đã nộp BHXH
+  IF v_rec.is_submitted = true THEN
+    RAISE EXCEPTION 'Hồ sơ "%" (Mã #%) ĐÃ ĐƯỢC CHUYỂN BHXH. Thao tác xóa bị từ chối!', v_rec.name, p_record_id
+      USING ERRCODE = '23514';
+  END IF;
+
+  -- 2. Kiểm tra quyền sở hữu hồ sơ
+  IF NOT v_is_mgr_or_admin THEN
+    IF v_rec.staff_id IS NOT NULL AND v_rec.staff_id != v_my_staff_id THEN
+      RAISE EXCEPTION 'Bạn không có quyền xóa hồ sơ #% của nhân viên khác!', p_record_id
+        USING ERRCODE = '42501';
+    END IF;
+
+    IF v_rec.p_status = 'Đã thu tiền' THEN
+      RAISE EXCEPTION 'Giao dịch #% của "%" đã thu tiền. Chỉ Quản lý/Admin mới có quyền xóa!', p_record_id, v_rec.name
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  DELETE FROM public.records WHERE id = p_record_id;
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+  IF v_deleted_count = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Không thể xóa hồ sơ #' || p_record_id || ' từ CSDL.');
+  END IF;
+
+  -- Đồng bộ customers: Xóa khách hàng nếu không còn giao dịch
+  v_cust_key := v_rec.c_key;
+  IF v_cust_key IS NOT NULL AND TRIM(v_cust_key) != '' THEN
+    SELECT COUNT(*) INTO v_remaining_records
+    FROM public.records
+    WHERE customer_key = v_cust_key 
+       OR (v_rec.cccd IS NOT NULL AND TRIM(v_rec.cccd) != '' AND cccd = v_rec.cccd)
+       OR (v_rec.bhxh IS NOT NULL AND TRIM(v_rec.bhxh) != '' AND bhxh = v_rec.bhxh);
+
+    IF v_remaining_records = 0 THEN
+      DELETE FROM public.customers
+      WHERE customer_key = v_cust_key 
+         OR (v_rec.cccd IS NOT NULL AND TRIM(v_rec.cccd) != '' AND cccd = v_rec.cccd)
+         OR (v_rec.bhxh IS NOT NULL AND TRIM(v_rec.bhxh) != '' AND bhxh = v_rec.bhxh);
+    END IF;
+  END IF;
+
+  v_user_name := COALESCE(auth.jwt() ->> 'name', auth.jwt() ->> 'email', 'Cán bộ thu');
+  BEGIN
+    INSERT INTO public.auditlogs (action, details, user_id, user_name, timestamp)
+    VALUES (
+      'Xóa giao dịch',
+      'Đã xóa giao dịch #' || p_record_id || ' (' || COALESCE(v_rec.type, 'BHXH/BHYT') || ' - ' || COALESCE(v_rec.p_status, 'Chờ thanh toán') || ') của khách hàng ' || COALESCE(v_rec.name, ''),
+      COALESCE(auth.uid()::TEXT, 'system'),
+      v_user_name,
+      NOW()
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'message', 'Đã xóa an toàn giao dịch #' || p_record_id || ' và đồng bộ lại danh bạ khách hàng.'
+  );
+END;
+$$;
+
+-- 4.6. RPC bulk_delete_records_safe: Kiểm tra quyền sở hữu cho từng bản ghi
+DROP FUNCTION IF EXISTS public.bulk_delete_records_safe(BIGINT[]) CASCADE;
+CREATE OR REPLACE FUNCTION public.bulk_delete_records_safe(p_record_ids BIGINT[])
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_deleted_count INT := 0;
+  v_user_name TEXT;
+  v_submitted_count INT := 0;
+  v_paid_non_admin_count INT := 0;
+  v_foreign_staff_count INT := 0;
+  v_my_staff_id TEXT;
+  v_is_mgr_or_admin BOOLEAN := false;
+BEGIN
+  IF NOT public.is_active_staff() THEN
+    RAISE EXCEPTION 'Access Denied: Tài khoản không hợp lệ hoặc đã bị khóa.' USING ERRCODE = '42501';
+  END IF;
+
+  v_is_mgr_or_admin := public.is_manager_or_admin();
+  v_my_staff_id := public.current_staff_id();
+
+  SELECT COUNT(*) INTO v_submitted_count
+  FROM public.records
+  WHERE id = ANY(p_record_ids)
+    AND is_submitted_bhxh = true;
+
+  IF v_submitted_count > 0 THEN
+    RAISE EXCEPTION 'Có % hồ sơ trong danh sách ĐÃ ĐƯỢC CHUYỂN BHXH. Không thể xóa!', v_submitted_count
+      USING ERRCODE = '23514';
+  END IF;
+
+  IF NOT v_is_mgr_or_admin THEN
+    -- Kiểm tra hồ sơ đã thu tiền
+    SELECT COUNT(*) INTO v_paid_non_admin_count
+    FROM public.records
+    WHERE id = ANY(p_record_ids)
+      AND payment_status = 'Đã thu tiền';
+
+    IF v_paid_non_admin_count > 0 THEN
+      RAISE EXCEPTION 'Có % hồ sơ đã thu tiền. Nhân viên không được phép xóa giao dịch đã thu tiền!', v_paid_non_admin_count
+        USING ERRCODE = '42501';
+    END IF;
+
+    -- Kiểm tra hồ sơ của nhân viên khác
+    SELECT COUNT(*) INTO v_foreign_staff_count
+    FROM public.records
+    WHERE id = ANY(p_record_ids)
+      AND staff_id IS NOT NULL 
+      AND staff_id != v_my_staff_id;
+
+    IF v_foreign_staff_count > 0 THEN
+      RAISE EXCEPTION 'Có % hồ sơ không thuộc quyền phụ trách của bạn. Bạn không thể xóa hồ sơ của nhân viên khác!', v_foreign_staff_count
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  DELETE FROM public.records WHERE id = ANY(p_record_ids);
+  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+
+  v_user_name := COALESCE(auth.jwt() ->> 'name', auth.jwt() ->> 'email', 'Cán bộ thu');
+  BEGIN
+    INSERT INTO public.auditlogs (action, details, user_id, user_name, timestamp)
+    VALUES (
+      'Xóa giao dịch hàng loạt',
+      'Đã xóa hàng loạt ' || v_deleted_count || ' giao dịch (IDs: ' || array_to_string(p_record_ids, ', ') || ')',
+      COALESCE(auth.uid()::TEXT, 'system'),
+      v_user_name,
+      NOW()
+    );
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  RETURN jsonb_build_object('success', true, 'deleted_count', v_deleted_count, 'message', 'Đã xóa hàng loạt giao dịch thành công');
+END;
+$$;
+
+-- 4.7. RPC delete_customer_cascade: Chỉ Quản lý/Admin được xóa
+DROP FUNCTION IF EXISTS public.delete_customer_cascade(TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.delete_customer_cascade(p_customer_key TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_deleted_records_count INT := 0;
+    v_cust_name TEXT;
+    v_cust_id UUID;
+    v_has_submitted INT := 0;
+BEGIN
+    IF NOT public.is_manager_or_admin() THEN
+      RAISE EXCEPTION 'Chỉ Quản lý hoặc Admin mới có quyền xóa khách hàng liên đới khỏi hệ thống!'
+        USING ERRCODE = '42501';
+    END IF;
+
+    SELECT id, name INTO v_cust_id, v_cust_name
+    FROM public.customers
+    WHERE customer_key = p_customer_key
+       OR cccd = p_customer_key
+       OR bhxh = p_customer_key
+       OR phone = p_customer_key
+    LIMIT 1;
+
+    SELECT COUNT(*) INTO v_has_submitted
+    FROM public.records
+    WHERE (customer_key = p_customer_key
+           OR (v_cust_id IS NOT NULL AND customer_id = v_cust_id)
+           OR cccd = p_customer_key
+           OR bhxh = p_customer_key
+           OR phone = p_customer_key
+           OR public.generate_customer_key(type, bhxh, cccd, name, phone) = p_customer_key)
+      AND is_submitted_bhxh = true;
+
+    IF v_has_submitted > 0 THEN
+        RAISE EXCEPTION 'Khách hàng "%" có hồ sơ ĐÃ ĐƯỢC CHUYỂN BHXH. Thao tác xóa bị từ chối!', COALESCE(v_cust_name, p_customer_key)
+            USING ERRCODE = '23514';
+    END IF;
+
+    WITH deleted_rows AS (
+        DELETE FROM public.records
+        WHERE customer_key = p_customer_key
+           OR (v_cust_id IS NOT NULL AND customer_id = v_cust_id)
+           OR cccd = p_customer_key
+           OR bhxh = p_customer_key
+           OR phone = p_customer_key
+           OR public.generate_customer_key(type, bhxh, cccd, name, phone) = p_customer_key
+        RETURNING id
+    )
+    SELECT COUNT(*) INTO v_deleted_records_count FROM deleted_rows;
+
+    DELETE FROM public.customers
+    WHERE customer_key = p_customer_key
+       OR id = v_cust_id
+       OR cccd = p_customer_key
+       OR bhxh = p_customer_key
+       OR phone = p_customer_key;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'customer_name', v_cust_name,
+        'deleted_records_count', v_deleted_records_count,
+        'message', format('Đã xóa thành công khách hàng "%s" cùng %s hồ sơ liên quan.', COALESCE(v_cust_name, p_customer_key), v_deleted_records_count)
+    );
+END;
+$$;
+
+-- 4.8. RPC public_get_renewal_info: Che giấu mặt nạ PII khi gọi từ cổng công khai
+DROP FUNCTION IF EXISTS public.public_get_renewal_info(TEXT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.public_get_renewal_info(p_code TEXT, p_type TEXT)
+RETURNS TABLE (
+  name TEXT,
+  cccd TEXT,
+  phone TEXT,
+  bhxh TEXT,
+  dob DATE,
+  gender TEXT,
+  nation TEXT,
+  email TEXT,
+  address TEXT,
+  type TEXT,
+  method TEXT,
+  months INTEGER,
+  income NUMERIC,
+  from_month TEXT,
+  to_month TEXT,
+  notes TEXT,
+  recv_name TEXT,
+  recv_phone TEXT,
+  recv_address TEXT,
+  members JSONB
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_is_authenticated BOOLEAN := false;
+BEGIN
+  IF auth.role() NOT IN ('service_role', 'authenticated') THEN
+    RAISE EXCEPTION 'Access denied: Chức năng gia hạn nhanh chỉ khả dụng qua cổng dịch vụ đã xác thực bảo mật.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_code IS NULL OR TRIM(p_code) !~ '^\d{9}$|^\d{10}$|^\d{12}$' THEN
+    RETURN;
+  END IF;
+
+  PERFORM public.enforce_public_rpc_rate_limit('public_get_renewal_info', 15, INTERVAL '1 hour');
+
+  v_is_authenticated := (auth.role() = 'authenticated');
+
+  RETURN QUERY
+  SELECT 
+    CASE 
+      WHEN v_is_authenticated THEN r.name
+      WHEN LENGTH(TRIM(r.name)) > 4 THEN 
+        split_part(TRIM(r.name), ' ', 1) || ' *** ' || reverse(split_part(reverse(TRIM(r.name)), ' ', 1))
+      ELSE '***'
+    END AS name,
+    CASE WHEN v_is_authenticated THEN r.cccd ELSE public.mask_cccd_pii(r.cccd) END AS cccd,
+    CASE WHEN v_is_authenticated THEN r.phone ELSE public.mask_phone_pii(r.phone) END AS phone,
+    r.bhxh,
+    r.dob,
+    r.gender,
+    r.nation,
+    CASE WHEN v_is_authenticated THEN r.email ELSE NULL END AS email,
+    CASE WHEN v_is_authenticated THEN r.address ELSE '*** Bảo mật theo quy định ***' END AS address,
+    r.type,
+    r.method,
+    r.months,
+    r.income,
+    r.from_month,
+    r.to_month,
+    r.notes,
+    r.recv_name,
+    CASE WHEN v_is_authenticated THEN r.recv_phone ELSE public.mask_phone_pii(r.recv_phone) END AS recv_phone,
+    CASE WHEN v_is_authenticated THEN r.recv_address ELSE NULL END AS recv_address,
+    CASE WHEN v_is_authenticated THEN r.members ELSE '[]'::jsonb END AS members
+  FROM public.records r
+  WHERE r.payment_status != 'Đã hủy'
+    AND r.type = UPPER(TRIM(p_type))
+    AND (
+      (r.bhxh = TRIM(p_code) AND r.bhxh IS NOT NULL AND r.bhxh != '') OR 
+      (r.cccd = TRIM(p_code) AND r.cccd IS NOT NULL AND r.cccd != '')
+    )
+  ORDER BY COALESCE(r.updated_at, r.created_at, r.date) DESC, r.date DESC, r.id DESC
+  LIMIT 1;
+END;
+$$;
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 5: BẢO VỆ ĐỊNH DANH TRONG AUDITLOGS (CHỐNG GIẢ MẠO USER_ID)
+-- ----------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.enforce_auditlog_identity()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  -- Nếu có phiên đăng nhập xác thực qua Supabase Auth, cưỡng chế ghi đúng auth.uid()
+  IF auth.uid() IS NOT NULL THEN
+    NEW.user_id := auth.uid()::TEXT;
+  END IF;
+
+  IF NEW.timestamp IS NULL THEN
+    NEW.timestamp := NOW();
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_enforce_auditlog_identity ON public.auditlogs;
+CREATE TRIGGER trigger_enforce_auditlog_identity
+BEFORE INSERT ON public.auditlogs
+FOR EACH ROW
+EXECUTE FUNCTION public.enforce_auditlog_identity();
+
+-- ======================================================================
+-- KẾT THÚC BẢN VÁ BẢO MẬT P0
+-- ======================================================================
+
+
+-- ======================================================================
+-- NÂNG CẤP KIẾN TRÚC GIAI ĐOẠN 2 (P1): TOÀN VẸN SỔ CÁI TÀI CHÍNH & MASTER DATA SYNC
+-- ======================================================================
+-- ======================================================================
+-- BẢN VÁ TOÀN VẸN CSDL P1: SỔ CÁI TÀI CHÍNH, CHỐNG RACE CONDITION & ĐỒNG BỘ MASTER DATA
+-- File: supabase/migrations/20261022000002_fix_ledger_and_master_data.sql
+-- Áp dụng cho: qlkh-bhxh-bhyt
+-- Mục đích:
+--   1. Thêm pg_advisory_xact_lock chống Race Condition khi tính số dư sổ cái (DB-01).
+--   2. Bổ sung xử lý AFTER DELETE ON records để sinh bút toán HOAN_TIEN bảo vệ toàn vẹn sổ cái.
+--   3. Xây dựng hàm chuẩn hóa sync_customer_master_data_for_key:
+--      - Ghi nhận chính xác khách hàng tham gia cả 2 loại hình (type = 'CẢ HAI', has_bhxh, has_bhyt).
+--      - Quản lý độc lập hạn đóng tiếp theo: next_payment_bhxh, next_payment_bhyt.
+--      - Chống thoái thu / điều chỉnh đè số âm lên latest_amount và chu kỳ đóng (DB-02).
+--   4. Cập nhật import_records_batch để tự động đồng bộ Master Data sau khi import Excel (DB-03).
+--   5. Tự động chữa lành (Auto-heal) toàn bộ dữ liệu danh bạ khách hàng hiện hữu.
+-- ======================================================================
+
+-- ----------------------------------------------------------------------
+-- PHẦN 1: NÂNG CẤP ĐỒNG BỘ SỔ CÁI TÀI CHÍNH (CHỐNG RACE CONDITION & XỬ LÝ DELETE)
+-- ----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.sync_record_to_financial_ledger()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_customer_id UUID;
+    v_posted_by TEXT;
+    v_posted_at TIMESTAMPTZ;
+    v_current_balance NUMERIC := 0;
+    v_new_balance NUMERIC := 0;
+    v_credit NUMERIC := 0;
+    v_debit NUMERIC := 0;
+    v_trans_type public.ledger_transaction_type;
+    v_ref_id TEXT;
+    v_idempotency_key TEXT;
+    v_notes TEXT;
+    v_is_clawback BOOLEAN := false;
+BEGIN
+    -- 1. Khóa phân tán cấp transaction (Advisory Lock) để tuần tự hóa việc tính số dư sổ cái, loại bỏ triệt để Race Condition
+    PERFORM pg_advisory_xact_lock(hashtext('financial_ledger_lock'));
+
+    -- 2. Lấy số dư lũy kế gần nhất trên sổ cái (đảm bảo tính tuần tự theo thời gian vật lý)
+    SELECT COALESCE(balance, 0) INTO v_current_balance
+    FROM public.financial_ledger
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1;
+    v_current_balance := COALESCE(v_current_balance, 0);
+
+    -- ==================================================================
+    -- TRƯỜNG HỢP A: XÓA HỒ SƠ (DELETE)
+    -- ==================================================================
+    IF TG_OP = 'DELETE' THEN
+        -- Chỉ xử lý nếu bản ghi bị xóa là bản ghi đã thu tiền
+        IF OLD.payment_status = 'Đã thu tiền' AND COALESCE(OLD.amount, 0) != 0 THEN
+            v_posted_by := COALESCE(public.current_staff_id(), OLD.staff_id, 'system');
+            
+            -- Tìm customer_id
+            v_customer_id := OLD.customer_id;
+            IF v_customer_id IS NULL AND OLD.customer_key IS NOT NULL THEN
+                SELECT id INTO v_customer_id FROM public.customers WHERE customer_key = OLD.customer_key LIMIT 1;
+            END IF;
+            IF v_customer_id IS NULL AND OLD.cccd IS NOT NULL THEN
+                SELECT id INTO v_customer_id FROM public.customers WHERE cccd = OLD.cccd LIMIT 1;
+            END IF;
+            IF v_customer_id IS NULL AND OLD.bhxh IS NOT NULL THEN
+                SELECT id INTO v_customer_id FROM public.customers WHERE bhxh = OLD.bhxh LIMIT 1;
+            END IF;
+
+            v_is_clawback := (
+                COALESCE(OLD.action_type, '') = 'Thoái thu' 
+                OR OLD.is_adjustment = TRUE 
+                OR OLD.refund_type IS NOT NULL 
+                OR COALESCE(OLD.amount, 0) < 0
+            );
+
+            IF v_is_clawback THEN
+                -- Xóa bản ghi thoái thu (đã xuất tiền hoàn trước đó) -> Cần hoàn bù dòng tiền (Ghi có)
+                v_trans_type := 'DIEU_CHINH';
+                v_credit := ABS(COALESCE(OLD.amount, 0));
+                v_debit := 0;
+                v_new_balance := v_current_balance + v_credit;
+                v_ref_id := 'DEL_CLAWBACK_' || OLD.id::text;
+                v_idempotency_key := format('DEL_CLAWBACK_%s_%s', OLD.id, to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'));
+                v_notes := format('Đảo ngược thoái thu do xóa hồ sơ thoái thu #%s của khách hàng %s. Số tiền điều chỉnh: +%s VNĐ',
+                    OLD.id, COALESCE(OLD.name, 'N/A'), to_char(v_credit, 'FM999,999,999,999')
+                );
+            ELSE
+                -- Xóa bản ghi thu tiền (> 0) -> Hoàn tiền / Giảm trừ số dư dòng tiền (Ghi nợ)
+                v_trans_type := 'HOAN_TIEN';
+                v_debit := ABS(COALESCE(OLD.amount, 0));
+                v_credit := 0;
+                v_new_balance := v_current_balance - v_debit;
+                v_ref_id := 'DEL_REC_' || OLD.id::text;
+                v_idempotency_key := format('DEL_REC_%s_%s', OLD.id, to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'));
+                v_notes := format('Hoàn tiền do xóa hồ sơ đã thu tiền #%s của khách hàng %s. Số tiền giảm trừ: -%s VNĐ',
+                    OLD.id, COALESCE(OLD.name, 'N/A'), to_char(v_debit, 'FM999,999,999,999')
+                );
+            END IF;
+
+            INSERT INTO public.financial_ledger (
+                record_id, customer_id, transaction_type,
+                debit_amount, credit_amount, balance,
+                currency, reference_id, idempotency_key,
+                posted_by, posted_at, notes
+            ) VALUES (
+                NULL, -- record_id để NULL vì bản ghi trong records đã bị xóa
+                v_customer_id, v_trans_type,
+                v_debit, v_credit, v_new_balance,
+                'VND', v_ref_id, v_idempotency_key,
+                v_posted_by, NOW(), v_notes
+            )
+            ON CONFLICT (idempotency_key) DO NOTHING;
+        END IF;
+
+        RETURN OLD;
+    END IF;
+
+    -- ==================================================================
+    -- TRƯỜNG HỢP B: INSERT HOẶC UPDATE
+    -- ==================================================================
+    v_posted_by := COALESCE(public.current_staff_id(), NEW.staff_id, 'system');
+    v_posted_at := COALESCE(NEW.date, NOW());
+
+    v_customer_id := NEW.customer_id;
+    IF v_customer_id IS NULL AND NEW.customer_key IS NOT NULL THEN
+        SELECT id INTO v_customer_id FROM public.customers WHERE customer_key = NEW.customer_key LIMIT 1;
+    END IF;
+    IF v_customer_id IS NULL AND NEW.cccd IS NOT NULL THEN
+        SELECT id INTO v_customer_id FROM public.customers WHERE cccd = NEW.cccd LIMIT 1;
+    END IF;
+    IF v_customer_id IS NULL AND NEW.bhxh IS NOT NULL THEN
+        SELECT id INTO v_customer_id FROM public.customers WHERE bhxh = NEW.bhxh LIMIT 1;
+    END IF;
+
+    v_is_clawback := (
+        COALESCE(NEW.action_type, '') = 'Thoái thu' 
+        OR NEW.is_adjustment = TRUE 
+        OR NEW.refund_type IS NOT NULL 
+        OR COALESCE(NEW.amount, 0) < 0
+    );
+
+    -- 1. BÚT TOÁN THOÁI THU / HOÀN TIỀN (HOAN_TIEN)
+    IF v_is_clawback AND NEW.payment_status = 'Đã thu tiền' THEN
+        IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND (OLD.payment_status != 'Đã thu tiền' OR OLD.action_type != 'Thoái thu')) THEN
+            v_trans_type := 'HOAN_TIEN';
+            v_debit := ABS(COALESCE(NEW.amount, 0));
+            v_credit := 0;
+            v_new_balance := v_current_balance - v_debit;
+            v_ref_id := COALESCE(NEW.decision_number, 'CLAWBACK_' || NEW.id::text);
+            v_idempotency_key := 'CLAWBACK_REC_' || NEW.id::text;
+            v_notes := format('Thoái thu hoàn trả theo QĐ %s - Khách hàng: %s (Hồ sơ gốc #%s). Lý do: %s',
+                COALESCE(NEW.decision_number, 'N/A'),
+                COALESCE(NEW.name, 'N/A'),
+                COALESCE(NEW.original_record_id, NEW.id),
+                COALESCE(NEW.adjustment_reason, NEW.notes, 'Không có')
+            );
+
+            INSERT INTO public.financial_ledger (
+                record_id, customer_id, transaction_type,
+                debit_amount, credit_amount, balance,
+                currency, reference_id, idempotency_key,
+                posted_by, posted_at, notes
+            ) VALUES (
+                NEW.id, v_customer_id, v_trans_type,
+                v_debit, v_credit, v_new_balance,
+                'VND', v_ref_id, v_idempotency_key,
+                v_posted_by, v_posted_at, v_notes
+            )
+            ON CONFLICT (idempotency_key) DO NOTHING;
+
+            RETURN NEW;
+        END IF;
+
+    -- 2. THU TIỀN HỒ SƠ MỚI HOẶC GIA HẠN (THU_TIEN)
+    ELSIF NEW.payment_status = 'Đã thu tiền' AND COALESCE(NEW.amount, 0) > 0 AND NOT v_is_clawback THEN
+        IF TG_OP = 'INSERT' OR (TG_OP = 'UPDATE' AND OLD.payment_status != 'Đã thu tiền') THEN
+            v_trans_type := 'THU_TIEN';
+            v_credit := COALESCE(NEW.amount, 0);
+            v_debit := 0;
+            v_new_balance := v_current_balance + v_credit;
+            v_ref_id := COALESCE(NEW.submission_batch, 'REC_' || NEW.id::text);
+            v_idempotency_key := 'PAYMENT_REC_' || NEW.id::text;
+            v_notes := format('Thu tiền đóng %s (%s) - Khách hàng: %s (Mã hồ sơ: #%s, Kỳ: %s - %s)',
+                NEW.type,
+                COALESCE(NEW.action_type, 'Đóng tiền'),
+                COALESCE(NEW.name, 'N/A'),
+                NEW.id,
+                COALESCE(NEW.from_month, 'N/A'),
+                COALESCE(NEW.to_month, 'N/A')
+            );
+
+            INSERT INTO public.financial_ledger (
+                record_id, customer_id, transaction_type,
+                debit_amount, credit_amount, balance,
+                currency, reference_id, idempotency_key,
+                posted_by, posted_at, notes
+            ) VALUES (
+                NEW.id, v_customer_id, v_trans_type,
+                v_debit, v_credit, v_new_balance,
+                'VND', v_ref_id, v_idempotency_key,
+                v_posted_by, v_posted_at, v_notes
+            )
+            ON CONFLICT (idempotency_key) DO NOTHING;
+
+            RETURN NEW;
+        END IF;
+
+    -- 3. HỦY HỒ SƠ ĐÃ THU TIỀN TRƯỚC ĐÓ (HOAN_TIEN)
+    ELSIF TG_OP = 'UPDATE' AND OLD.payment_status = 'Đã thu tiền' AND NEW.payment_status = 'Đã hủy' AND COALESCE(OLD.amount, 0) > 0 THEN
+        v_trans_type := 'HOAN_TIEN';
+        v_debit := ABS(COALESCE(OLD.amount, 0));
+        v_credit := 0;
+        v_new_balance := v_current_balance - v_debit;
+        v_ref_id := 'CANCEL_REC_' || NEW.id::text;
+        v_idempotency_key := 'CANCEL_REC_' || NEW.id::text;
+        v_notes := format('Hủy hồ sơ đã thu tiền #%s - Khách hàng: %s. Số tiền hoàn giảm: %s VNĐ',
+            NEW.id,
+            COALESCE(NEW.name, 'N/A'),
+            to_char(v_debit, 'FM999,999,999,999')
+        );
+
+        INSERT INTO public.financial_ledger (
+            record_id, customer_id, transaction_type,
+            debit_amount, credit_amount, balance,
+            currency, reference_id, idempotency_key,
+            posted_by, posted_at, notes
+        ) VALUES (
+            NEW.id, v_customer_id, v_trans_type,
+            v_debit, v_credit, v_new_balance,
+            'VND', v_ref_id, v_idempotency_key,
+            v_posted_by, NOW(), v_notes
+        )
+        ON CONFLICT (idempotency_key) DO NOTHING;
+
+        RETURN NEW;
+
+    -- 4. ĐIỀU CHỈNH SỐ TIỀN CỦA HỒ SƠ ĐÃ THU (DIEU_CHINH)
+    ELSIF TG_OP = 'UPDATE' AND OLD.payment_status = 'Đã thu tiền' AND NEW.payment_status = 'Đã thu tiền' 
+          AND COALESCE(NEW.amount, 0) != COALESCE(OLD.amount, 0) AND NOT v_is_clawback THEN
+        v_trans_type := 'DIEU_CHINH';
+        
+        IF COALESCE(NEW.amount, 0) > COALESCE(OLD.amount, 0) THEN
+            v_credit := COALESCE(NEW.amount, 0) - COALESCE(OLD.amount, 0);
+            v_debit := 0;
+            v_new_balance := v_current_balance + v_credit;
+            v_notes := format('Điều chỉnh tăng số tiền hồ sơ #%s (%s -> %s VNĐ)', NEW.id, OLD.amount, NEW.amount);
+        ELSE
+            v_debit := COALESCE(OLD.amount, 0) - COALESCE(NEW.amount, 0);
+            v_credit := 0;
+            v_new_balance := v_current_balance - v_debit;
+            v_notes := format('Điều chỉnh giảm số tiền hồ sơ #%s (%s -> %s VNĐ)', NEW.id, OLD.amount, NEW.amount);
+        END IF;
+
+        v_ref_id := 'ADJUST_REC_' || NEW.id::text;
+        v_idempotency_key := format('ADJUST_REC_%s_%s', NEW.id, to_char(clock_timestamp(), 'YYYYMMDDHH24MISSUS'));
+
+        INSERT INTO public.financial_ledger (
+            record_id, customer_id, transaction_type,
+            debit_amount, credit_amount, balance,
+            currency, reference_id, idempotency_key,
+            posted_by, posted_at, notes
+        ) VALUES (
+            NEW.id, v_customer_id, v_trans_type,
+            v_debit, v_credit, v_new_balance,
+            'VND', v_ref_id, v_idempotency_key,
+            v_posted_by, NOW(), v_notes
+        )
+        ON CONFLICT (idempotency_key) DO NOTHING;
+
+        RETURN NEW;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+-- Gắn trigger xử lý cả INSERT, UPDATE lẫn DELETE trên records
+DROP TRIGGER IF EXISTS after_record_payment_update_ledger ON public.records;
+CREATE TRIGGER after_record_payment_update_ledger
+    AFTER INSERT OR UPDATE OR DELETE ON public.records
+    FOR EACH ROW
+    EXECUTE FUNCTION public.sync_record_to_financial_ledger();
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 2: CHUẨN HÓA ĐỒNG BỘ MASTER DATA KHÁCH HÀNG (CUSTOMERS) (DB-02)
+-- ----------------------------------------------------------------------
+
+-- Hàm cốt lõi: Tính toán lại toàn diện thông tin một khách hàng dựa trên lịch sử records
+CREATE OR REPLACE FUNCTION public.sync_customer_master_data_for_key(p_customer_key TEXT)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_clean_key TEXT;
+    v_latest_valid RECORD;
+    v_latest_any RECORD;
+    v_has_bhxh BOOLEAN := false;
+    v_has_bhyt BOOLEAN := false;
+    v_type TEXT;
+    v_total_paid NUMERIC := 0;
+    v_total_contrib INT := 0;
+    v_next_bhxh DATE;
+    v_next_bhyt DATE;
+    v_next_payment DATE;
+    v_effective_date DATE;
+    v_status TEXT;
+    v_payment_status TEXT;
+    v_latest_amount NUMERIC := 0;
+    v_latest_date DATE;
+    v_from_month TEXT;
+    v_to_month TEXT;
+    v_latest_record_id BIGINT;
+    v_cccd TEXT;
+    v_bhxh TEXT;
+    v_staff_id TEXT;
+    v_name TEXT;
+    v_phone TEXT;
+    v_address TEXT;
+    v_dob DATE;
+    v_gender TEXT;
+    v_nation TEXT;
+    v_email TEXT;
+    v_household_id TEXT;
+    v_members JSONB;
+    v_recv_name TEXT;
+    v_recv_phone TEXT;
+    v_recv_address TEXT;
+    v_notes TEXT;
+BEGIN
+    v_clean_key := TRIM(COALESCE(p_customer_key, ''));
+    IF v_clean_key = '' THEN
+        RETURN;
+    END IF;
+
+    -- 1. Tìm bản ghi hợp đồng hợp lệ mới nhất (loại bỏ bút toán thoái thu, điều chỉnh hoặc đã hủy)
+    SELECT * INTO v_latest_valid
+    FROM public.records
+    WHERE (
+        customer_key = v_clean_key
+        OR (cccd IS NOT NULL AND TRIM(cccd) != '' AND (cccd = v_clean_key OR 'CUST_CCCD_' || REGEXP_REPLACE(cccd, '\D', '', 'g') = v_clean_key))
+        OR (bhxh IS NOT NULL AND TRIM(bhxh) != '' AND (bhxh = v_clean_key OR 'CUST_BHXH_' || REGEXP_REPLACE(bhxh, '\D', '', 'g') = v_clean_key))
+    )
+    AND COALESCE(payment_status, '') != 'Đã hủy'
+    AND (is_adjustment IS NOT TRUE)
+    AND COALESCE(action_type, '') != 'Thoái thu'
+    AND COALESCE(amount, 0) > 0
+    ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+    LIMIT 1;
+
+    -- 2. Tìm bản ghi gần nhất bất kỳ (nếu không có bản ghi hợp lệ dương tiền nào)
+    IF v_latest_valid.id IS NULL THEN
+        SELECT * INTO v_latest_any
+        FROM public.records
+        WHERE (
+            customer_key = v_clean_key
+            OR (cccd IS NOT NULL AND TRIM(cccd) != '' AND (cccd = v_clean_key OR 'CUST_CCCD_' || REGEXP_REPLACE(cccd, '\D', '', 'g') = v_clean_key))
+            OR (bhxh IS NOT NULL AND TRIM(bhxh) != '' AND (bhxh = v_clean_key OR 'CUST_BHXH_' || REGEXP_REPLACE(bhxh, '\D', '', 'g') = v_clean_key))
+        )
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+        ORDER BY COALESCE(date::date, created_at::date) DESC, id DESC
+        LIMIT 1;
+    ELSE
+        v_latest_any := v_latest_valid;
+    END IF;
+
+    -- Nếu không còn bất kỳ bản ghi nào còn lại trong records (ví dụ sau khi xóa toàn bộ)
+    IF v_latest_any.id IS NULL THEN
+        DELETE FROM public.customers 
+        WHERE customer_key = v_clean_key
+           OR cccd = v_clean_key
+           OR bhxh = v_clean_key;
+        RETURN;
+    END IF;
+
+    -- 3. Trích xuất thông tin nhân thân từ bản ghi gần nhất
+    v_cccd := v_latest_any.cccd;
+    v_bhxh := v_latest_any.bhxh;
+    v_name := v_latest_any.name;
+    v_phone := v_latest_any.phone;
+    v_address := v_latest_any.address;
+    v_dob := v_latest_any.dob;
+    v_gender := COALESCE(v_latest_any.gender, 'Nam');
+    v_nation := COALESCE(v_latest_any.nation, 'Kinh');
+    v_email := v_latest_any.email;
+    v_household_id := v_latest_any.household_id;
+    v_members := CASE WHEN v_latest_any.members IS NOT NULL THEN to_jsonb(v_latest_any.members) ELSE NULL END;
+    v_recv_name := v_latest_any.recv_name;
+    v_recv_phone := v_latest_any.recv_phone;
+    v_recv_address := v_latest_any.recv_address;
+    v_notes := v_latest_any.notes;
+    v_staff_id := v_latest_any.staff_id;
+
+    -- 4. Xác định sự tham gia từng loại hình BHXH và BHYT
+    v_has_bhxh := EXISTS (
+        SELECT 1 FROM public.records
+        WHERE (
+            customer_key = v_clean_key
+            OR (v_cccd IS NOT NULL AND TRIM(v_cccd) != '' AND cccd = v_cccd)
+            OR (v_bhxh IS NOT NULL AND TRIM(v_bhxh) != '' AND bhxh = v_bhxh)
+        )
+        AND type = 'BHXH'
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+    );
+
+    v_has_bhyt := EXISTS (
+        SELECT 1 FROM public.records
+        WHERE (
+            customer_key = v_clean_key
+            OR (v_cccd IS NOT NULL AND TRIM(v_cccd) != '' AND cccd = v_cccd)
+            OR (v_bhxh IS NOT NULL AND TRIM(v_bhxh) != '' AND bhxh = v_bhxh)
+        )
+        AND type = 'BHYT'
+        AND COALESCE(payment_status, '') != 'Đã hủy'
+    );
+
+    IF v_has_bhxh AND v_has_bhyt THEN
+        v_type := 'CẢ HAI';
+    ELSIF v_has_bhxh THEN
+        v_type := 'BHXH';
+    ELSIF v_has_bhyt THEN
+        v_type := 'BHYT';
+    ELSE
+        v_type := COALESCE(v_latest_any.type, 'BHXH');
+    END IF;
+
+    -- 5. Lấy hạn đóng tiếp theo cho từng loại hình
+    SELECT next_payment INTO v_next_bhxh
+    FROM public.records
+    WHERE (
+        customer_key = v_clean_key
+        OR (v_cccd IS NOT NULL AND TRIM(v_cccd) != '' AND cccd = v_cccd)
+        OR (v_bhxh IS NOT NULL AND TRIM(v_bhxh) != '' AND bhxh = v_bhxh)
+    )
+    AND type = 'BHXH'
+    AND COALESCE(payment_status, '') != 'Đã hủy'
+    ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+    LIMIT 1;
+
+    SELECT next_payment INTO v_next_bhyt
+    FROM public.records
+    WHERE (
+        customer_key = v_clean_key
+        OR (v_cccd IS NOT NULL AND TRIM(v_cccd) != '' AND cccd = v_cccd)
+        OR (v_bhxh IS NOT NULL AND TRIM(v_bhxh) != '' AND bhxh = v_bhxh)
+    )
+    AND type = 'BHYT'
+    AND COALESCE(payment_status, '') != 'Đã hủy'
+    ORDER BY COALESCE(next_payment, to_month_date, date::date) DESC, id DESC
+    LIMIT 1;
+
+    -- Hạn đóng chung là hạn sớm nhất cần phải thu tiếp
+    IF v_next_bhxh IS NOT NULL AND v_next_bhyt IS NOT NULL THEN
+        v_next_payment := LEAST(v_next_bhxh, v_next_bhyt);
+    ELSE
+        v_next_payment := COALESCE(v_next_bhxh, v_next_bhyt, v_latest_valid.next_payment, v_latest_any.next_payment);
+    END IF;
+
+    -- 6. Tính tổng tích lũy tiền và số lần đóng (đại số: trừ tiền thoái thu)
+    SELECT 
+        GREATEST(0, COALESCE(SUM(amount), 0)),
+        GREATEST(0, COALESCE(SUM(CASE WHEN is_adjustment IS TRUE OR COALESCE(action_type, '') = 'Thoái thu' THEN -1 ELSE 1 END), 0))
+    INTO v_total_paid, v_total_contrib
+    FROM public.records
+    WHERE (
+        customer_key = v_clean_key
+        OR (v_cccd IS NOT NULL AND TRIM(v_cccd) != '' AND cccd = v_cccd)
+        OR (v_bhxh IS NOT NULL AND TRIM(v_bhxh) != '' AND bhxh = v_bhxh)
+    )
+    AND payment_status = 'Đã thu tiền';
+
+    -- 7. Gán thông tin hợp đồng kỳ gần nhất (tuyệt đối không lấy số âm của thoái thu)
+    IF v_latest_valid.id IS NOT NULL THEN
+        v_latest_record_id := v_latest_valid.id;
+        v_latest_amount := v_latest_valid.amount;
+        v_latest_date := v_latest_valid.date::date;
+        v_effective_date := v_latest_valid.effective_date;
+        v_from_month := v_latest_valid.from_month;
+        v_to_month := v_latest_valid.to_month;
+        v_status := COALESCE(v_latest_valid.status, 'Đang tham gia');
+        v_payment_status := v_latest_valid.payment_status;
+    ELSE
+        v_latest_record_id := v_latest_any.id;
+        v_latest_amount := GREATEST(0, COALESCE(v_latest_any.amount, 0));
+        v_latest_date := v_latest_any.date::date;
+        v_effective_date := v_latest_any.effective_date;
+        v_from_month := v_latest_any.from_month;
+        v_to_month := v_latest_any.to_month;
+        v_status := COALESCE(v_latest_any.status, 'Đang tham gia');
+        v_payment_status := v_latest_any.payment_status;
+    END IF;
+
+    -- 8. UPSERT vào bảng customers với đầy đủ thông tin chuẩn hóa
+    INSERT INTO public.customers (
+        customer_key, type, name, cccd, bhxh, old_bhxh, phone, address, dob, gender, nation, email,
+        has_bhxh, has_bhyt, latest_record_id, latest_date, effective_date, next_payment,
+        next_payment_bhxh, next_payment_bhyt, latest_amount, status, payment_status, notes,
+        staff_id, total_contributions, total_amount_paid, household_id, members, recv_name,
+        recv_phone, recv_address, from_month, to_month, created_at, updated_at
+    ) VALUES (
+        v_clean_key, v_type, v_name, v_cccd, v_bhxh, v_latest_any.old_bhxh, v_phone, v_address, v_dob, v_gender, v_nation, v_email,
+        v_has_bhxh, v_has_bhyt, v_latest_record_id, v_latest_date, v_effective_date, v_next_payment,
+        v_next_bhxh, v_next_bhyt, v_latest_amount, v_status, v_payment_status, v_notes,
+        v_staff_id, v_total_contrib, v_total_paid, v_household_id, v_members, v_recv_name,
+        v_recv_phone, v_recv_address, v_from_month, v_to_month, NOW(), NOW()
+    )
+    ON CONFLICT (customer_key) DO UPDATE SET
+        type = EXCLUDED.type,
+        name = EXCLUDED.name,
+        cccd = COALESCE(EXCLUDED.cccd, public.customers.cccd),
+        bhxh = COALESCE(EXCLUDED.bhxh, public.customers.bhxh),
+        old_bhxh = COALESCE(EXCLUDED.old_bhxh, public.customers.old_bhxh),
+        phone = COALESCE(EXCLUDED.phone, public.customers.phone),
+        address = COALESCE(EXCLUDED.address, public.customers.address),
+        dob = COALESCE(EXCLUDED.dob, public.customers.dob),
+        gender = COALESCE(EXCLUDED.gender, public.customers.gender),
+        nation = COALESCE(EXCLUDED.nation, public.customers.nation),
+        email = COALESCE(EXCLUDED.email, public.customers.email),
+        has_bhxh = EXCLUDED.has_bhxh,
+        has_bhyt = EXCLUDED.has_bhyt,
+        latest_record_id = EXCLUDED.latest_record_id,
+        latest_date = EXCLUDED.latest_date,
+        effective_date = EXCLUDED.effective_date,
+        next_payment = EXCLUDED.next_payment,
+        next_payment_bhxh = EXCLUDED.next_payment_bhxh,
+        next_payment_bhyt = EXCLUDED.next_payment_bhyt,
+        latest_amount = EXCLUDED.latest_amount,
+        status = EXCLUDED.status,
+        payment_status = EXCLUDED.payment_status,
+        notes = EXCLUDED.notes,
+        staff_id = COALESCE(EXCLUDED.staff_id, public.customers.staff_id),
+        total_contributions = EXCLUDED.total_contributions,
+        total_amount_paid = EXCLUDED.total_amount_paid,
+        household_id = COALESCE(EXCLUDED.household_id, public.customers.household_id),
+        members = COALESCE(EXCLUDED.members, public.customers.members),
+        recv_name = COALESCE(EXCLUDED.recv_name, public.customers.recv_name),
+        recv_phone = COALESCE(EXCLUDED.recv_phone, public.customers.recv_phone),
+        recv_address = COALESCE(EXCLUDED.recv_address, public.customers.recv_address),
+        from_month = EXCLUDED.from_month,
+        to_month = EXCLUDED.to_month,
+        updated_at = NOW();
+END;
+$$;
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 3: NÂNG CẤP TRIGGER sync_customer_from_record()
+-- ----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.sync_customer_from_record()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_key TEXT;
+    v_old_key TEXT;
+BEGIN
+    IF current_setting('app.is_batch_import', true) = 'true' THEN
+        RETURN COALESCE(NEW, OLD);
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        v_key := COALESCE(OLD.customer_key, public.generate_customer_key(OLD.type, OLD.bhxh, OLD.cccd, OLD.name, OLD.phone));
+        PERFORM public.sync_customer_master_data_for_key(v_key);
+        RETURN OLD;
+    END IF;
+
+    -- UPDATE hoặc INSERT:
+    v_key := COALESCE(NEW.customer_key, public.generate_customer_key(NEW.type, NEW.bhxh, NEW.cccd, NEW.name, NEW.phone));
+    PERFORM public.sync_customer_master_data_for_key(v_key);
+
+    -- Nếu UPDATE làm đổi customer_key, cần đồng bộ lại cả key cũ
+    IF TG_OP = 'UPDATE' THEN
+        v_old_key := COALESCE(OLD.customer_key, public.generate_customer_key(OLD.type, OLD.bhxh, OLD.cccd, OLD.name, OLD.phone));
+        IF v_old_key IS NOT NULL AND v_old_key != v_key THEN
+            PERFORM public.sync_customer_master_data_for_key(v_old_key);
+        END IF;
+    END IF;
+
+    RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trigger_sync_customer_from_record ON public.records;
+CREATE TRIGGER trigger_sync_customer_from_record
+    AFTER INSERT OR UPDATE OR DELETE ON public.records
+    FOR EACH ROW
+    EXECUTE FUNCTION public.sync_customer_from_record();
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 4: SỬA RPC import_records_batch TỰ ĐỘNG ĐỒNG BỘ MASTER DATA (DB-03)
+-- ----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.import_records_batch(
+  p_records JSONB,
+  p_batch_name TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_inserted_count INT := 0;
+  v_record JSONB;
+  v_batch_code TEXT;
+  v_user_id TEXT;
+  v_user_name TEXT;
+  v_record_id BIGINT;
+  v_record_name TEXT;
+  v_cust_key TEXT;
+  v_date TIMESTAMP WITH TIME ZONE;
+  v_effective_date DATE;
+  v_target_date DATE;
+  v_next_payment DATE;
+  v_submitted_date DATE;
+  v_decision_date DATE;
+  v_dob DATE;
+  v_from_month TEXT;
+  v_to_month TEXT;
+  v_from_month_date DATE;
+  v_to_month_date DATE;
+BEGIN
+  IF NOT public.is_manager_or_admin() THEN
+    RAISE EXCEPTION 'Quyền truy cập bị từ chối: Chỉ Quản lý hoặc Quản trị viên mới được phép thực hiện import hàng loạt.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  IF p_records IS NULL OR jsonb_array_length(p_records) = 0 THEN
+    RETURN jsonb_build_object('success', false, 'message', 'Dữ liệu import rỗng hoặc không đúng định dạng mảng JSON');
+  END IF;
+
+  v_batch_code := COALESCE(NULLIF(TRIM(p_batch_name), ''), 'IMPORT_' || to_char(NOW(), 'YYYYMMDD_HH24MISS'));
+
+  v_user_id := COALESCE(auth.uid()::text, 'system');
+  SELECT name INTO v_user_name FROM public.staff WHERE id = v_user_id OR email = (auth.jwt() ->> 'email') LIMIT 1;
+  IF v_user_name IS NULL THEN
+    v_user_name := COALESCE(auth.jwt() ->> 'email', 'Quản trị viên');
+  END IF;
+
+  -- Bật cờ tạm bỏ qua trigger từng dòng để tối ưu tốc độ nạp dữ liệu hàng loạt
+  PERFORM set_config('app.is_batch_import', 'true', true);
+
+  FOR v_record IN SELECT * FROM jsonb_array_elements(p_records)
+  LOOP
+    v_record_name := TRIM(COALESCE(v_record->>'name', ''));
+    IF v_record_name = '' THEN
+      CONTINUE;
+    END IF;
+
+    v_date := COALESCE(NULLIF(v_record->>'date', '')::timestamptz, NOW());
+    v_effective_date := public.safe_cast_date(COALESCE(v_record->>'effective_date', v_record->>'effectiveDate'));
+    v_target_date := public.safe_cast_date(COALESCE(v_record->>'target_date', v_record->>'targetDate'));
+    v_next_payment := public.safe_cast_date(COALESCE(v_record->>'next_payment', v_record->>'nextPayment'));
+    v_submitted_date := public.safe_cast_date(COALESCE(v_record->>'submitted_date', v_record->>'submittedDate'));
+    v_decision_date := public.safe_cast_date(COALESCE(v_record->>'decision_date', v_record->>'decisionDate'));
+    v_dob := public.safe_cast_date(v_record->>'dob');
+    v_from_month := NULLIF(TRIM(COALESCE(v_record->>'from_month', v_record->>'fromMonth', '')), '');
+    v_to_month := NULLIF(TRIM(COALESCE(v_record->>'to_month', v_record->>'toMonth', '')), '');
+    v_from_month_date := public.parse_month_str_to_date(v_from_month);
+    v_to_month_date := public.parse_month_str_to_date(v_to_month);
+
+    v_cust_key := public.generate_customer_key(
+      v_record->>'type',
+      v_record->>'bhxh',
+      v_record->>'cccd',
+      v_record_name,
+      v_record->>'phone'
+    );
+
+    INSERT INTO public.records (
+      name, cccd, phone, address, bhxh, old_bhxh, dob, gender, nation, email,
+      type, sub_type, action_type, status, payment_status, date,
+      effective_date, target_date, next_payment, from_month, to_month,
+      from_month_date, to_month_date, wage, income, months, method,
+      base_premium, support_pct, nn_support_pct, nn_support_amount,
+      dp_support_pct, dp_support_amount, amount, discount_amount, penalty_amount,
+      commission, support, notes, staff_id, household_id, members,
+      recv_name, recv_phone, recv_address, is_submitted_bhxh, submission_batch,
+      submitted_date, refund_type, decision_number, decision_date, refund_method,
+      refund_beneficiary_name, refund_beneficiary_account, refund_beneficiary_bank,
+      hospital_code, hospital_name, customer_key
+    ) VALUES (
+      v_record_name,
+      NULLIF(TRIM(COALESCE(v_record->>'cccd', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'phone', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'address', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'bhxh', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'old_bhxh', v_record->>'oldBhxh', '')), ''),
+      v_dob,
+      COALESCE(NULLIF(TRIM(v_record->>'gender'), ''), 'Nam'),
+      COALESCE(NULLIF(TRIM(v_record->>'nation'), ''), 'Kinh'),
+      NULLIF(TRIM(COALESCE(v_record->>'email', '')), ''),
+      COALESCE(NULLIF(TRIM(v_record->>'type'), ''), 'BHXH'),
+      NULLIF(TRIM(COALESCE(v_record->>'sub_type', v_record->>'subType', '')), ''),
+      COALESCE(NULLIF(TRIM(COALESCE(v_record->>'action_type', v_record->>'actionType', '')), ''), 'Tái tục'),
+      COALESCE(NULLIF(TRIM(v_record->>'status'), ''), 'Đang tham gia'),
+      COALESCE(NULLIF(TRIM(COALESCE(v_record->>'payment_status', v_record->>'paymentStatus', '')), ''), 'Đã thu tiền'),
+      v_date,
+      v_effective_date,
+      v_target_date,
+      v_next_payment,
+      v_from_month,
+      v_to_month,
+      v_from_month_date,
+      v_to_month_date,
+      COALESCE(NULLIF(v_record->>'wage', '')::numeric, 0),
+      COALESCE(NULLIF(v_record->>'income', '')::numeric, 0),
+      COALESCE(NULLIF(v_record->>'months', '')::int, 1),
+      COALESCE(NULLIF(TRIM(v_record->>'method'), ''), 'Hàng tháng'),
+      COALESCE(NULLIF(COALESCE(v_record->>'base_premium', v_record->>'basePremium', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'support_pct', v_record->>'supportPct', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'nn_support_pct', v_record->>'nnSupportPct', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'nn_support_amount', v_record->>'nnSupportAmount', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'dp_support_pct', v_record->>'dpSupportPct', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'dp_support_amount', v_record->>'dpSupportAmount', ''), '')::numeric, 0),
+      COALESCE(NULLIF(v_record->>'amount', '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'discount_amount', v_record->>'discountAmount', ''), '')::numeric, 0),
+      COALESCE(NULLIF(COALESCE(v_record->>'penalty_amount', v_record->>'penaltyAmount', ''), '')::numeric, 0),
+      COALESCE(NULLIF(v_record->>'commission', '')::numeric, 0),
+      COALESCE(NULLIF(v_record->>'support', '')::numeric, 0),
+      NULLIF(TRIM(COALESCE(v_record->>'notes', '')), ''),
+      COALESCE(NULLIF(TRIM(COALESCE(v_record->>'staff_id', v_record->>'staffId', '')), ''), v_user_id),
+      NULLIF(TRIM(COALESCE(v_record->>'household_id', v_record->>'householdId', '')), ''),
+      CASE WHEN v_record->'members' IS NOT NULL AND jsonb_typeof(v_record->'members') = 'array' THEN v_record->'members' ELSE NULL END,
+      NULLIF(TRIM(COALESCE(v_record->>'recv_name', v_record->>'recvName', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'recv_phone', v_record->>'recvPhone', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'recv_address', v_record->>'recvAddress', '')), ''),
+      COALESCE((COALESCE(v_record->>'is_submitted_bhxh', v_record->>'isSubmittedBHXH'))::boolean, FALSE),
+      COALESCE(NULLIF(TRIM(COALESCE(v_record->>'submission_batch', v_record->>'submissionBatch', '')), ''), v_batch_code),
+      v_submitted_date,
+      NULLIF(TRIM(COALESCE(v_record->>'refund_type', v_record->>'refundType', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'decision_number', v_record->>'decisionNumber', '')), ''),
+      v_decision_date,
+      NULLIF(TRIM(COALESCE(v_record->>'refund_method', v_record->>'refundMethod', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'refund_beneficiary_name', v_record->>'refundBeneficiaryName', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'refund_beneficiary_account', v_record->>'refundBeneficiaryAccount', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'refund_beneficiary_bank', v_record->>'refundBeneficiaryBank', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'hospital_code', v_record->>'hospitalCode', '')), ''),
+      NULLIF(TRIM(COALESCE(v_record->>'hospital_name', v_record->>'hospitalName', '')), ''),
+      v_cust_key
+    ) RETURNING id INTO v_record_id;
+
+    v_inserted_count := v_inserted_count + 1;
+  END LOOP;
+
+  -- Tắt cờ batch import
+  PERFORM set_config('app.is_batch_import', 'false', true);
+
+  -- ĐỒNG BỘ MASTER DATA BÙ CHO TOÀN BỘ CÁC KHÁCH HÀNG TRONG LÔ IMPORT
+  FOR v_cust_key IN 
+    SELECT DISTINCT customer_key 
+    FROM public.records 
+    WHERE submission_batch = v_batch_code AND customer_key IS NOT NULL 
+  LOOP
+    PERFORM public.sync_customer_master_data_for_key(v_cust_key);
+  END LOOP;
+
+  INSERT INTO public.auditlogs (user_id, user_name, action, details, timestamp)
+  VALUES (
+    v_user_id, 
+    v_user_name, 
+    'Import Hàng loạt', 
+    format('Import thành công %s hồ sơ và đồng bộ Master Data danh bạ khách hàng theo đợt [%s]', v_inserted_count, v_batch_code),
+    NOW()
+  );
+
+  RETURN jsonb_build_object(
+    'success', true,
+    'batch_name', v_batch_code,
+    'imported_count', v_inserted_count
+  );
+END;
+$$;
+
+
+-- ----------------------------------------------------------------------
+-- PHẦN 5: CẬP NHẬT RPC resync_customer_from_records & TỰ ĐỘNG CHỮA LÀNH DỮ LIỆU
+-- ----------------------------------------------------------------------
+
+CREATE OR REPLACE FUNCTION public.resync_customer_from_records(
+    p_customer_key TEXT DEFAULT NULL,
+    p_cccd TEXT DEFAULT NULL,
+    p_bhxh TEXT DEFAULT NULL
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+    v_key TEXT;
+    v_synced_count INT := 0;
+BEGIN
+    FOR v_key IN 
+        SELECT DISTINCT COALESCE(customer_key, public.generate_customer_key(type, bhxh, cccd, name, phone))
+        FROM public.records
+        WHERE (p_customer_key IS NULL AND p_cccd IS NULL AND p_bhxh IS NULL)
+           OR (p_customer_key IS NOT NULL AND (customer_key = p_customer_key OR cccd = p_customer_key OR bhxh = p_customer_key))
+           OR (p_cccd IS NOT NULL AND TRIM(p_cccd) != '' AND cccd = p_cccd)
+           OR (p_bhxh IS NOT NULL AND TRIM(p_bhxh) != '' AND bhxh = p_bhxh)
+    LOOP
+        PERFORM public.sync_customer_master_data_for_key(v_key);
+        v_synced_count := v_synced_count + 1;
+    END LOOP;
+
+    RETURN jsonb_build_object(
+        'success', true,
+        'synced_count', v_synced_count,
+        'message', format('Đã đồng bộ lại dữ liệu cho %s khách hàng.', v_synced_count)
+    );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.sync_customer_master_data_for_key(TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.resync_customer_from_records(TEXT, TEXT, TEXT) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.import_records_batch(JSONB, TEXT) TO authenticated, service_role;
+
+-- KHỐI LỆNH TỰ ĐỘNG CHỮA LÀNH TOÀN BỘ CƠ SỞ DỮ LIỆU (AUTO-HEAL ALL EXISTING CUSTOMERS)
+DO $$
+DECLARE
+    v_cust RECORD;
+    v_key TEXT;
+BEGIN
+    -- Đồng bộ cho toàn bộ khách hàng có hồ sơ trong bảng records
+    FOR v_key IN 
+        SELECT DISTINCT COALESCE(customer_key, public.generate_customer_key(type, bhxh, cccd, name, phone))
+        FROM public.records
+        WHERE customer_key IS NOT NULL OR cccd IS NOT NULL OR bhxh IS NOT NULL
+    LOOP
+        PERFORM public.sync_customer_master_data_for_key(v_key);
+    END LOOP;
+
+    -- Đồng bộ lại cho các khách hàng có trong customers nhưng chưa có trong records
+    FOR v_cust IN SELECT customer_key FROM public.customers LOOP
+        PERFORM public.sync_customer_master_data_for_key(v_cust.customer_key);
+    END LOOP;
+END;
+$$;
+
+
+-- ======================================================================
+-- THÔNG BÁO SUPABASE POSTGREST NẠP LẠI TOÀN BỘ SCHEMA MỚI
+-- ======================================================================
+NOTIFY pgrst, 'reload schema';

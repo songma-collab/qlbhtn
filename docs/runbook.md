@@ -1,8 +1,9 @@
 # CẨM NANG VẬN HÀNH & BẢO MẬT HỆ THỐNG (RUNBOOK)
 
 **Hệ Thống:** Nền tảng Quản lý Thu & Dịch vụ công BHXH / BHYT Sông Mã  
-**Cập nhật lần cuối:** 23/08/2026  
+**Cập nhật lần cuối:** 22/10/2026 (Phiên bản 2.1.0-Enterprise)  
 **Ngôn ngữ:** Tiếng Việt  
+**Sổ tay nâng cấp Production chi tiết:** Xem tại [production-migration-runbook.md](file:///d:/HTML/Gravity/QLBHTN/docs/production-migration-runbook.md)
 
 ---
 
@@ -39,7 +40,7 @@ supabase secrets set APP_ALLOWED_ORIGINS=https://your-domain.example,https://www
 ## 2. Thiết Lập & Nâng Cấp Cơ Sở Dữ Liệu
 
 ### 2.1. Thiết lập 1 bước duy nhất (Khuyến nghị cho CSDL mới hoặc nâng cấp toàn diện)
-Mở **SQL Editor** trên Supabase Dashboard, sao chép toàn bộ nội dung tệp [`MASTER_SETUP_ALL_IN_ONE.sql`](file:///E:/AI%20Agent/HOCSONGMA/qlkhBHXH/qlkhbhxh/MASTER_SETUP_ALL_IN_ONE.sql) và bấm **Run**.
+Mở **SQL Editor** trên Supabase Dashboard, sao chép toàn bộ nội dung tệp [`MASTER_SETUP_ALL_IN_ONE.sql`](file:///d:/HTML/Gravity/QLBHTN/MASTER_SETUP_ALL_IN_ONE.sql) và bấm **Run**.
 
 Tệp này đã gộp toàn bộ:
 - Cấu trúc 5 bảng dữ liệu (`staff`, `records`, `settings`, `policies`, `auditlogs`).
@@ -52,9 +53,9 @@ Tệp này đã gộp toàn bộ:
 Mở **SQL Editor** và chạy lần lượt 2 kịch bản kiểm thử:
 
 1. **Kiểm tra Phân quyền RLS & Toàn vẹn dữ liệu:**  
-   Chạy tệp [`test_security_rls_suite.sql`](file:///E:/AI%20Agent/HOCSONGMA/qlkhBHXH/qlkhbhxh/test_security_rls_suite.sql). Kết quả trả về bảng chi tiết **5/5 bài test ✅ PASS** (chặn anon ghi trực tiếp, kiểm soát RPC, khóa kỳ tài chính, audit log).
-2. **Kiểm tra Chống Rò Rỉ Dữ Liệu Cá Nhân (PII Leak Protection):**  
-   Chạy tệp [`test_pii_leak_patch.sql`](file:///E:/AI%20Agent/HOCSONGMA/qlkhBHXH/qlkhbhxh/test_pii_leak_patch.sql). Kết quả trả về bảng xác nhận:
+   Chạy tệp [`test_security_rls_suite.sql`](file:///d:/HTML/Gravity/QLBHTN/supabase/tests/test_security_rls_suite.sql). Kết quả trả về bảng chi tiết **5/5 bài test ✅ PASS** (chặn anon ghi trực tiếp, kiểm soát RPC, khóa kỳ tài chính, audit log).
+2. **Kiểm tra Toàn vẹn Sổ cái & Đồng bộ Master Data:**  
+   Chạy tệp [`test_ledger_and_master_data_p1.sql`](file:///d:/HTML/Gravity/QLBHTN/supabase/tests/test_ledger_and_master_data_p1.sql). Kết quả trả về bảng chi tiết **5/5 bài test ✅ PASS**.
    - ✅ **PASS**: Chặn anon gọi trực tiếp `public_get_renewal_info` qua REST API.
    - ✅ **PASS**: RPC tra cứu `public_lookup_process` trả về đúng định dạng.
    - ✅ **PASS**: Cơ chế Rate-limit IP chặn đứng tấn công vét cạn (Brute-force) sau ngưỡng cho phép.
@@ -119,10 +120,10 @@ Nếu bạn không muốn cài đặt dòng lệnh CLI trên máy tính, bạn c
 #### Bước 2: Tạo hoặc chỉnh sửa Function trực tiếp trên Web UI
 1. Trên Supabase Dashboard -> chọn **Edge Functions** -> Bấm **Create function**.
 2. Đặt tên hàm: `public-customer-intake`.
-3. Sao chép toàn bộ mã nguồn từ tệp [`supabase/functions/public-customer-intake/index.ts`](file:///E:/AI%20Agent/HOCSONGMA/qlkhBHXH/qlkhbhxh/supabase/functions/public-customer-intake/index.ts) dán vào khung soạn thảo.
+3. Sao chép toàn bộ mã nguồn từ tệp [`supabase/functions/public-customer-intake/index.ts`](file:///d:/HTML/Gravity/QLBHTN/supabase/functions/public-customer-intake/index.ts) dán vào khung soạn thảo.
 4. **Quan trọng:** Tắt tùy chọn *"Enforce JWT Verification"* (hoặc gạt tắt JWT verification) để cho phép khách vãng lai gọi được.
 5. Bấm **Deploy**.
-6. Lặp lại tương tự cho hàm `gemini-ocr` bằng mã nguồn từ tệp [`supabase/functions/gemini-ocr/index.ts`](file:///E:/AI%20Agent/HOCSONGMA/qlkhBHXH/qlkhbhxh/supabase/functions/gemini-ocr/index.ts).
+6. Lặp lại tương tự cho hàm `gemini-ocr` bằng mã nguồn từ tệp [`supabase/functions/gemini-ocr/index.ts`](file:///d:/HTML/Gravity/QLBHTN/supabase/functions/gemini-ocr/index.ts).
 
 ---
 

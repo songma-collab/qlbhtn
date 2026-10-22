@@ -105,44 +105,66 @@ export const recordService = {
     limit?: number | undefined;
   }): Promise<RecordType[]> {
     try {
-      let query = supabase
-        .from('records')
-        .select('*')
-        .order('date', { ascending: false })
-        .limit(options?.limit || 2500);
+      const targetLimit = options?.limit;
+      const CHUNK_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      if (options?.staff_id) {
-        query = query.eq('staff_id', options.staff_id);
-      }
+      while (hasMore) {
+        let query = supabase
+          .from('records')
+          .select('*')
+          .order('date', { ascending: false });
 
-      const { data, error } = await query;
-      if (error || !data || data.length === 0) {
-        return [];
-      }
+        if (options?.staff_id) {
+          query = query.eq('staff_id', options.staff_id);
+        }
 
-      // Nhận diện các cột thiếu trên DB để chống lỗi
-      if (data.length > 0 && data[0]) {
-        const sampleRow = data[0] as Record<string, any>;
-        const candidateCols = [
-          'base_salary_snapshot',
-          'poverty_standard_snapshot',
-          'policy_version_id',
-          'applied_rates',
-          'is_adjustment',
-          'original_record_id',
-          'adjustment_reason',
-          'is_submitted_bhxh',
-          'submission_batch',
-          'submitted_date'
-        ];
-        candidateCols.forEach(col => {
-          if (!(col in sampleRow)) {
-            unsupportedRecordColumns.add(col);
+        const currentChunkSize = targetLimit ? Math.min(CHUNK_SIZE, targetLimit - allRows.length) : CHUNK_SIZE;
+        query = query.range(from, from + currentChunkSize - 1);
+
+        const { data, error } = await query;
+        if (error) {
+          console.warn('[RecordService] fetchAllRecords chunk error:', error);
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          // Nhận diện các cột thiếu trên DB để chống lỗi
+          if (allRows.length === 0 && data[0]) {
+            const sampleRow = data[0] as Record<string, any>;
+            const candidateCols = [
+              'base_salary_snapshot',
+              'poverty_standard_snapshot',
+              'policy_version_id',
+              'applied_rates',
+              'is_adjustment',
+              'original_record_id',
+              'adjustment_reason',
+              'is_submitted_bhxh',
+              'submission_batch',
+              'submitted_date'
+            ];
+            candidateCols.forEach(col => {
+              if (!(col in sampleRow)) {
+                unsupportedRecordColumns.add(col);
+              }
+            });
           }
-        });
+
+          allRows.push(...data);
+          from += data.length;
+
+          if (data.length < currentChunkSize || (targetLimit && allRows.length >= targetLimit)) {
+            hasMore = false;
+          }
+        }
       }
 
-      return (data || []).map(r => dbToRecord(r));
+      return allRows.map(r => dbToRecord(r));
     } catch (err) {
       console.warn('[RecordService] fetchAllRecords failed:', err);
       return [];

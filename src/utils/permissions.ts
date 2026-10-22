@@ -329,14 +329,11 @@ export const hasPermission = (
 
   const role = (currentUser.role || '').trim();
   const lowerRole = role.toLowerCase();
-  const userName = (currentUser.name || '').toLowerCase();
 
-  // 1. Quản trị viên tối cao (Admin / Chủ đại lý Phạm Văn Học) luôn có toàn quyền tuyệt đối
+  // 1. Quản trị viên tối cao (Admin / Quản trị viên) luôn có toàn quyền tuyệt đối theo RBAC
   if (
     lowerRole === 'admin' ||
-    lowerRole === 'quản trị viên' ||
-    userName.includes('phạm văn học') ||
-    userName.includes('pham van hoc')
+    lowerRole === 'quản trị viên'
   ) {
     return true;
   }
@@ -414,11 +411,10 @@ export const getEffectivePermissionsForStaff = (
   if (!staff) return [];
   const role = staff.role || 'Nhân viên';
 
-  // Admin luôn có toàn quyền 100%
+  // Admin luôn có toàn quyền 100% theo RBAC
   if (
     role.toLowerCase() === 'admin' ||
-    role.toLowerCase() === 'quản trị viên' ||
-    (staff.name || '').toLowerCase().includes('phạm văn học')
+    role.toLowerCase() === 'quản trị viên'
   ) {
     return [...(DEFAULT_ROLE_PERMISSIONS.Admin || [])];
   }

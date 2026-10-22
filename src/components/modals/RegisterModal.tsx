@@ -824,6 +824,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
                   method: rec.method,
                   months: rec.months,
                   income: rec.income,
+                  amount: rec.amount,
                   fromMonth: rec.fromMonth,
                   toMonth: rec.toMonth,
                   notes: rec.notes,

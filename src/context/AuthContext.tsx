@@ -57,9 +57,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAdmin = useMemo(() => {
     if (!currentUser) return false;
-    const role = (currentUser.role || '').toLowerCase();
-    const name = (currentUser.name || '').toLowerCase();
-    return role === 'admin' || role === 'quản lý' || name.includes('phạm văn học') || name.includes('pham van hoc');
+    const role = (currentUser.role || '').toLowerCase().trim();
+    return role === 'admin' || role === 'quản lý' || role === 'quản trị viên';
   }, [currentUser]);
 
   const logout = async () => {

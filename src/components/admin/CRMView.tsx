@@ -311,17 +311,6 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       const nextP = latestContract.next_payment || (latestContract as any).nextPayment;
       const paySt = latestContract.payment_status || (latestContract as any).paymentStatus;
 
-      // Tự động đồng bộ ngầm lên database nếu phát hiện lệch dữ liệu do xóa giao dịch trước đó
-      if (
-        useServerData &&
-        (c.to_month !== toM || c.payment_status !== paySt || c.from_month !== fromM)
-      ) {
-        customerService.resyncCustomerFromRecords(
-          { customerKey: cleanK, cccd: cleanC, bhxh: cleanB },
-          matchedRecs
-        ).catch(() => {});
-      }
-
       return {
         ...c,
         from_month: fromM || c.from_month,

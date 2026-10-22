@@ -3,7 +3,9 @@ const fs = require('fs');
 const path = require('path');
 
 const PORT = process.env.PORT || 3000;
-const DIST_DIR = path.join(__dirname, 'dist');
+const DIST_DIR = fs.existsSync(path.join(__dirname, 'dist'))
+  ? path.join(__dirname, 'dist')
+  : path.resolve(__dirname, '..', 'dist');
 
 const MIME_TYPES = {
   '.html': 'text/html',
@@ -22,8 +24,30 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer((req, res) => {
-  // Decode URL path
-  let filePath = path.join(DIST_DIR, decodeURIComponent(req.url.split('?')[0]));
+  // Only allow GET/HEAD methods
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.writeHead(405, { 'Content-Type': 'text/plain' });
+    return res.end('Method Not Allowed');
+  }
+
+  // Sanitize URL against Path Traversal (LFI)
+  let safePath;
+  try {
+    const rawPath = req.url.split('?')[0];
+    const decodedPath = decodeURIComponent(rawPath);
+    safePath = path.resolve(DIST_DIR, '.' + decodedPath);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain' });
+    return res.end('Bad Request');
+  }
+
+  // Ensure resolved path stays strictly within DIST_DIR
+  if (!safePath.startsWith(DIST_DIR)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    return res.end('Forbidden');
+  }
+
+  let filePath = safePath;
 
   // If path is a directory, look for index.html inside it
   if (req.url === '/' || (fs.existsSync(filePath) && fs.statSync(filePath).isDirectory())) {
@@ -33,6 +57,12 @@ const server = http.createServer((req, res) => {
   // Check if file exists, otherwise fall back to root index.html (for SPA routing)
   if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
     filePath = path.join(DIST_DIR, 'index.html');
+  }
+
+  // Final containment check
+  if (!filePath.startsWith(DIST_DIR)) {
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    return res.end('Forbidden');
   }
 
   // Read file and serve

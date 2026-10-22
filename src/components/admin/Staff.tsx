@@ -50,7 +50,8 @@ const Staff = () => {
     const s = staff.find(s => s.id === id);
     if (!s) return;
 
-    const newStatus = s.status === 'Hoạt động' ? 'Ngừng hoạt động' : 'Hoạt động';
+    const isCurrentActive = s.status === 'Đang hoạt động' || s.status === 'Hoạt động';
+    const newStatus = isCurrentActive ? 'Tạm khóa' : 'Đang hoạt động';
     const zeroAdmin = checkZeroAdminRisk(staff, id, undefined, newStatus);
     if (zeroAdmin.isRisk) {
       showToast(zeroAdmin.reason || 'Không thể khóa Admin duy nhất!', 'error');
@@ -58,7 +59,7 @@ const Staff = () => {
     }
 
     await updateStaff(id, { status: newStatus });
-    showToast('Đã cập nhật trạng thái!');
+    showToast(`Đã ${newStatus === 'Tạm khóa' ? 'tạm khóa' : 'kích hoạt'} tài khoản nhân viên!`);
   };
 
   const filteredStaffs = React.useMemo(() => {
@@ -180,16 +181,21 @@ const Staff = () => {
                   <td className="p-4 text-slate-600">{s.phone}</td>
                   <td className="p-4 text-slate-600">{s.area}</td>
                   <td className="p-4">
-                    <button 
-                      onClick={() => s.id && toggleStatus(s.id)}
-                      disabled={!s.id}
-                      className={`px-3 py-1 rounded-full text-xs font-bold flex items-center transition disabled:opacity-50 cursor-pointer ${
-                        s.status === 'Hoạt động' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
-                      }`}
-                    >
-                      {s.status === 'Hoạt động' ? <UserCheck size={14} className="mr-1" /> : <UserX size={14} className="mr-1" />}
-                      {s.status}
-                    </button>
+                    {(() => {
+                      const isActive = s.status === 'Đang hoạt động' || s.status === 'Hoạt động';
+                      return (
+                        <button 
+                          onClick={() => s.id && toggleStatus(s.id)}
+                          disabled={!s.id}
+                          className={`px-3 py-1 rounded-full text-xs font-bold flex items-center transition disabled:opacity-50 cursor-pointer ${
+                            isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100' : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                          }`}
+                        >
+                          {isActive ? <UserCheck size={14} className="mr-1" /> : <UserX size={14} className="mr-1" />}
+                          {isActive ? 'Đang hoạt động' : 'Tạm khóa'}
+                        </button>
+                      );
+                    })()}
                   </td>
                   <td className="p-4">
                     <div className="flex justify-center gap-1.5">
@@ -245,16 +251,21 @@ const Staff = () => {
                 </div>
                 
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
-                  <button 
-                    onClick={() => s.id && toggleStatus(s.id)}
-                    disabled={!s.id}
-                    className={`px-2 py-1 rounded-full text-[10px] font-bold flex items-center disabled:opacity-50 ${
-                      s.status === 'Hoạt động' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                    }`}
-                  >
-                    {s.status === 'Hoạt động' ? <UserCheck size={12} className="mr-1" /> : <UserX size={12} className="mr-1" />}
-                    {s.status}
-                  </button>
+                  {(() => {
+                    const isActive = s.status === 'Đang hoạt động' || s.status === 'Hoạt động';
+                    return (
+                      <button 
+                        onClick={() => s.id && toggleStatus(s.id)}
+                        disabled={!s.id}
+                        className={`px-2 py-1 rounded-full text-[10px] font-bold flex items-center disabled:opacity-50 ${
+                          isActive ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
+                        }`}
+                      >
+                        {isActive ? <UserCheck size={12} className="mr-1" /> : <UserX size={12} className="mr-1" />}
+                        {isActive ? 'Đang hoạt động' : 'Tạm khóa'}
+                      </button>
+                    );
+                  })()}
                   <div className="flex gap-3">
                     <button onClick={() => s.id && handleEdit(s)} disabled={!s.id} className="text-blue-600 hover:text-blue-800 disabled:opacity-50 flex items-center gap-1">
                       <Edit size={16} />

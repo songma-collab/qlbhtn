@@ -19,7 +19,7 @@ function getCorsHeaders(req: Request) {
   const allowedOrigins = configuredOrigins.length ? configuredOrigins : DEFAULT_ALLOWED_ORIGINS;
   const isAllowed = allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
   return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : (origin || "*"),
+    "Access-Control-Allow-Origin": isAllowed ? origin : "null",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-captcha-token, cf-turnstile-response",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
   };
@@ -91,8 +91,8 @@ serve(async (req) => {
       ""
     ).trim();
 
-    // Bắt buộc kiểm tra token Cloudflare Turnstile đối với bất kỳ payload đăng ký công khai nào
-    if (action === "submit") {
+    // Bắt buộc kiểm tra token Cloudflare Turnstile đối với submit, renewal_info và lookup
+    if (["submit", "renewal_info", "lookup"].includes(action)) {
       if (!turnstileToken) {
         return new Response(
           JSON.stringify({

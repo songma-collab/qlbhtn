@@ -29,7 +29,8 @@ async function startServer() {
   } else {
     const distDir = path.resolve(__dirname, 'dist');
     app.use(express.static(distDir));
-    app.get('*', (_req, res) => {
+    // Express 5 syntax for SPA catch-all fallback
+    app.get('/{*splat}', (_req, res) => {
       res.sendFile(path.join(distDir, 'index.html'));
     });
   }

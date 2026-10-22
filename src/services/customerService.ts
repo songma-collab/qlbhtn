@@ -50,20 +50,45 @@ export const customerService = {
     limit?: number | undefined;
   }): Promise<CustomerType[]> {
     try {
-      let query = supabase
-        .from('customers')
-        .select('*')
-        .order('latest_date', { ascending: false, nullsFirst: false })
-        .order('updated_at', { ascending: false })
-        .limit(options?.limit || 2500);
+      const targetLimit = options?.limit;
+      const CHUNK_SIZE = 1000;
+      let allRows: any[] = [];
+      let from = 0;
+      let hasMore = true;
 
-      if (options?.staff_id) {
-        query = query.eq('staff_id', options.staff_id);
+      while (hasMore) {
+        let query = supabase
+          .from('customers')
+          .select('*')
+          .order('latest_date', { ascending: false, nullsFirst: false })
+          .order('updated_at', { ascending: false });
+
+        if (options?.staff_id) {
+          query = query.eq('staff_id', options.staff_id);
+        }
+
+        const currentChunkSize = targetLimit ? Math.min(CHUNK_SIZE, targetLimit - allRows.length) : CHUNK_SIZE;
+        query = query.range(from, from + currentChunkSize - 1);
+
+        const { data, error } = await query;
+        if (error) {
+          console.warn('[CustomerService] fetchAllCustomers chunk error:', error);
+          break;
+        }
+
+        if (!data || data.length === 0) {
+          hasMore = false;
+        } else {
+          allRows.push(...data);
+          from += data.length;
+
+          if (data.length < currentChunkSize || (targetLimit && allRows.length >= targetLimit)) {
+            hasMore = false;
+          }
+        }
       }
 
-      const { data, error } = await query;
-      if (error || !data) return [];
-      return (data as any[]).map(c => normalizeLegacyPayload(c) as CustomerType);
+      return allRows.map(c => normalizeLegacyPayload(c) as CustomerType);
     } catch (err) {
       console.warn('[CustomerService] fetchAllCustomers failed:', err);
       return [];
@@ -270,8 +295,16 @@ export const customerService = {
       const sortedContract = [...activeRecords].sort(compareRecordsByContractLatest);
       const latestContract = sortedContract[0];
 
-      // Sắp xếp tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (date DESC, id DESC)
-      const sortedTxn = [...activeRecords].sort((a, b) => {
+      // Lọc các bản ghi hợp đồng đóng tiền hợp lệ (loại trừ thoái thu / giảm trừ)
+      const validContributionRecords = activeRecords.filter(r => {
+        const isAdj = r.is_adjustment || (r as any).isAdjustment;
+        const aType = r.action_type || (r as any).actionType;
+        return !isAdj && aType !== 'Thoái thu' && (Number(r.amount) || 0) > 0;
+      });
+
+      // Sắp xếp tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (loại trừ thoái thu âm tiền)
+      const recordsForTxn = validContributionRecords.length > 0 ? validContributionRecords : activeRecords;
+      const sortedTxn = [...recordsForTxn].sort((a, b) => {
         const tA = getSafeTimestamp(a.date || a.created_at);
         const tB = getSafeTimestamp(b.date || b.created_at);
         if (tB !== tA) return tB - tA;
@@ -288,13 +321,27 @@ export const customerService = {
       });
       const latestUpdate = sortedUpdate[0];
 
-      const totalAmountPaid = activeRecords
-        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
-        .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+      // Xác định loại hình tham gia (BHXH, BHYT, CẢ HAI) và hạn nộp từng loại
+      const hasBhxh = activeRecords.some(r => r.type === 'BHXH');
+      const hasBhyt = activeRecords.some(r => r.type === 'BHYT');
+      const overallType = hasBhxh && hasBhyt ? 'CẢ HAI' : (hasBhxh ? 'BHXH' : (hasBhyt ? 'BHYT' : (latestContract.type || 'BHXH')));
 
-      const totalContributions = activeRecords
+      const bhxhContract = activeRecords.filter(r => r.type === 'BHXH').sort(compareRecordsByContractLatest)[0];
+      const bhytContract = activeRecords.filter(r => r.type === 'BHYT').sort(compareRecordsByContractLatest)[0];
+      const nextPaymentBhxh = bhxhContract?.next_payment || (bhxhContract as any)?.nextPayment || null;
+      const nextPaymentBhyt = bhytContract?.next_payment || (bhytContract as any)?.nextPayment || null;
+
+      const totalAmountPaid = Math.max(0, activeRecords
         .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
-        .reduce((sum, r) => sum + (Number(r.months) || 1), 0);
+        .reduce((sum, r) => sum + (Number(r.amount) || 0), 0));
+
+      const totalContributions = Math.max(0, activeRecords
+        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
+        .reduce((sum, r) => {
+          const isAdj = r.is_adjustment || (r as any).isAdjustment;
+          const aType = r.action_type || (r as any).actionType;
+          return sum + (isAdj || aType === 'Thoái thu' ? -1 : 1);
+        }, 0));
 
       const updatePayload: Record<string, any> = {
         name: latestUpdate.name,
@@ -304,13 +351,18 @@ export const customerService = {
         gender: latestUpdate.gender,
         nation: latestUpdate.nation,
         email: latestUpdate.email,
+        type: overallType,
+        has_bhxh: hasBhxh,
+        has_bhyt: hasBhyt,
         from_month: latestContract.from_month || (latestContract as any).fromMonth || null,
         to_month: latestContract.to_month || (latestContract as any).toMonth || null,
         next_payment: latestContract.next_payment || (latestContract as any).nextPayment || null,
+        next_payment_bhxh: nextPaymentBhxh,
+        next_payment_bhyt: nextPaymentBhyt,
         payment_status: latestContract.payment_status || (latestContract as any).paymentStatus || 'Chờ thanh toán',
         status: latestContract.status || 'Đang tham gia',
         latest_date: latestTxn.date ? new Date(latestTxn.date).toISOString().split('T')[0] : (latestContract.date ? new Date(latestContract.date).toISOString().split('T')[0] : null),
-        latest_amount: latestTxn.amount !== undefined ? latestTxn.amount : latestContract.amount,
+        latest_amount: Math.max(0, Number(latestTxn.amount !== undefined ? latestTxn.amount : latestContract.amount) || 0),
         latest_record_id: latestTxn.id || latestContract.id,
         total_amount_paid: totalAmountPaid,
         total_contributions: totalContributions,

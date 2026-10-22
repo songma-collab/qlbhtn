@@ -39,7 +39,7 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
     setIsLoadingRecords(true);
     try {
       const staffId = !isAdmin && currentUser?.id ? currentUser.id : undefined;
-      const data = await recordService.fetchAllRecords({ staff_id: staffId, limit: 2500 });
+      const data = await recordService.fetchAllRecords({ staff_id: staffId });
       setRecords(data);
       return data;
     } catch (err) {
@@ -262,9 +262,8 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
 
   const cancelRecordWithClawback = useCallback(async (recordId: number, reason: string, currentUserRole?: string): Promise<boolean> => {
     try {
-      const role = currentUserRole || currentUser?.role;
-      const isHoc = (currentUser?.name || '').toLowerCase().includes('phạm văn học') || (currentUser?.name || '').toLowerCase().includes('pham van hoc');
-      const hasPerm = role === 'Admin' || role === 'admin' || role === 'Quản lý' || isHoc;
+      const role = (currentUserRole || currentUser?.role || '').toLowerCase().trim();
+      const hasPerm = role === 'admin' || role === 'quản lý' || role === 'quản trị viên';
       if (!hasPerm) {
         showAlert?.('Từ chối quyền hạn', 'Chỉ Quản lý hoặc Admin mới có quyền hủy giao dịch đã thu tiền / điều chỉnh hoa hồng.');
         return false;

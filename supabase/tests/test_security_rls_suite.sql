@@ -22,7 +22,7 @@ BEGIN
   -- -------------------------------------------------------------------
   BEGIN
     SET LOCAL ROLE anon;
-    INSERT INTO public.records (name, phone, type, "paymentStatus")
+    INSERT INTO public.records (name, phone, type, payment_status)
     VALUES ('Hacker Test', '0999999999', 'BHXH', 'Đã thu tiền');
 
     RESET ROLE;
@@ -45,63 +45,91 @@ BEGIN
   RESET ROLE;
 
   -- -------------------------------------------------------------------
-  -- TEST 2: TIẾP NHẬN ĐĂNG KÝ CÔNG KHAI QUA RPC public_register_customer
+  -- TEST 2: BẢO VỆ RPC TIẾP NHẬN ĐĂNG KÝ (CHẶN ANON GỌI TRỰC TIẾP, CHỈ CHO SERVICE_ROLE)
   -- -------------------------------------------------------------------
   BEGIN
-    SET LOCAL ROLE anon;
-    v_result := public.public_register_customer(jsonb_build_object(
-      'name', 'Nguyễn Thị Thử Nghiệm',
-      'cccd', '012345678901',
-      'phone', '0987654321',
-      'type', 'BHXH',
-      'income', 5000000,
-      'months', 12
-    ));
-
-    RESET ROLE;
-
-    IF (v_result->>'success')::boolean = true THEN
-      v_rec_id := (v_result->>'recordId')::bigint;
-      
-      IF EXISTS (
-        SELECT 1 FROM public.records 
-        WHERE id = v_rec_id 
-          AND "paymentStatus" = 'Chờ duyệt' 
-          AND "staffId" IS NULL
-      ) THEN
-        INSERT INTO temp_test_results VALUES (
-          2,
-          'Đăng ký công khai an toàn qua RPC',
-          '✅ PASS',
-          'RPC tiếp nhận thành công, cưỡng chế trạng thái Chờ duyệt & staffId = NULL.'
-        );
-      ELSE
-        INSERT INTO temp_test_results VALUES (
-          2,
-          'Đăng ký công khai an toàn qua RPC',
-          '❌ FAIL',
-          'Bản ghi không được gán đúng trạng thái bảo vệ.'
-        );
-      END IF;
-
-      -- Dọn dẹp bản ghi test
-      DELETE FROM public.records WHERE id = v_rec_id;
-    ELSE
+    -- 2.1. Kiểm tra anon bị chặn không được gọi trực tiếp RPC (bắt buộc qua Edge Function)
+    BEGIN
+      SET LOCAL ROLE anon;
+      PERFORM public.public_register_customer(jsonb_build_object(
+        'name', 'Hacker Anonymous',
+        'cccd', '012345678999',
+        'phone', '0987654321',
+        'type', 'BHXH'
+      ));
+      RESET ROLE;
       INSERT INTO temp_test_results VALUES (
         2,
-        'Đăng ký công khai an toàn qua RPC',
+        'Chặn anon gọi trực tiếp RPC public_register_customer (Bắt buộc qua Edge Function)',
         '❌ FAIL',
-        'Lỗi RPC: ' || COALESCE(v_result->>'message', 'Không xác định')
+        'Người dùng anon vẫn gọi được trực tiếp RPC public_register_customer mà không qua Edge Function.'
       );
-    END IF;
-  EXCEPTION WHEN OTHERS THEN
-    RESET ROLE;
-    INSERT INTO temp_test_results VALUES (
-      2,
-      'Đăng ký công khai an toàn qua RPC',
-      '❌ FAIL',
-      'Lỗi ngoại lệ: ' || SQLERRM
-    );
+    EXCEPTION WHEN OTHERS THEN
+      RESET ROLE;
+      INSERT INTO temp_test_results VALUES (
+        2,
+        'Chặn anon gọi trực tiếp RPC public_register_customer (Bắt buộc qua Edge Function)',
+        '✅ PASS',
+        'Đã thu hồi quyền anon thành công: ' || SQLERRM
+      );
+    END;
+
+    -- 2.2. Kiểm tra Edge Function (service_role) gọi tiếp nhận an toàn
+    BEGIN
+      SET LOCAL ROLE service_role;
+      v_result := public.public_register_customer(jsonb_build_object(
+        'name', 'Nguyễn Thị Thử Nghiệm',
+        'cccd', '012345678901',
+        'phone', '0987654321',
+        'type', 'BHXH',
+        'income', 5000000,
+        'months', 12
+      ));
+      RESET ROLE;
+
+      IF (v_result->>'success')::boolean = true THEN
+        v_rec_id := (v_result->>'recordId')::bigint;
+        
+        IF EXISTS (
+          SELECT 1 FROM public.records 
+          WHERE id = v_rec_id 
+            AND payment_status = 'Chờ duyệt' 
+            AND staff_id IS NULL
+        ) THEN
+          INSERT INTO temp_test_results VALUES (
+            21,
+            'Edge Function (service_role) tiếp nhận đơn đăng ký an toàn',
+            '✅ PASS',
+            'RPC tiếp nhận thành công qua gateway, cưỡng chế trạng thái Chờ duyệt & staff_id = NULL.'
+          );
+        ELSE
+          INSERT INTO temp_test_results VALUES (
+            21,
+            'Edge Function (service_role) tiếp nhận đơn đăng ký an toàn',
+            '❌ FAIL',
+            'Bản ghi không được gán đúng trạng thái bảo vệ.'
+          );
+        END IF;
+
+        -- Dọn dẹp bản ghi test
+        DELETE FROM public.records WHERE id = v_rec_id;
+      ELSE
+        INSERT INTO temp_test_results VALUES (
+          21,
+          'Edge Function (service_role) tiếp nhận đơn đăng ký an toàn',
+          '❌ FAIL',
+          'Lỗi RPC: ' || COALESCE(v_result->>'message', 'Không xác định')
+        );
+      END IF;
+    EXCEPTION WHEN OTHERS THEN
+      RESET ROLE;
+      INSERT INTO temp_test_results VALUES (
+        21,
+        'Edge Function (service_role) tiếp nhận đơn đăng ký an toàn',
+        '❌ FAIL',
+        'Lỗi ngoại lệ: ' || SQLERRM
+      );
+    END;
   END;
 
   RESET ROLE;
@@ -161,7 +189,7 @@ BEGIN
   -- TEST 5: TRIGGER TỰ ĐỘNG GHI NHẬT KÝ SERVER-SIDE KHI THAO TÁC HỒ SƠ
   -- -------------------------------------------------------------------
   BEGIN
-    INSERT INTO public.records (name, phone, type, "paymentStatus", "staffId")
+    INSERT INTO public.records (name, phone, type, payment_status, staff_id)
     VALUES ('Audit Test Trigger', '0911223344', 'BHXH', 'Chờ duyệt', NULL)
     RETURNING id INTO v_dummy_id;
 
@@ -205,19 +233,19 @@ BEGIN
   -- -------------------------------------------------------------------
   BEGIN
     SET LOCAL ROLE anon;
-    UPDATE public.settings SET "baseSalary" = 99999999 WHERE id = 1;
+    UPDATE public.settings SET base_salary = 99999999 WHERE id = 1;
 
     RESET ROLE;
     
     -- Kiểm tra xem giá trị có thực sự bị thay đổi trong CSDL hay không
-    IF EXISTS (SELECT 1 FROM public.settings WHERE id = 1 AND "baseSalary" = 99999999) THEN
+    IF EXISTS (SELECT 1 FROM public.settings WHERE id = 1 AND base_salary = 99999999) THEN
       INSERT INTO temp_test_results VALUES (
         6,
         'Chặn người dùng sửa chính sách lương/hoa hồng trực tiếp',
         '❌ FAIL',
         'Lỗ hổng: Bảng settings bị cập nhật trái phép giá trị 99999999.'
       );
-      UPDATE public.settings SET "baseSalary" = 2340000 WHERE id = 1;
+      UPDATE public.settings SET base_salary = 2340000 WHERE id = 1;
     ELSE
       INSERT INTO temp_test_results VALUES (
         6,

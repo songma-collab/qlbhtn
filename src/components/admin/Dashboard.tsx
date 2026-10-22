@@ -220,10 +220,8 @@ const Dashboard: React.FC = () => {
     const periodPaidRecords = staffRecords.filter((r: RecordType) => {
       const pStatus = r.payment_status || (r as any).paymentStatus;
       const aType = r.action_type || (r as any).actionType;
-      const isAdj = r.is_adjustment || (r as any).isAdjustment;
       if (pStatus !== 'Đã thu tiền') return false;
       if (aType === 'Nhập từ Excel') return false;
-      if (isAdj) return false;
       if (selectedPeriod === 'all') return true;
 
       const rDate = (r.date || r.created_at || '').slice(0, 10);
@@ -234,6 +232,10 @@ const Dashboard: React.FC = () => {
     const calcRev = periodPaidRecords.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
     const calcComm = periodPaidRecords.reduce((sum: number, r: RecordType) => {
       const amt = Number(r.amount) || 0;
+      const comm = r.commission !== undefined && r.commission !== null && !isNaN(Number(r.commission)) ? Number(r.commission) : null;
+      if (comm !== null) {
+        return sum + comm;
+      }
       const rate = getCommissionRateForRecord(r, policies, settings);
       return sum + Math.round(amt * rate);
     }, 0);
@@ -337,6 +339,17 @@ const Dashboard: React.FC = () => {
       const newRev = newPaidRecs.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
       const renewRev = renewPaidRecs.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
 
+      const mAdjustments = staffRecords.filter((r: RecordType) => {
+        const isAdj = r.is_adjustment || (r as any).isAdjustment;
+        const aType = r.action_type || (r as any).actionType;
+        const pStatus = r.payment_status || (r as any).paymentStatus;
+        if (pStatus !== 'Đã thu tiền') return false;
+        if (!isAdj && aType !== 'Thoái thu') return false;
+        const rDate = (r.date || r.created_at || '').slice(0, 10);
+        return rDate.startsWith(item.key);
+      });
+      const adjRev = mAdjustments.reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+
       return {
         month: item.label,
         key: item.key,
@@ -345,7 +358,7 @@ const Dashboard: React.FC = () => {
         totalCount: mRecords.length,
         newRev,
         renewRev,
-        totalRev: newRev + renewRev
+        totalRev: Math.max(0, newRev + renewRev + adjRev)
       };
     });
 
@@ -380,21 +393,34 @@ const Dashboard: React.FC = () => {
     const bhxhMonthRecords = monthAllRecords.filter((r: RecordType) => r.type === 'BHXH');
     const bhytMonthRecords = monthAllRecords.filter((r: RecordType) => r.type === 'BHYT');
 
+    const monthAdjustments = staffRecords.filter((r: RecordType) => {
+      const isAdj = r.is_adjustment || (r as any).isAdjustment;
+      const aType = r.action_type || (r as any).actionType;
+      const pStatus = r.payment_status || (r as any).paymentStatus;
+      if (pStatus !== 'Đã thu tiền') return false;
+      if (!isAdj && aType !== 'Thoái thu') return false;
+      const rDate = (r.date || r.created_at || '').slice(0, 10);
+      return rDate.startsWith(selectedMonth);
+    });
+
+    const bhxhAdj = monthAdjustments.filter(r => r.type === 'BHXH').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const bhytAdj = monthAdjustments.filter(r => r.type === 'BHYT').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+
     const typeMixData = [
       {
         name: 'BHXH Tự Nguyện',
         count: bhxhMonthRecords.length,
-        revenue: bhxhMonthRecords
+        revenue: Math.max(0, bhxhMonthRecords
           .filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
-          .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0),
+          .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0) + bhxhAdj),
         fill: COLORS.primaryNavy
       },
       {
         name: 'BHYT Hộ Gia Đình',
         count: bhytMonthRecords.length,
-        revenue: bhytMonthRecords
+        revenue: Math.max(0, bhytMonthRecords
           .filter((r: RecordType) => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
-          .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0),
+          .reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0) + bhytAdj),
         fill: COLORS.skyBlue
       }
     ];
