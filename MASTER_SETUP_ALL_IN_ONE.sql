@@ -5685,6 +5685,7 @@ CREATE POLICY "staff_read_authenticated" ON public.staff
 -- ----------------------------------------------------------------------
 -- PHẦN 3: TỐI ƯU HÀM TÍNH HOA HỒNG SANG STABLE (LOẠI BỎ N+1)
 -- ----------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_commission_rates_for_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_commission_rates_for_date(p_date DATE)
 RETURNS TABLE (
   comm_bhxh_new NUMERIC,
@@ -6495,6 +6496,7 @@ $$;
 -- ----------------------------------------------------------------------
 -- PHẦN 5: BẢO VỆ ĐỊNH DANH TRONG AUDITLOGS (CHỐNG GIẢ MẠO USER_ID)
 -- ----------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.enforce_auditlog_identity() CASCADE;
 CREATE OR REPLACE FUNCTION public.enforce_auditlog_identity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -6548,6 +6550,7 @@ EXECUTE FUNCTION public.enforce_auditlog_identity();
 -- PHẦN 1: NÂNG CẤP ĐỒNG BỘ SỔ CÁI TÀI CHÍNH (CHỐNG RACE CONDITION & XỬ LÝ DELETE)
 -- ----------------------------------------------------------------------
 
+DROP FUNCTION IF EXISTS public.sync_record_to_financial_ledger() CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_record_to_financial_ledger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -6819,6 +6822,7 @@ CREATE TRIGGER after_record_payment_update_ledger
 -- ----------------------------------------------------------------------
 
 -- Hàm cốt lõi: Tính toán lại toàn diện thông tin một khách hàng dựa trên lịch sử records
+DROP FUNCTION IF EXISTS public.sync_customer_master_data_for_key(TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_customer_master_data_for_key(p_customer_key TEXT)
 RETURNS VOID
 LANGUAGE plpgsql
@@ -7081,6 +7085,7 @@ $$;
 -- PHẦN 3: NÂNG CẤP TRIGGER sync_customer_from_record()
 -- ----------------------------------------------------------------------
 
+DROP FUNCTION IF EXISTS public.sync_customer_from_record() CASCADE;
 CREATE OR REPLACE FUNCTION public.sync_customer_from_record()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -7128,6 +7133,7 @@ CREATE TRIGGER trigger_sync_customer_from_record
 -- PHẦN 4: SỬA RPC import_records_batch TỰ ĐỘNG ĐỒNG BỘ MASTER DATA (DB-03)
 -- ----------------------------------------------------------------------
 
+DROP FUNCTION IF EXISTS public.import_records_batch(JSONB, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.import_records_batch(
   p_records JSONB,
   p_batch_name TEXT DEFAULT NULL
@@ -7315,6 +7321,7 @@ $$;
 -- PHẦN 5: CẬP NHẬT RPC resync_customer_from_records & TỰ ĐỘNG CHỮA LÀNH DỮ LIỆU
 -- ----------------------------------------------------------------------
 
+DROP FUNCTION IF EXISTS public.resync_customer_from_records(TEXT, TEXT, TEXT) CASCADE;
 CREATE OR REPLACE FUNCTION public.resync_customer_from_records(
     p_customer_key TEXT DEFAULT NULL,
     p_cccd TEXT DEFAULT NULL,

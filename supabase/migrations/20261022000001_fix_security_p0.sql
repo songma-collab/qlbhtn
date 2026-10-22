@@ -85,6 +85,7 @@ CREATE POLICY "staff_read_authenticated" ON public.staff
 -- ----------------------------------------------------------------------
 -- PHẦN 3: TỐI ƯU HÀM TÍNH HOA HỒNG SANG STABLE (LOẠI BỎ N+1)
 -- ----------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.get_commission_rates_for_date(DATE) CASCADE;
 CREATE OR REPLACE FUNCTION public.get_commission_rates_for_date(p_date DATE)
 RETURNS TABLE (
   comm_bhxh_new NUMERIC,
@@ -895,6 +896,7 @@ $$;
 -- ----------------------------------------------------------------------
 -- PHẦN 5: BẢO VỆ ĐỊNH DANH TRONG AUDITLOGS (CHỐNG GIẢ MẠO USER_ID)
 -- ----------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.enforce_auditlog_identity() CASCADE;
 CREATE OR REPLACE FUNCTION public.enforce_auditlog_identity()
 RETURNS TRIGGER
 LANGUAGE plpgsql
