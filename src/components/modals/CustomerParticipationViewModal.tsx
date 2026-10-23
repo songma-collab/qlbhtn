@@ -25,7 +25,7 @@ import {
   calculatePeriodSupportedMonths,
   parseMonthAndYear
 } from '../../utils/customerParticipationHelper';
-import { normalizePeriod } from '../../utils/dateStandardHelper';
+import { normalizePeriod, formatDateVN } from '../../utils/dateStandardHelper';
 
 interface CustomerParticipationViewModalProps {
   customer: CustomerType | null;
@@ -427,7 +427,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                       <tr key={r.id || idx} className="hover:bg-emerald-50/30 transition">
                         <td className="p-3 text-center text-gray-400 font-bold">{idx + 1}</td>
                         <td className="p-3 font-medium text-gray-700">
-                          {r.date ? new Date(r.date).toLocaleDateString('vi-VN') : '-'}
+                          {formatDateVN(r.date) || '-'}
                         </td>
                         <td className="p-3 text-center font-mono font-bold text-emerald-700 whitespace-nowrap">
                           {formatAgencyPeriod(r)}

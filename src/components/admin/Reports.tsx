@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { RecordType } from '../../context/types';
-import { formatMoney } from '../../utils/helpers';
+import { formatMoney, formatDateVN } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import { Bar } from 'react-chartjs-2';
 import {
@@ -418,7 +418,7 @@ const Reports = () => {
         
         return {
           "Mã GD": r.id,
-          "Ngày": new Date(r.date).toLocaleDateString('vi-VN'),
+          "Ngày": formatDateVN(r.date) || "",
           "Khách hàng": r.name || "",
           "Mã số BHXH": r.bhxh || "",
           "Loại": r.type,

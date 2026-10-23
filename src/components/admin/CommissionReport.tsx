@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney } from '../../utils/helpers';
+import { formatMoney, formatDateVN } from '../../utils/helpers';
 import { getCommissionRateForRecord, getCommissionBreakdownForRecord } from '../../utils/calculations';
 import { FileDown, Percent } from 'lucide-react';
 
@@ -257,7 +257,7 @@ const CommissionReport = () => {
         
         return {
           "Mã GD": r.id,
-          "Ngày": new Date(r.date).toLocaleDateString('vi-VN'),
+          "Ngày": formatDateVN(r.date) || "",
           "Khách hàng": r.name || "",
           "Mã số BHXH": r.bhxh || "",
           "Loại": r.type,

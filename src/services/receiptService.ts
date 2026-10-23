@@ -1,4 +1,4 @@
-import { formatMoney } from '../utils/helpers';
+import { formatMoney, formatDateTimeVN, formatDateVN } from '../utils/helpers';
 
 export function createReceiptElement(doc: Document, record: any, staffName: string, staffId: string): HTMLDivElement {
   const root = doc.createElement('div');
@@ -19,7 +19,7 @@ export function createReceiptElement(doc: Document, record: any, staffName: stri
   add('h2', 'ĐẠI LÝ BHXH SÔNG MÃ', 'text-align:center;margin:5px 0;font-size:24px;');
   add('p', 'Mã ĐL: VSS-SM-001', 'text-align:center;font-size:12px;margin:5px 0;'); line();
   add('h3', 'BIÊN LAI THU TIỀN', 'text-align:center;margin:5px 0;font-size:18px;');
-  add('p', new Date(record.date).toLocaleString('vi-VN'), 'text-align:center;font-size:12px;margin:5px 0;'); line();
+  add('p', (record.date && String(record.date).includes('T')) ? formatDateTimeVN(record.date) : (formatDateVN(record.date) || record.date || ''), 'text-align:center;font-size:12px;margin:5px 0;'); line();
   row('Khách hàng:', record.name, true); row('CCCD:', record.cccd); row('Loại dịch vụ:', record.type, true); line();
   row('TỔNG TIỀN:', formatMoney(record.amount), true); line();
   add('p', '(Đã thu tiền mặt/chuyển khoản)\nCảm ơn Quý khách!', 'text-align:center;font-style:italic;font-size:11px;white-space:pre-line;');

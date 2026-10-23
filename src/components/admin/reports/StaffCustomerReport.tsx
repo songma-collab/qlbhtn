@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
-import { formatMoney } from '../../../utils/helpers';
+import { formatMoney, formatDateVN } from '../../../utils/helpers';
 import { 
   Users, 
   Search, 
@@ -310,8 +310,8 @@ export const StaffCustomerReport: React.FC = () => {
             "Loại hình tham gia": c.types.join(' & '),
             "Số lượt nộp": c.recordsCount,
             "Tổng tiền đã nộp (VNĐ)": c.totalPaid,
-            "Ngày nộp gần nhất": c.lastPaymentDate || '',
-            "Hạn đóng tiếp theo": c.nextPayment || '',
+            "Ngày nộp gần nhất": formatDateVN(c.lastPaymentDate) || '',
+            "Hạn đóng tiếp theo": formatDateVN(c.nextPayment) || '',
             "Trạng thái": c.status
           });
         });
@@ -325,6 +325,44 @@ export const StaffCustomerReport: React.FC = () => {
       XLSX.writeFile(wb, `Bao_cao_khach_hang_theo_nhan_vien_${new Date().toISOString().slice(0, 10)}.xlsx`);
     } catch (err) {
       console.error("Lỗi xuất Excel:", err);
+    }
+  };
+
+  // Xuất file Excel danh sách khách hàng của một nhân viên cụ thể (trong Modal)
+  const handleExportModalStaffCustomers = async () => {
+    if (!selectedStaffDetail) return;
+    try {
+      const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
+      const wb = XLSX.utils.book_new();
+
+      const customersToExport = filteredModalCustomers.length > 0 ? filteredModalCustomers : selectedStaffDetail.customers;
+
+      const rows = customersToExport.map((c, idx) => ({
+        "STT": idx + 1,
+        "Mã NV Quản lý": selectedStaffDetail.staffCode,
+        "Tên NV Quản lý": selectedStaffDetail.staffName,
+        "Khu vực": selectedStaffDetail.area,
+        "Họ và Tên": c.name,
+        "Số CCCD / ĐDCN": c.cccd || '',
+        "Số điện thoại": c.phone || '',
+        "Mã số BHXH": c.bhxh || '',
+        "Địa chỉ": c.address || '',
+        "Sản phẩm": c.types.join(' & '),
+        "Số lượt nộp": c.recordsCount,
+        "Tổng tiền (VNĐ)": c.totalPaid,
+        "Nộp gần nhất": formatDateVN(c.lastPaymentDate) || '',
+        "Hạn đóng tiếp": formatDateVN(c.nextPayment) || '',
+        "Trạng thái": c.status || 'Hoạt động'
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(wb, ws, "Khach_Hang_Nhan_Vien");
+
+      const safeStaffName = selectedStaffDetail.staffName.replace(/[\s/]+/g, '_');
+      const safeCode = selectedStaffDetail.staffCode.replace(/[\s/]+/g, '_');
+      XLSX.writeFile(wb, `DS_Khach_hang_${safeCode}_${safeStaffName}_${new Date().toISOString().slice(0, 10)}.xlsx`);
+    } catch (err) {
+      console.error("Lỗi xuất Excel khách hàng nhân viên:", err);
     }
   };
 
@@ -586,6 +624,16 @@ export const StaffCustomerReport: React.FC = () => {
                 <span className="text-xs text-slate-500 font-semibold">
                   Hiển thị: {filteredModalCustomers.length} KH
                 </span>
+
+                <button
+                  type="button"
+                  onClick={handleExportModalStaffCustomers}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                  title="Xuất Excel danh sách khách hàng do nhân viên này quản lý"
+                >
+                  <FileDown size={14} />
+                  <span>Xuất Excel</span>
+                </button>
               </div>
             </div>
 
@@ -645,9 +693,9 @@ export const StaffCustomerReport: React.FC = () => {
                         </td>
                         <td className="p-3 text-center font-bold text-slate-600">{c.recordsCount}</td>
                         <td className="p-3 text-right font-bold text-amber-700">{formatMoney(c.totalPaid)}</td>
-                        <td className="p-3 text-center font-mono text-slate-600">{c.lastPaymentDate || 'N/A'}</td>
+                        <td className="p-3 text-center font-mono text-slate-600">{formatDateVN(c.lastPaymentDate) || 'N/A'}</td>
                         <td className="p-3 text-center font-mono text-emerald-700 font-semibold">
-                          {c.nextPayment || 'N/A'}
+                          {formatDateVN(c.nextPayment) || 'N/A'}
                         </td>
                       </tr>
                     ))
@@ -657,16 +705,26 @@ export const StaffCustomerReport: React.FC = () => {
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+            <div className="p-4 border-t border-slate-200 bg-slate-50 flex flex-wrap justify-between items-center gap-3">
               <span className="text-xs text-slate-500 font-medium">
                 Dữ liệu khớp nối định danh tự động theo CCCD và Số điện thoại.
               </span>
-              <button
-                onClick={() => setSelectedStaffDetail(null)}
-                className="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition cursor-pointer"
-              >
-                Đóng
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportModalStaffCustomers}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+                >
+                  <FileDown size={15} />
+                  <span>Xuất Excel</span>
+                </button>
+                <button
+                  onClick={() => setSelectedStaffDetail(null)}
+                  className="px-5 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold transition cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
             </div>
           </div>
         </div>

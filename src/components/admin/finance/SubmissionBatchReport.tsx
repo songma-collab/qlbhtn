@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
-import { formatMoney } from '../../../utils/helpers';
+import { formatMoney, formatDateVN } from '../../../utils/helpers';
 import type { RecordType } from '../../../context/types';
 import { 
   FileCheck, 
@@ -133,7 +133,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
       const summaryRows = filteredBatches.map((b, idx) => ({
         "STT": idx + 1,
         "Tên đợt chuyển": b.batchName,
-        "Ngày chuyển nộp": b.submittedDate,
+        "Ngày chuyển nộp": b.submittedDate !== 'Chưa nộp' ? (formatDateVN(b.submittedDate) || b.submittedDate) : 'Chưa nộp',
         "Trạng thái": b.isSubmitted ? "Đã chuyển cơ quan BHXH" : "Chưa chuyển (Tồn đọng)",
         "Số hồ sơ BHXH": b.bhxhCount,
         "Số hồ sơ BHYT": b.bhytCount,
@@ -153,7 +153,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
           const staffObj = staff.find(s => s.id === rStaffId || s.username === rStaffId);
           detailRows.push({
             "Đợt chuyển": b.batchName,
-            "Ngày chuyển": b.submittedDate,
+            "Ngày chuyển": b.submittedDate !== 'Chưa nộp' ? (formatDateVN(b.submittedDate) || b.submittedDate) : 'Chưa nộp',
             "STT": rIdx + 1,
             "Họ và tên người tham gia": r.name,
             "Số CCCD": r.cccd || '',
@@ -162,7 +162,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
             "Loại hình": r.type,
             "Phương thức/Thời hạn (tháng)": r.months,
             "Số tiền đóng (VNĐ)": r.amount,
-            "Ngày thu tiền": r.date,
+            "Ngày thu tiền": formatDateVN(r.date) || '',
             "Cán bộ thu": staffObj ? staffObj.name : (rStaffId || 'N/A')
           });
         });
@@ -200,7 +200,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
           "Loại hình": r.type,
           "Số tháng đóng": r.months,
           "Số tiền thực đóng (VNĐ)": r.amount,
-          "Ngày biên lai": r.date,
+          "Ngày biên lai": formatDateVN(r.date) || '',
           "Cán bộ thu": staffObj ? staffObj.name : (rStaffId || 'N/A')
         };
       });
@@ -452,7 +452,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                     <td className="p-3 sm:p-4 text-center font-mono text-gray-600">
                       {b.submittedDate !== 'Chưa nộp' ? (
                         <span className="inline-flex items-center gap-1">
-                          <Calendar size={13} className="text-gray-400" /> {b.submittedDate}
+                          <Calendar size={13} className="text-gray-400" /> {formatDateVN(b.submittedDate) || b.submittedDate}
                         </span>
                       ) : (
                         <span className="text-amber-600 italic">Chưa bàn giao</span>
@@ -523,7 +523,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                   <h3 className="text-lg font-bold">Chi Tiết Đợt Chuyển BHXH: {selectedBatch.batchName}</h3>
                 </div>
                 <p className="text-xs text-blue-200 mt-1">
-                  Ngày chuyển: <span className="font-bold text-white">{selectedBatch.submittedDate}</span> | 
+                  Ngày chuyển: <span className="font-bold text-white">{formatDateVN(selectedBatch.submittedDate) || selectedBatch.submittedDate}</span> | 
                   Số lượng: <span className="font-bold text-white">{selectedBatch.totalRecords} hồ sơ</span> | 
                   Tổng tiền: <span className="font-bold text-amber-300">{formatMoney(selectedBatch.totalAmount)}</span>
                 </p>
@@ -611,7 +611,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
                           <td className="p-3 text-gray-700">
                             {staffObj ? staffObj.name : (rStaffId || 'N/A')}
                           </td>
-                          <td className="p-3 text-center font-mono text-gray-500">{r.date}</td>
+                          <td className="p-3 text-center font-mono text-gray-500">{formatDateVN(r.date) || '-'}</td>
                         </tr>
                       );
                     })

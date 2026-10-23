@@ -1,7 +1,7 @@
-﻿import React from 'react';
+import React from 'react';
 import type { RecordType } from '../../context/types';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatMonthVN } from '../../utils/helpers';
+import { formatMoney, formatMonthVN, formatDateVN } from '../../utils/helpers';
 import { calculateClawbackRatio } from '../../utils/clawbackSettlement';
 import {
   X,
@@ -167,7 +167,7 @@ export const ViewClawbackModal: React.FC<ViewClawbackModalProps> = ({
               <div>
                 <span className="text-slate-500 block">Ngày hạch toán:</span>
                 <span className="font-mono font-bold text-slate-800">
-                  {record.date ? new Date(record.date).toLocaleDateString('vi-VN') : 'N/A'}
+                  {formatDateVN(record.date) || 'N/A'}
                 </span>
               </div>
               <div>
@@ -196,7 +196,7 @@ export const ViewClawbackModal: React.FC<ViewClawbackModalProps> = ({
                 <span className="text-slate-800 font-mono">
                   {(() => {
                     const decDate = record.decision_date || (record as any).decisionDate;
-                    return decDate ? new Date(decDate).toLocaleDateString('vi-VN') : 'N/A';
+                    return formatDateVN(decDate) || 'N/A';
                   })()}
                 </span>
               </div>

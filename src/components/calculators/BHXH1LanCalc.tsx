@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { CONSTANTS } from '../../utils/constants';
-import { formatMoney, getInt, getLocalYYYYMMDD } from '../../utils/helpers';
+import { formatMoney, getInt, getLocalYYYYMMDD, formatDateVN } from '../../utils/helpers';
 import { formatMonthInputMask, formatDateInputMask, formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
 import { getPolicyValueForDate } from '../../utils/calculations';
 import { SlidersHorizontal, Calendar, Info, ChevronDown, ChevronUp, FileDown, Download, AlertTriangle, History, Plus, Zap, FileSpreadsheet, FileText, Receipt, Trash2, Camera, Lock, UserCheck } from 'lucide-react';
@@ -143,7 +143,7 @@ const BHXH1LanCalc = () => {
     if (date) {
       const d = new Date(date);
       d.setFullYear(d.getFullYear() + 1);
-      setEligibleDate(d.toLocaleDateString('vi-VN'));
+      setEligibleDate(formatDateVN(d));
       
       // Auto-set benefit month to 12 months after stop date
       const m = (d.getMonth() + 1).toString().padStart(2, '0');
@@ -1118,7 +1118,7 @@ const BHXH1LanCalc = () => {
                   </h4>
                   <div className="flex flex-wrap gap-2 text-[11px] text-slate-300 font-bold">
                     <span className="bg-white/10 px-2.5 py-1 rounded-full">
-                      Ngày tử vong: {new Date(systemCore.deathDate).toLocaleDateString('vi-VN')}
+                      Ngày tử vong: {formatDateVN(systemCore.deathDate) || 'N/A'}
                     </span>
                     {systemCore.benefitMonth && (
                       <span className="bg-blue-600/30 text-[#0ea5e9] border border-[#0ea5e9]/20 px-2.5 py-1 rounded-full">

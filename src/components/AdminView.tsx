@@ -8,7 +8,7 @@ import { UserProfileModal } from './modals/UserProfileModal';
 import RenewalReminderModal from './modals/RenewalReminderModal';
 import RegisterModal from './modals/RegisterModal';
 import { classifyRenewalRecords, RenewalUrgency } from '../utils/renewalDispatchHelper';
-import { formatMoney, getInitials, prepareRenewalRecord } from '../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, getInitials, prepareRenewalRecord } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 import { getTabFromPathname, getPathFromTab } from '../utils/adminRoutes';
 
@@ -1173,7 +1173,7 @@ const AdminView = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 text-xs sm:text-sm">
                   <div><span className="text-gray-400 block font-semibold mb-0.5">Số ĐDCN / CCCD</span><span className="font-bold text-slate-700">{selectedRecordDetail.cccd || selectedRecordDetail.bhxh || 'N/A'}</span></div>
                   <div><span className="text-gray-400 block font-semibold mb-0.5">Số điện thoại</span><span className="font-bold text-slate-700">{selectedRecordDetail.phone || 'N/A'}</span></div>
-                  <div><span className="text-gray-400 block font-semibold mb-0.5">Ngày sinh</span><span className="font-bold text-slate-700">{selectedRecordDetail.dob ? new Date(selectedRecordDetail.dob).toLocaleDateString('vi-VN') : 'N/A'}</span></div>
+                  <div><span className="text-gray-400 block font-semibold mb-0.5">Ngày sinh</span><span className="font-bold text-slate-700">{formatDateVN(selectedRecordDetail.dob) || 'N/A'}</span></div>
                   <div><span className="text-gray-400 block font-semibold mb-0.5">Giới tính</span><span className="font-bold text-slate-700">{selectedRecordDetail.gender === 'male' ? 'Nam' : selectedRecordDetail.gender === 'female' ? 'Nữ' : 'N/A'}</span></div>
                   <div><span className="text-gray-400 block font-semibold mb-0.5">Dân tộc</span><span className="font-bold text-slate-700">{selectedRecordDetail.nation || 'N/A'}</span></div>
                   <div className="sm:col-span-2 md:col-span-3"><span className="text-gray-400 block font-semibold mb-0.5">Địa chỉ</span><span className="font-bold text-slate-700">{selectedRecordDetail.address || 'N/A'}</span></div>
@@ -1193,8 +1193,8 @@ const AdminView = () => {
                   {selectedRecordDetail.type === 'BHXH' && (
                     <>
                       <div><span className="text-gray-400 block font-semibold mb-0.5">Thu nhập lựa chọn</span><span className="font-bold text-slate-800">{formatMoney(selectedRecordDetail.income || 0)}</span></div>
-                      <div><span className="text-gray-400 block font-semibold mb-0.5">Thời gian đóng</span><span className="font-bold text-slate-800">{selectedRecordDetail.months} tháng ({selectedRecordDetail.fromMonth} - {selectedRecordDetail.toMonth})</span></div>
-                      <div><span className="text-gray-400 block font-semibold mb-0.5">Hạn đóng tiếp theo</span><span className="font-bold text-[#FDB913]">{selectedRecordDetail.nextPayment ? new Date(selectedRecordDetail.nextPayment).toLocaleDateString('vi-VN') : 'N/A'}</span></div>
+                      <div><span className="text-gray-400 block font-semibold mb-0.5">Thời gian đóng</span><span className="font-bold text-slate-800">{selectedRecordDetail.months} tháng ({formatMonthVN(selectedRecordDetail.fromMonth)} - {formatMonthVN(selectedRecordDetail.toMonth)})</span></div>
+                      <div><span className="text-gray-400 block font-semibold mb-0.5">Hạn đóng tiếp theo</span><span className="font-bold text-[#FDB913]">{formatDateVN(selectedRecordDetail.nextPayment) || 'N/A'}</span></div>
                       <div><span className="text-gray-400 block font-semibold mb-0.5">Mức đóng gốc</span><span className="font-bold text-slate-700">{formatMoney(selectedRecordDetail.basePremium || 0)}</span></div>
                       <div><span className="text-gray-400 block font-semibold mb-0.5">Hỗ trợ Nhà nước</span><span className="font-bold text-slate-700">{formatMoney((selectedRecordDetail.nnSupportAmount || 0) + (selectedRecordDetail.dpSupportAmount || 0))} ({selectedRecordDetail.nnSupportPct + selectedRecordDetail.dpSupportPct}%)</span></div>
                       <div><span className="text-gray-400 block font-semibold mb-0.5">Tổng số tiền phải đóng</span><span className="font-extrabold text-[#004182]">{formatMoney(selectedRecordDetail.amount || 0)}</span></div>
@@ -1203,8 +1203,8 @@ const AdminView = () => {
 
                   {selectedRecordDetail.type === 'BHYT' && (
                     <>
-                      <div><span className="text-gray-400 block font-semibold mb-0.5">Thời gian đóng</span><span className="font-bold text-slate-800">{selectedRecordDetail.months} tháng ({selectedRecordDetail.fromMonth} - {selectedRecordDetail.toMonth})</span></div>
-                      <div><span className="text-gray-400 block font-semibold mb-0.5">Hạn đóng tiếp theo</span><span className="font-bold text-[#FDB913]">{selectedRecordDetail.nextPayment ? new Date(selectedRecordDetail.nextPayment).toLocaleDateString('vi-VN') : 'N/A'}</span></div>
+                      <div><span className="text-gray-400 block font-semibold mb-0.5">Thời gian đóng</span><span className="font-bold text-slate-800">{selectedRecordDetail.months} tháng ({formatMonthVN(selectedRecordDetail.fromMonth)} - {formatMonthVN(selectedRecordDetail.toMonth)})</span></div>
+                      <div><span className="text-gray-400 block font-semibold mb-0.5">Hạn đóng tiếp theo</span><span className="font-bold text-[#FDB913]">{formatDateVN(selectedRecordDetail.nextPayment) || 'N/A'}</span></div>
                       <div><span className="text-gray-400 block font-semibold mb-0.5">Tổng số tiền phải đóng</span><span className="font-extrabold text-[#004182]">{formatMoney(selectedRecordDetail.amount || 0)}</span></div>
                     </>
                   )}
@@ -1234,7 +1234,7 @@ const AdminView = () => {
                               <td className="p-2.5 font-bold text-slate-800">{m.name}</td>
                               <td className="p-2.5 text-[#004182] font-bold">{m.cccd || m.bhxh || 'N/A'}</td>
                               <td className="p-2.5 text-slate-600">{m.phone || 'N/A'}</td>
-                              <td className="p-2.5 text-slate-600">{m.dob ? new Date(m.dob).toLocaleDateString('vi-VN') : 'N/A'}</td>
+                              <td className="p-2.5 text-slate-600">{formatDateVN(m.dob) || 'N/A'}</td>
                             </tr>
                           ))}
                         </tbody>

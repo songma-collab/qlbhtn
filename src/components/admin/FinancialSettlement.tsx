@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatMonthVN, formatPeriodKeyToLabel } from '../../utils/helpers';
+import { formatMoney, formatMonthVN, formatPeriodKeyToLabel, formatDateVN } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import { calculateClawbackRatio } from '../../utils/clawbackSettlement';
 import type { RecordType } from '../../context/types';
@@ -180,10 +180,10 @@ const FinancialSettlement: React.FC = () => {
   // Nhãn hiển thị kỳ báo cáo chuẩn nghiệp vụ tiếng Việt (thay vì hiện mã kỹ thuật month_09/2026)
   const currentPeriodLabel = useMemo(() => {
     if (period === 'today') {
-      return `Hôm nay (${new Date().toLocaleDateString('vi-VN')})`;
+      return `Hôm nay (${formatDateVN(new Date())})`;
     }
     if (period === 'week') {
-      return `Tuần này (${dateRange.start.toLocaleDateString('vi-VN')} – ${dateRange.end.toLocaleDateString('vi-VN')})`;
+      return `Tuần này (${formatDateVN(dateRange.start)} – ${formatDateVN(dateRange.end)})`;
     }
     if (period === 'month') {
       const mStr = String(selectedMonth).padStart(2, '0');
@@ -204,7 +204,7 @@ const FinancialSettlement: React.FC = () => {
     }
     if (period === 'custom') {
       if (customStartDate && customEndDate) {
-        return `${new Date(customStartDate).toLocaleDateString('vi-VN')} – ${new Date(customEndDate).toLocaleDateString('vi-VN')}`;
+        return `${formatDateVN(customStartDate)} – ${formatDateVN(customEndDate)}`;
       }
       return 'Khoảng ngày tùy chọn';
     }
@@ -560,7 +560,7 @@ const FinancialSettlement: React.FC = () => {
       // Sheet 1: Tổng hợp tài chính
       const summaryData = [
         ['BÁO CÁO TÀI CHÍNH & QUYẾT TOÁN CHỐT SỔ ĐẠI LÝ BHXH'],
-        [`Kỳ báo cáo: ${currentPeriodLabel} (${dateRange.start.toLocaleDateString('vi-VN')} – ${dateRange.end.toLocaleDateString('vi-VN')})`],
+        [`Kỳ báo cáo: ${currentPeriodLabel} (${formatDateVN(dateRange.start)} – ${formatDateVN(dateRange.end)})`],
         [`Thời gian xuất: ${new Date().toLocaleString('vi-VN')}`],
         [`Người lập: ${currentUser?.name || 'Admin'}`],
         [''],
@@ -614,13 +614,13 @@ const FinancialSettlement: React.FC = () => {
           idx + 1,
           r.id,
           r.original_record_id || (r as any).originalRecordId || 'N/A',
-          r.date ? new Date(r.date).toLocaleDateString('vi-VN') : '',
+          formatDateVN(r.date) || '',
           r.name,
           r.cccd || '',
           r.bhxh || '',
           r.type,
           r.decision_number || (r as any).decisionNumber || '',
-          decD ? new Date(decD).toLocaleDateString('vi-VN') : '',
+          formatDateVN(decD) || '',
           r.adjustment_reason || (r as any).adjustmentReason || r.notes || '',
           -Math.abs(Number(r.amount) || 0),
           -Math.abs(Number(r.commission) || 0),
@@ -638,7 +638,7 @@ const FinancialSettlement: React.FC = () => {
         return [
           idx + 1,
           r.id,
-          r.date ? new Date(r.date).toLocaleDateString('vi-VN') : '',
+          formatDateVN(r.date) || '',
           r.name,
           r.cccd || '',
           r.bhxh || '',
@@ -730,7 +730,7 @@ const FinancialSettlement: React.FC = () => {
             <span>Bộ Lọc Tham Số Báo Cáo</span>
             <span className="text-slate-400 font-normal">·</span>
             <span className="text-slate-500 font-normal text-[11px] font-mono">
-              {dateRange.start.toLocaleDateString('vi-VN')} – {dateRange.end.toLocaleDateString('vi-VN')}
+              {formatDateVN(dateRange.start)} – {formatDateVN(dateRange.end)}
             </span>
           </div>
           <button

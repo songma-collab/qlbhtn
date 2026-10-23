@@ -1,6 +1,6 @@
 import React from 'react';
 import { ShieldAlert, PlusCircle, Eye, Pencil, Trash2 } from 'lucide-react';
-import { formatMoney, formatMonthVN } from '../../../utils/helpers';
+import { formatMoney, formatMonthVN, formatDateVN } from '../../../utils/helpers';
 import { calculateClawbackRatio } from '../../../utils/clawbackSettlement';
 import type { RecordType, StaffType, Policy, SettingsType } from '../../../context/types';
 
@@ -115,7 +115,7 @@ export const ClawbackRecordsTable: React.FC<ClawbackRecordsTableProps> = ({
                       )}
                     </td>
                     <td className="py-3 px-3 text-slate-600 font-mono">
-                      {r.date ? new Date(r.date).toLocaleDateString('vi-VN') : 'N/A'}
+                      {formatDateVN(r.date) || 'N/A'}
                     </td>
                     <td className="py-3 px-3">
                       <div className="font-bold text-slate-900">{r.name}</div>
@@ -139,7 +139,7 @@ export const ClawbackRecordsTable: React.FC<ClawbackRecordsTableProps> = ({
                       <div className="font-bold text-slate-900 font-mono">{r.decision_number || (r as any).decisionNumber || 'Chưa có'}</div>
                       {decDate && (
                         <div className="text-[10px] text-slate-500 font-mono">
-                          Ngày: {new Date(decDate).toLocaleDateString('vi-VN')}
+                          Ngày: {formatDateVN(decDate) || 'N/A'}
                         </div>
                       )}
                     </td>

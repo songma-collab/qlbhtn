@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import type { RecordType } from '../../context/types';
-import { formatMoney, parseMonthISO, formatMonthVN } from '../../utils/helpers';
+import { formatMoney, parseMonthISO, formatMonthVN, formatDateVN } from '../../utils/helpers';
 import {
   calculateClawbackRatio,
   getRefundHistoryForRecord,
@@ -314,7 +314,7 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
                             </span>
                           </div>
                           <div className="text-xs text-slate-500 mt-0.5">
-                            CCCD: {r.cccd || 'N/A'} • Mã BHXH: {r.bhxh || 'Chưa có'} • Ngày thu: {r.date}
+                            CCCD: {r.cccd || 'N/A'} • Mã BHXH: {r.bhxh || 'Chưa có'} • Ngày thu: {formatDateVN(r.date)}
                           </div>
                         </div>
                         <div className="text-right">
@@ -359,7 +359,7 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
                 <div>
                   <span className="text-slate-500">Nghiệp vụ / Ngày thu:</span>
                   <div className="font-bold text-slate-900">{selectedRecord.type} ({selectedRecord.months || 12} tháng)</div>
-                  <div className="text-[11px] text-slate-500">Ngày thu: {selectedRecord.date}</div>
+                  <div className="text-[11px] text-slate-500">Ngày thu: {formatDateVN(selectedRecord.date)}</div>
                 </div>
                 <div>
                   <span className="text-slate-500">Cán bộ thu:</span>

@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { toUIMonth, toUIDate, calculateNextRenewalMonth } from '../../utils/dateStandardHelper';
-import { prepareRenewalRecord } from '../../utils/helpers';
+import { prepareRenewalRecord, formatDateVN } from '../../utils/helpers';
 import { formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
 import { 
   classifyRenewalRecords, 
@@ -345,13 +345,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                     const isBHYT = r.type === 'BHYT';
                     const code = isBHYT ? (r.bhytCode || r.code) : (r.bhxhCode || r.code);
                     
-                    let nextPayStr = 'Chưa xác định';
-                    if (r.nextPayment) {
-                      const d = new Date(r.nextPayment);
-                      if (!isNaN(d.getTime())) {
-                        nextPayStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-                      }
-                    }
+                    const nextPayStr = formatDateVN(r.nextPayment) || 'Chưa xác định';
 
                     return (
                       <tr key={r.id || idx} className="hover:bg-blue-50/40 transition">
