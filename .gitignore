@@ -1,10 +1,25 @@
+# Dependencies
 node_modules/
-build/
+.pnp
+.pnp.js
+
+# Build & Release outputs
 dist/
+dist-ssr/
+build/
 coverage/
-.DS_Store
-*.log
+
+# Environment variables & secrets
 .env*
 !.env.example
+
+# Sensitive Data & Local Reports (Chặn tuyệt đối dữ liệu khách hàng)
 *.xlsx
+*.xls
+*.csv
+
+# Logs & OS artifacts
+*.log
+.DS_Store
+Thumbs.db
 bun.lock

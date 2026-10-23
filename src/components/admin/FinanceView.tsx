@@ -67,7 +67,7 @@ import { FinanceBatchModal } from './finance/FinanceBatchModal';
 import { FinanceLockModal } from './finance/FinanceLockModal';
 import { FinanceCashflowStatement } from './finance/FinanceCashflowStatement';
 import { FinanceTransactionsTable } from './finance/FinanceTransactionsTable';
-import { printReceipt as executePrintReceipt, exportReceiptAsImage } from './finance/receiptService';
+import { printReceipt as executePrintReceipt, exportReceiptAsImage } from '../../services/receiptService';
 import { SubmissionBatchReport } from './finance/SubmissionBatchReport';
 import { hasPermission } from '../../utils/permissions';
 import { recordService } from '../../services/recordService';

@@ -8,5 +8,6 @@ export * from './staffService';
 export * from './auditService';
 export * from './systemSettingService';
 export * from './authService';
+export * from './receiptService';
 
 
