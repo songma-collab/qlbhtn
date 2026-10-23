@@ -265,7 +265,8 @@ QUY TẮC BÓC TÁCH NGHIỆP VỤ BHXH BẮT BUỘC TUÂN THỦ:
     return new Response(JSON.stringify({ periods: parsedResult }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
-  } catch {
+  } catch (err: any) {
+    console.error("[gemini-ocr] Unhandled exception:", err?.message, err?.stack);
     return new Response(
       JSON.stringify({ error: "AI_SERVICE_UNAVAILABLE", message: "Internal server processing error." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

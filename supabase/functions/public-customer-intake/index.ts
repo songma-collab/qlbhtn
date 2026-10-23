@@ -58,7 +58,8 @@ serve(async (req) => {
     let body: any;
     try {
       body = await req.json();
-    } catch {
+    } catch (err: any) {
+      console.error("[public-customer-intake] Lỗi phân tích JSON đầu vào:", err?.message);
       return new Response(
         JSON.stringify({ error: "INVALID_JSON", message: "Định dạng dữ liệu gửi lên không hợp lệ." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -73,13 +74,11 @@ serve(async (req) => {
       });
     }
 
-    // Trích xuất Client IP chuẩn từ headers, chặn triệt để tình trạng fallback về 127.0.0.1
-    const clientIp = (
-      req.headers.get("cf-connecting-ip") ||
-      req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      req.headers.get("x-real-ip") ||
-      ""
-    ).trim();
+    // Trích xuất Client IP an toàn: Ưu tiên header từ Cloudflare (cf-connecting-ip), sau đó x-real-ip
+    const cfIp = req.headers.get("cf-connecting-ip")?.trim();
+    const realIp = req.headers.get("x-real-ip")?.trim();
+    const fwdIp = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
+    const clientIp = (cfIp || realIp || fwdIp || "").trim();
 
     // 1. Thắt chặt Xác thực Cloudflare Turnstile CAPTCHA cho luồng tiếp nhận công khai
     const turnstileToken = (
@@ -91,8 +90,8 @@ serve(async (req) => {
       ""
     ).trim();
 
-    // Bắt buộc kiểm tra token Cloudflare Turnstile đối với submit, renewal_info và lookup
-    if (["submit", "renewal_info", "lookup"].includes(action)) {
+    // Bắt buộc kiểm tra token Cloudflare Turnstile đối với tất cả các hành động công khai (submit, renewal_info, lookup, exists)
+    if (["submit", "renewal_info", "lookup", "exists"].includes(action)) {
       if (!turnstileToken) {
         return new Response(
           JSON.stringify({
@@ -129,7 +128,8 @@ serve(async (req) => {
               { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
             );
           }
-        } catch {
+        } catch (err: any) {
+          console.error("[public-customer-intake] Lỗi kết nối xác minh Cloudflare Turnstile:", err?.message);
           return new Response(
             JSON.stringify({
               error: "CAPTCHA_VERIFICATION_FAILED",
@@ -189,7 +189,8 @@ serve(async (req) => {
     return new Response(JSON.stringify(rpcResult), {
       status: success ? 200 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" }
     });
-  } catch {
+  } catch (err: any) {
+    console.error("[public-customer-intake] Lỗi xử lý ngoại lệ nội bộ:", err?.message, err?.stack);
     return new Response(
       JSON.stringify({ error: "INTERNAL_ERROR", message: "Lỗi máy chủ nội bộ trong quá trình tiếp nhận hồ sơ." }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
