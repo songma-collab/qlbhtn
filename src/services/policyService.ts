@@ -19,12 +19,28 @@ export const sanitizePolicyForDb = (p: Partial<Policy>): Record<string, any> => 
   };
 };
 
+// ==========================================
+// BỘ NHỚ ĐỆM TTL CHO CHÍNH SÁCH (IN-MEMORY TTL CACHE)
+// ==========================================
+let policiesCache: { data: Policy[]; timestamp: number } | null = null;
+const CACHE_TTL_MS = 60_000; // Thời gian sống của cache: 60 giây
+
+export const invalidatePolicyCache = (): void => {
+  policiesCache = null;
+};
+
 export const policyService = {
   /**
-   * Lấy danh sách toàn bộ chính sách hệ thống sắp xếp theo ngày hiệu lực
+   * Lấy danh sách toàn bộ chính sách hệ thống sắp xếp theo ngày hiệu lực (Hỗ trợ In-memory TTL Cache)
    */
-  async fetchPolicies(): Promise<{ data: Policy[]; error: Error | null }> {
+  async fetchPolicies(options?: { bypassCache?: boolean }): Promise<{ data: Policy[]; error: Error | null }> {
     try {
+      // 1. Kiểm tra cache hợp lệ
+      if (!options?.bypassCache && policiesCache && (Date.now() - policiesCache.timestamp < CACHE_TTL_MS)) {
+        return { data: policiesCache.data, error: null };
+      }
+
+      // 2. Nạp từ CSDL nếu chưa có cache hoặc cache hết hạn
       return await withRetry(async () => {
         const { data, error } = await supabase
           .from('policies')
@@ -32,10 +48,16 @@ export const policyService = {
           .order('effective_date', { ascending: false });
 
         if (error) throw error;
-        return { data: (data || []) as Policy[], error: null };
+        const result = (data || []) as Policy[];
+        policiesCache = { data: result, timestamp: Date.now() };
+        return { data: result, error: null };
       });
     } catch (err: any) {
       console.warn('[PolicyService] Lỗi fetchPolicies:', err);
+      // Fallback về cache cũ nếu mạng lỗi
+      if (policiesCache?.data) {
+        return { data: policiesCache.data, error: null };
+      }
       return { data: [], error: err };
     }
   },
@@ -53,6 +75,7 @@ export const policyService = {
         .single();
 
       if (error) throw error;
+      invalidatePolicyCache();
       return { data: data as Policy, error: null };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi addPolicy:', err);
@@ -76,6 +99,7 @@ export const policyService = {
         .eq('id', numId);
 
       if (error) throw error;
+      invalidatePolicyCache();
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi updatePolicy:', err);
@@ -102,6 +126,7 @@ export const policyService = {
               return { success: false, error: new Error((rpcRes as any).error || (rpcRes as any).message || 'Không thể xóa chính sách') };
             }
             if ((rpcRes as any).success === true) {
+              invalidatePolicyCache();
               return { success: true, error: null, count: (rpcRes as any).deleted_count ?? 1 };
             }
           }
@@ -139,6 +164,7 @@ export const policyService = {
         }
       }
 
+      invalidatePolicyCache();
       return { success: true, error: null, count: deletedRows.length };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi deletePolicy:', err);
@@ -161,6 +187,7 @@ export const policyService = {
           p_param_type: parameterType
         });
         if (!rpcErr && rpcRes && typeof rpcRes === 'object' && (rpcRes as any).success === true) {
+          invalidatePolicyCache();
           return { success: true, error: null };
         }
       } catch (_) {
@@ -188,6 +215,7 @@ export const policyService = {
 
       if (activateErr) throw activateErr;
 
+      invalidatePolicyCache();
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi activatePolicy:', err);
@@ -206,6 +234,7 @@ export const policyService = {
           p_policies: defaultPolicies.map(p => sanitizePolicyForDb(p))
         });
         if (!rpcErr && (rpcRes as any)?.success) {
+          invalidatePolicyCache();
           return { success: true, error: null };
         }
       } catch (_) {
@@ -259,6 +288,7 @@ export const policyService = {
         }
       }
 
+      invalidatePolicyCache();
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[PolicyService] Lỗi syncDefaultPolicies:', err);

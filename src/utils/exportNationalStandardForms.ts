@@ -17,6 +17,11 @@ export interface ExportStandardParams {
 }
 
 /**
+ * Nhường luồng cho Event Loop của trình duyệt (tránh đơ UI / Page Unresponsive khi xuất hàng ngàn dòng)
+ */
+export const yieldToEventLoop = (): Promise<void> => new Promise(resolve => setTimeout(resolve, 0));
+
+/**
  * Xuất Mẫu D03-TS: Danh sách người chỉ tham gia Bảo hiểm y tế hộ gia đình
  * Chuẩn BHXH Việt Nam (theo QĐ 595/QĐ-BHXH & QĐ 505/QĐ-BHXH)
  */
@@ -173,7 +178,11 @@ export const exportD03TSStandardExcel = async ({
 
   let totalAmount = 0;
 
-  validRecords.forEach((r, idx) => {
+  for (let idx = 0; idx < validRecords.length; idx++) {
+    if (idx > 0 && idx % 150 === 0) {
+      await yieldToEventLoop();
+    }
+    const r = validRecords[idx];
     const staffName = staffList.find(s => s.id === r.staffId || s.id === r.staff_id)?.name || r.staffId || r.staff_id || 'Đại lý';
     const oldBhxh = getOldBhxh10(r, records);
     const cccd = String(r.cccd || r.citizen_id || (r as any).citizenId || '').trim();
@@ -209,7 +218,7 @@ export const exportD03TSStandardExcel = async ({
       { v: staffName, s: cellTextStyle },
       { v: r.notes || '', s: cellTextStyle }
     ]);
-  });
+  }
 
   // Total Summary Row
   rows.push([
@@ -697,7 +706,11 @@ export const exportD05TSStandardExcel = async ({
   let totalDPSupport = 0;
   let totalOtherSupport = 0;
 
-  validRecords.forEach((r, idx) => {
+  for (let idx = 0; idx < validRecords.length; idx++) {
+    if (idx > 0 && idx % 150 === 0) {
+      await yieldToEventLoop();
+    }
+    const r = validRecords[idx];
     const staff = staffList.find(s => s.id === r.staffId || s.name === r.staffId || s.id === r.staff_id || s.name === r.staff_id);
     const staffCode = r.staffCode || r.staff_code || staff?.staffCode || staff?.staff_code || currentUser?.staffCode || currentUser?.staff_code || (r.staffId && String(r.staffId).startsWith('NV') ? r.staffId : (r.staff_id && String(r.staff_id).startsWith('NV') ? r.staff_id : 'NV014184005160'));
     const oldBhxh = getOldBhxh10(r, records);
@@ -806,7 +819,7 @@ export const exportD05TSStandardExcel = async ({
       { v: staffCode, s: cellCenterStyle },                                            // 16: Mã số NV thu
       { v: notesStr, s: cellTextStyle }                                                // 17: Ghi chú
     ]);
-  });
+  }
 
   // Hàng TỔNG CỘNG: Col 0..9 merged, Col 10..19 các cột số
   const rowTotal = Array(20).fill(null).map(() => ({ v: '', s: totalStyle }));

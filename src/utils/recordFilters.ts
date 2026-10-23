@@ -44,6 +44,37 @@ export function normalizeDigits(val?: string | number | null): string {
   return String(val).replace(/[\s\.-]/g, '').toLowerCase();
 }
 
+export interface CachedRecordDigits {
+  cccd: string;
+  bhxh: string;
+  phone: string;
+}
+
+const recordDigitsWeakMap = new WeakMap<object, CachedRecordDigits>();
+
+/**
+ * Lấy chuỗi số chuẩn hóa đã được memoize qua WeakMap theo reference của bản ghi (Zero regex overhead khi tìm kiếm quy mô lớn)
+ */
+export function getCachedRecordDigits(r: any): CachedRecordDigits {
+  if (r && typeof r === 'object') {
+    let cached = recordDigitsWeakMap.get(r);
+    if (!cached) {
+      cached = {
+        cccd: normalizeDigits(r.cccd),
+        bhxh: normalizeDigits(r.bhxh),
+        phone: normalizeDigits(r.phone)
+      };
+      recordDigitsWeakMap.set(r, cached);
+    }
+    return cached;
+  }
+  return {
+    cccd: normalizeDigits(r?.cccd),
+    bhxh: normalizeDigits(r?.bhxh),
+    phone: normalizeDigits(r?.phone)
+  };
+}
+
 /**
  * Kiểm tra ngày có thuộc kỳ lọc được chọn hay không
  */
@@ -251,20 +282,23 @@ export function filterRecords(
       return false;
     }
 
-    // 5. Ô Tìm kiếm tổng hợp (Search query đa trường kèm bỏ khoảng trắng)
+    // 5. Ô Tìm kiếm tổng hợp (Search query đa trường kèm bỏ khoảng trắng & WeakMap memoization)
     if (cleanSearchLower) {
       const nameMatch = r.name && r.name.toLowerCase().includes(cleanSearchLower);
-      const cccdDigits = normalizeDigits(r.cccd);
-      const bhxhDigits = normalizeDigits(r.bhxh);
-      const phoneDigits = normalizeDigits(r.phone);
-
-      const cccdMatch = searchDigits ? cccdDigits.includes(searchDigits) : false;
-      const bhxhMatch = searchDigits ? bhxhDigits.includes(searchDigits) : false;
-      const phoneMatch = searchDigits ? phoneDigits.includes(searchDigits) : false;
       const idMatch = String(r.id) === searchTxt;
 
-      if (!nameMatch && !cccdMatch && !bhxhMatch && !phoneMatch && !idMatch) {
-        return false;
+      if (!nameMatch && !idMatch) {
+        if (!searchDigits) {
+          return false;
+        }
+        const digits = getCachedRecordDigits(r);
+        const cccdMatch = digits.cccd.includes(searchDigits);
+        const bhxhMatch = digits.bhxh.includes(searchDigits);
+        const phoneMatch = digits.phone.includes(searchDigits);
+
+        if (!cccdMatch && !bhxhMatch && !phoneMatch) {
+          return false;
+        }
       }
     }
 

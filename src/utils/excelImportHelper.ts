@@ -208,171 +208,230 @@ export interface ParsedExcelResult {
   totalRows: number;
 }
 
+export interface ProcessExcelRowOptions {
+  defaultType: 'BHXH' | 'BHYT';
+  staffList: any[];
+  policies: any[];
+  settings: any;
+  currentUserId?: string | undefined;
+}
+
+export interface ProcessedExcelRowItem {
+  record: RecordType;
+  customer: Partial<CustomerType>;
+  isTransaction: boolean;
+}
+
 /**
- * Hàm phân tích toàn diện bảng tính Excel thành các đối tượng chuẩn của hệ thống
+ * Phân tích và chuyển đổi một dòng Excel thô thành cấu trúc Record và CustomerProfile chuẩn
+ */
+export const processSingleExcelRow = (
+  row: any,
+  idx: number,
+  options: ProcessExcelRowOptions
+): ProcessedExcelRowItem | null => {
+  const { defaultType, staffList, policies, settings, currentUserId } = options;
+
+  // 1. Họ và tên người tham gia
+  const rawName = extractField(row, 'name');
+  if (!rawName) return null;
+  const name = formatTitleCase(String(rawName));
+
+  // 2. Định danh CCCD và BHXH
+  const rawCccd = extractField(row, 'cccd');
+  const cccd = rawCccd ? String(rawCccd).replace(/\D/g, '').slice(0, 12) : '';
+  const rawBhxh = extractField(row, 'bhxh');
+  const bhxh = rawBhxh ? String(rawBhxh).trim() : '';
+  const rawOldBhxh = extractField(row, 'oldBhxh');
+  const oldBhxh = rawOldBhxh ? String(rawOldBhxh).trim() : '';
+
+  // 3. Phân loại loại hình BHXH hay BHYT
+  const rawType = String(extractField(row, 'type') || '').toUpperCase();
+  let type: 'BHXH' | 'BHYT' = defaultType;
+  if (rawType.includes('BHYT')) type = 'BHYT';
+  else if (rawType.includes('BHXH')) type = 'BHXH';
+
+  // 4. Thông tin nhân khẩu học
+  const phone = String(extractField(row, 'phone') || '').replace(/\D/g, '').slice(0, 10);
+  const email = String(extractField(row, 'email') || '').trim();
+  const address = String(extractField(row, 'address') || '').trim();
+  const dob = parseDateSafe(extractField(row, 'dob'));
+  const rawGender = String(extractField(row, 'gender') || '').toLowerCase();
+  const gender = (rawGender.includes('nu') || rawGender.includes('nữ') || rawGender === 'female') ? 'Nữ' : 'Nam';
+  const rawNation = String(extractField(row, 'nation') || '').toLowerCase();
+  const nation = (rawNation.includes('thieu') || rawNation.includes('thiểu') || rawNation.includes('hmong') || rawNation.includes('dao') || rawNation.includes('thai')) ? 'Thiểu_số' : 'Kinh';
+  const notes = String(extractField(row, 'notes') || '').trim();
+
+  // 5. Thông tin kỳ đóng và tài chính
+  const rawFromMonth = extractField(row, 'fromMonth');
+  const rawToMonth = extractField(row, 'toMonth');
+  const fromMonth = parseMonthSafe(rawFromMonth);
+  const toMonth = parseMonthSafe(rawToMonth);
+  const months = parseInt(String(extractField(row, 'months') || 1), 10) || 1;
+
+  const income = parseMoneySafe(extractField(row, 'income'));
+  const wage = parseMoneySafe(extractField(row, 'wage'));
+  const nnSupportAmount = parseMoneySafe(extractField(row, 'nnSupportAmount'));
+  const dpSupportAmount = parseMoneySafe(extractField(row, 'dpSupportAmount'));
+  const amount = parseMoneySafe(extractField(row, 'amount'));
+  const method = String(extractField(row, 'method') || 'Đóng hằng tháng').trim();
+
+  // Kiểm tra xem dòng này có dữ liệu giao dịch tài chính hay không
+  const isTransaction = amount > 0 || income > 0 || Boolean(fromMonth || toMonth);
+
+  // 6. Trạng thái thanh toán và chuyển BHXH
+  const rawPaymentStatus = String(extractField(row, 'paymentStatus') || '').trim();
+  const paymentStatus = rawPaymentStatus || 'Đã thu tiền';
+
+  const rawSubmitted = String(extractField(row, 'isSubmittedBHXH') || '').toLowerCase();
+  const isSubmittedBHXH = rawSubmitted.includes('da') || rawSubmitted.includes('đã') || rawSubmitted.includes('true') || rawSubmitted.includes('chuyen');
+  const submissionBatch = String(extractField(row, 'submissionBatch') || '').trim();
+  const submittedDate = parseDateSafe(extractField(row, 'submittedDate'));
+
+  // 7. Nhân viên thu
+  const rawStaffName = String(extractField(row, 'staff') || '').trim();
+  let staffId = currentUserId || 'admin';
+  if (rawStaffName) {
+    const matchedStaff = staffList.find(s => 
+      normalizeHeaderKey(s.name) === normalizeHeaderKey(rawStaffName) ||
+      s.id === rawStaffName
+    );
+    if (matchedStaff) staffId = matchedStaff.id;
+  }
+
+  // 8. Ngày ghi nhận giao dịch
+  const rawDate = extractField(row, 'date');
+  const parsedRegDate = parseDateSafe(rawDate);
+  const date = parsedRegDate ? new Date(parsedRegDate).toISOString() : new Date().toISOString();
+
+  // 9. Tính hạn nộp tiếp theo chuẩn xác
+  const nextPayment = calculateNextPaymentFromToMonth(toMonth || fromMonth, months);
+
+  const custKey = generateCustomerKeyJs(type, bhxh, cccd, name, phone);
+
+  // Tạo bản ghi giao dịch (Record)
+  const newRecord: any = {
+    id: Date.now() + idx,
+    type,
+    name,
+    cccd,
+    bhxh,
+    oldBhxh,
+    old_bhxh: oldBhxh,
+    phone,
+    email,
+    address,
+    dob,
+    gender,
+    nation,
+    notes,
+    date,
+    actionType: 'Nhập từ Excel',
+    paymentStatus,
+    status: 'Đang tham gia',
+    staffId,
+    staff_id: staffId,
+    customerKey: custKey,
+    customer_key: custKey,
+    income: income || (type === 'BHXH' ? 1500000 : 0),
+    wage: wage || 0,
+    basePremium: wage || 0,
+    nnSupportAmount: nnSupportAmount || 0,
+    dpSupportAmount: dpSupportAmount || 0,
+    amount,
+    method,
+    months,
+    fromMonth: fromMonth || undefined,
+    toMonth: toMonth || undefined,
+    from_month: fromMonth || undefined,
+    to_month: toMonth || undefined,
+    nextPayment,
+    isSubmittedBHXH,
+    submissionBatch: submissionBatch || undefined,
+    submittedDate: submittedDate || undefined
+  };
+
+  // Tính hoa hồng nếu là giao dịch có tiền
+  const rate = getCommissionRateForRecord(newRecord, policies, settings);
+  newRecord.commission = Math.round(amount * rate);
+
+  // Tạo hồ sơ khách hàng (Customer Profile)
+  const customer: Partial<CustomerType> = {
+    customer_key: custKey,
+    name,
+    cccd,
+    bhxh,
+    old_bhxh: oldBhxh,
+    phone,
+    email,
+    address,
+    dob,
+    gender,
+    nation,
+    type,
+    status: 'Đang tham gia',
+    payment_status: paymentStatus,
+    next_payment: nextPayment,
+    notes
+  };
+
+  return {
+    record: newRecord as RecordType,
+    customer,
+    isTransaction
+  };
+};
+
+/**
+ * Hàm phân tích toàn diện bảng tính Excel thành các đối tượng chuẩn của hệ thống (Đồng bộ)
  */
 export const parseExcelRows = (
   rawRows: any[],
-  options: {
-    defaultType: 'BHXH' | 'BHYT';
-    staffList: any[];
-    policies: any[];
-    settings: any;
-    currentUserId?: string | undefined;
-  }
+  options: ProcessExcelRowOptions
 ): ParsedExcelResult => {
-  const { defaultType, staffList, policies, settings, currentUserId } = options;
   const recordsToInsert: RecordType[] = [];
   const customerProfiles: Partial<CustomerType>[] = [];
   let detectedTransactionsCount = 0;
 
   rawRows.forEach((row, idx) => {
-    // 1. Họ và tên người tham gia
-    const rawName = extractField(row, 'name');
-    if (!rawName) return;
-    const name = formatTitleCase(String(rawName));
-
-    // 2. Định danh CCCD và BHXH
-    const rawCccd = extractField(row, 'cccd');
-    const cccd = rawCccd ? String(rawCccd).replace(/\D/g, '').slice(0, 12) : '';
-    const rawBhxh = extractField(row, 'bhxh');
-    const bhxh = rawBhxh ? String(rawBhxh).trim() : '';
-    const rawOldBhxh = extractField(row, 'oldBhxh');
-    const oldBhxh = rawOldBhxh ? String(rawOldBhxh).trim() : '';
-
-    // 3. Phân loại loại hình BHXH hay BHYT
-    const rawType = String(extractField(row, 'type') || '').toUpperCase();
-    let type: 'BHXH' | 'BHYT' = defaultType;
-    if (rawType.includes('BHYT')) type = 'BHYT';
-    else if (rawType.includes('BHXH')) type = 'BHXH';
-
-    // 4. Thông tin nhân khẩu học
-    const phone = String(extractField(row, 'phone') || '').replace(/\D/g, '').slice(0, 10);
-    const email = String(extractField(row, 'email') || '').trim();
-    const address = String(extractField(row, 'address') || '').trim();
-    const dob = parseDateSafe(extractField(row, 'dob'));
-    const rawGender = String(extractField(row, 'gender') || '').toLowerCase();
-    const gender = (rawGender.includes('nu') || rawGender.includes('nữ') || rawGender === 'female') ? 'Nữ' : 'Nam';
-    const rawNation = String(extractField(row, 'nation') || '').toLowerCase();
-    const nation = (rawNation.includes('thieu') || rawNation.includes('thiểu') || rawNation.includes('hmong') || rawNation.includes('dao') || rawNation.includes('thai')) ? 'Thiểu_số' : 'Kinh';
-    const notes = String(extractField(row, 'notes') || '').trim();
-
-    // 5. Thông tin kỳ đóng và tài chính
-    const rawFromMonth = extractField(row, 'fromMonth');
-    const rawToMonth = extractField(row, 'toMonth');
-    const fromMonth = parseMonthSafe(rawFromMonth);
-    const toMonth = parseMonthSafe(rawToMonth);
-    const months = parseInt(String(extractField(row, 'months') || 1), 10) || 1;
-
-    const income = parseMoneySafe(extractField(row, 'income'));
-    const wage = parseMoneySafe(extractField(row, 'wage'));
-    const nnSupportAmount = parseMoneySafe(extractField(row, 'nnSupportAmount'));
-    const dpSupportAmount = parseMoneySafe(extractField(row, 'dpSupportAmount'));
-    const amount = parseMoneySafe(extractField(row, 'amount'));
-    const method = String(extractField(row, 'method') || 'Đóng hằng tháng').trim();
-
-    // Kiểm tra xem dòng này có dữ liệu giao dịch tài chính hay không
-    const isTransactionRow = amount > 0 || income > 0 || Boolean(fromMonth || toMonth);
-    if (isTransactionRow) detectedTransactionsCount++;
-
-    // 6. Trạng thái thanh toán và chuyển BHXH
-    const rawPaymentStatus = String(extractField(row, 'paymentStatus') || '').trim();
-    const paymentStatus = rawPaymentStatus || 'Đã thu tiền';
-
-    const rawSubmitted = String(extractField(row, 'isSubmittedBHXH') || '').toLowerCase();
-    const isSubmittedBHXH = rawSubmitted.includes('da') || rawSubmitted.includes('đã') || rawSubmitted.includes('true') || rawSubmitted.includes('chuyen');
-    const submissionBatch = String(extractField(row, 'submissionBatch') || '').trim();
-    const submittedDate = parseDateSafe(extractField(row, 'submittedDate'));
-
-    // 7. Nhân viên thu
-    const rawStaffName = String(extractField(row, 'staff') || '').trim();
-    let staffId = currentUserId || 'admin';
-    if (rawStaffName) {
-      const matchedStaff = staffList.find(s => 
-        normalizeHeaderKey(s.name) === normalizeHeaderKey(rawStaffName) ||
-        s.id === rawStaffName
-      );
-      if (matchedStaff) staffId = matchedStaff.id;
-    }
-
-    // 8. Ngày ghi nhận giao dịch
-    const rawDate = extractField(row, 'date');
-    const parsedRegDate = parseDateSafe(rawDate);
-    const date = parsedRegDate ? new Date(parsedRegDate).toISOString() : new Date().toISOString();
-
-    // 9. Tính hạn nộp tiếp theo chuẩn xác
-    const nextPayment = calculateNextPaymentFromToMonth(toMonth || fromMonth, months);
-
-    const custKey = generateCustomerKeyJs(type, bhxh, cccd, name, phone);
-
-    // Tạo bản ghi giao dịch (Record)
-    const newRecord: any = {
-      id: Date.now() + idx,
-      type,
-      name,
-      cccd,
-      bhxh,
-      oldBhxh,
-      old_bhxh: oldBhxh,
-      phone,
-      email,
-      address,
-      dob,
-      gender,
-      nation,
-      notes,
-      date,
-      actionType: 'Nhập từ Excel',
-      paymentStatus,
-      status: 'Đang tham gia',
-      staffId,
-      staff_id: staffId,
-      customerKey: custKey,
-      customer_key: custKey,
-      income: income || (type === 'BHXH' ? 1500000 : 0),
-      wage: wage || 0,
-      basePremium: wage || 0,
-      nnSupportAmount: nnSupportAmount || 0,
-      dpSupportAmount: dpSupportAmount || 0,
-      amount,
-      method,
-      months,
-      fromMonth: fromMonth || undefined,
-      toMonth: toMonth || undefined,
-      from_month: fromMonth || undefined,
-      to_month: toMonth || undefined,
-      nextPayment,
-      isSubmittedBHXH,
-      submissionBatch: submissionBatch || undefined,
-      submittedDate: submittedDate || undefined
-    };
-
-    // Tính hoa hồng nếu là giao dịch có tiền
-    const rate = getCommissionRateForRecord(newRecord, policies, settings);
-    newRecord.commission = Math.round(amount * rate);
-
-    recordsToInsert.push(newRecord as RecordType);
-
-    // Tạo hồ sơ khách hàng (Customer Profile)
-    customerProfiles.push({
-      customer_key: custKey,
-      name,
-      cccd,
-      bhxh,
-      old_bhxh: oldBhxh,
-      phone,
-      email,
-      address,
-      dob,
-      gender,
-      nation,
-      type,
-      status: 'Đang tham gia',
-      payment_status: paymentStatus,
-      next_payment: nextPayment,
-      notes
-    });
+    const item = processSingleExcelRow(row, idx, options);
+    if (!item) return;
+    recordsToInsert.push(item.record);
+    customerProfiles.push(item.customer);
+    if (item.isTransaction) detectedTransactionsCount++;
   });
+
+  return {
+    records: recordsToInsert,
+    customerProfiles,
+    hasTransactionData: detectedTransactionsCount > 0,
+    totalRows: rawRows.length
+  };
+};
+
+/**
+ * Phân tích bảng tính Excel bất đồng bộ chia theo chunk (Non-blocking Event Loop),
+ * giữ giao diện người dùng luôn phản hồi mượt mà ngay cả khi tệp import chứa hàng chục ngàn dòng.
+ */
+export const parseExcelRowsAsync = async (
+  rawRows: any[],
+  options: ProcessExcelRowOptions,
+  chunkSize = 150
+): Promise<ParsedExcelResult> => {
+  const recordsToInsert: RecordType[] = [];
+  const customerProfiles: Partial<CustomerType>[] = [];
+  let detectedTransactionsCount = 0;
+
+  for (let idx = 0; idx < rawRows.length; idx++) {
+    if (idx > 0 && idx % chunkSize === 0) {
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
+    const item = processSingleExcelRow(rawRows[idx], idx, options);
+    if (!item) continue;
+    recordsToInsert.push(item.record);
+    customerProfiles.push(item.customer);
+    if (item.isTransaction) detectedTransactionsCount++;
+  }
 
   return {
     records: recordsToInsert,

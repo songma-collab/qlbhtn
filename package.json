@@ -13,7 +13,7 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "db:verify": "vitest run src/tests/masterSetupSchemaVerification.test.ts src/tests/supabaseMasterPersistence.test.ts src/tests/customerRenewalDeletionSync.test.ts src/tests/financialLedger.test.ts",
+    "db:verify": "vitest run src/tests/masterSetupSchemaVerification.test.ts src/tests/supabaseMasterPersistence.test.ts src/tests/customerRenewalDeletionSync.test.ts src/tests/financialLedger.test.ts src/tests/enterprisePerformanceAndCaching.test.ts",
     "verify-baseline": "npm run typecheck && npm run test && npm run build"
   },
   "dependencies": {

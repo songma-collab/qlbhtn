@@ -7,12 +7,28 @@ import { SettingsType } from '../context/types';
 import { handleSettingsSchemaCacheMissingColumn } from '../utils/settingsHelper';
 import { withRetry } from '../utils/networkHelper';
 
+// ==========================================
+// BỘ NHỚ ĐỆM TTL CHO CẤU HÌNH HỆ THỐNG (IN-MEMORY TTL CACHE)
+// ==========================================
+let settingsCache: { data: SettingsType; timestamp: number } | null = null;
+const SETTINGS_CACHE_TTL_MS = 60_000; // Thời gian sống của cache: 60 giây
+
+export const invalidateSettingsCache = (): void => {
+  settingsCache = null;
+};
+
 export const systemSettingService = {
   /**
-   * Lấy cấu hình hệ thống từ bảng settings (id = 1)
+   * Lấy cấu hình hệ thống từ bảng settings (id = 1) - Hỗ trợ In-memory TTL Cache
    */
-  async fetchSettings(): Promise<{ data: SettingsType | null; error: Error | null }> {
+  async fetchSettings(options?: { bypassCache?: boolean }): Promise<{ data: SettingsType | null; error: Error | null }> {
     try {
+      // 1. Trả về từ cache nếu còn hiệu lực
+      if (!options?.bypassCache && settingsCache && (Date.now() - settingsCache.timestamp < SETTINGS_CACHE_TTL_MS)) {
+        return { data: settingsCache.data, error: null };
+      }
+
+      // 2. Tải mới từ Supabase
       return await withRetry(async () => {
         const { data, error } = await supabase
           .from('settings')
@@ -21,10 +37,16 @@ export const systemSettingService = {
           .maybeSingle();
 
         if (error) throw error;
+        if (data) {
+          settingsCache = { data: data as SettingsType, timestamp: Date.now() };
+        }
         return { data: data as SettingsType | null, error: null };
       });
     } catch (err: any) {
       console.warn('[SystemSettingService] fetchSettings error:', err);
+      if (settingsCache?.data) {
+        return { data: settingsCache.data, error: null };
+      }
       return { data: null, error: err };
     }
   },
@@ -58,6 +80,7 @@ export const systemSettingService = {
         throw error;
       }
 
+      invalidateSettingsCache();
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[SystemSettingService] updateSettings error:', err);
@@ -77,6 +100,7 @@ export const systemSettingService = {
       });
 
       if (error) throw error;
+      invalidateSettingsCache();
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[SystemSettingService] upsertSettings error:', err);
