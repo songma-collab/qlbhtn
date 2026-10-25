@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
 import { formatMoney, formatDateVN } from '../../../utils/helpers';
+import { protectWorksheetFormulas } from '../../../utils/excelSecurity';
 import { 
   Users, 
   Search, 
@@ -292,6 +293,7 @@ export const StaffCustomerReport: React.FC = () => {
       }));
 
       const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      protectWorksheetFormulas(wsSummary);
       XLSX.utils.book_append_sheet(wb, wsSummary, "Tong_Hop_Nhan_Vien");
 
       // Sheet 2: Danh sách khách hàng chi tiết của tất cả nhân viên lọc
@@ -319,6 +321,7 @@ export const StaffCustomerReport: React.FC = () => {
 
       if (allCustomersRows.length > 0) {
         const wsCustomers = XLSX.utils.json_to_sheet(allCustomersRows);
+        protectWorksheetFormulas(wsCustomers);
         XLSX.utils.book_append_sheet(wb, wsCustomers, "Chi_Tiet_Khach_Hang");
       }
 
@@ -356,6 +359,7 @@ export const StaffCustomerReport: React.FC = () => {
       }));
 
       const ws = XLSX.utils.json_to_sheet(rows);
+      protectWorksheetFormulas(ws);
       XLSX.utils.book_append_sheet(wb, ws, "Khach_Hang_Nhan_Vien");
 
       const safeStaffName = selectedStaffDetail.staffName.replace(/[\s/]+/g, '_');

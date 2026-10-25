@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatDateVN } from '../../utils/helpers';
+import { protectWorksheetFormulas } from '../../utils/excelSecurity';
 import { getCommissionRateForRecord, getCommissionBreakdownForRecord } from '../../utils/calculations';
 import { FileDown, Percent } from 'lucide-react';
 
@@ -193,10 +194,12 @@ const CommissionReport = () => {
     const wb = XLSX.utils.book_new();
     
     const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+    protectWorksheetFormulas(wsSummary);
     XLSX.utils.book_append_sheet(wb, wsSummary, "TongHopHoaHong");
     
     if (staffData.length > 0) {
       const wsStaff = XLSX.utils.json_to_sheet(staffData);
+      protectWorksheetFormulas(wsStaff);
       XLSX.utils.book_append_sheet(wb, wsStaff, "ChiTietHoaHong");
     }
 
@@ -271,6 +274,7 @@ const CommissionReport = () => {
       const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
       const wb = XLSX.utils.book_new();
       const ws = XLSX.utils.json_to_sheet(data);
+      protectWorksheetFormulas(ws);
       XLSX.utils.book_append_sheet(wb, ws, "ChiTietHoaHong");
       XLSX.writeFile(wb, `Chi_tiet_HH_${staffMember.name.replace(/\s+/g, '_')}_${new Date().getTime()}.xlsx`);
     } catch (error) {

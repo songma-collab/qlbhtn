@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
 import { formatMoney, formatDateVN } from '../../../utils/helpers';
+import { protectWorksheetFormulas } from '../../../utils/excelSecurity';
 import type { RecordType } from '../../../context/types';
 import { 
   FileCheck, 
@@ -143,6 +144,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
       }));
 
       const wsSummary = XLSX.utils.json_to_sheet(summaryRows);
+      protectWorksheetFormulas(wsSummary);
       XLSX.utils.book_append_sheet(wb, wsSummary, "Tong_Hop_Dot_Nop");
 
       // Sheet 2: Danh sách chi tiết từng hồ sơ trong các đợt đã lọc
@@ -170,6 +172,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
 
       if (detailRows.length > 0) {
         const wsDetails = XLSX.utils.json_to_sheet(detailRows);
+        protectWorksheetFormulas(wsDetails);
         XLSX.utils.book_append_sheet(wb, wsDetails, "Chi_Tiet_Tung_Ho_So");
       }
 
@@ -206,6 +209,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
       });
 
       const ws = XLSX.utils.json_to_sheet(detailRows);
+      protectWorksheetFormulas(ws);
       XLSX.utils.book_append_sheet(wb, ws, "Danh_Sach_Ho_So");
       XLSX.writeFile(wb, `Bang_ke_${batch.batchName}_${batch.submittedDate.replace(/[\s/]+/g, '-')}.xlsx`);
     } catch (err) {

@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatMonthVN, formatPeriodKeyToLabel, formatDateVN } from '../../utils/helpers';
+import { protectWorksheetFormulas } from '../../utils/excelSecurity';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import { calculateClawbackRatio } from '../../utils/clawbackSettlement';
 import type { RecordType } from '../../context/types';
@@ -585,6 +586,7 @@ const FinancialSettlement: React.FC = () => {
         ['Ghi chú: Hồ sơ bị hủy (chưa thực hiện - không tính vào thoái thu)', financialStats.cancelledCount, financialStats.cancelledTotal]
       ];
       const wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
+      protectWorksheetFormulas(wsSummary);
       XLSX.utils.book_append_sheet(wb, wsSummary, 'Tong_Hop_Tai_Chinh');
 
       // Sheet 2: Bảng kê hoa hồng cán bộ
@@ -603,6 +605,7 @@ const FinancialSettlement: React.FC = () => {
         s.netCommission
       ]);
       const wsStaff = XLSX.utils.aoa_to_sheet([staffHeader, ...staffRows]);
+      protectWorksheetFormulas(wsStaff);
       XLSX.utils.book_append_sheet(wb, wsStaff, 'Bang_Ke_Hoa_Hong_Can_Bo');
 
       // Sheet 3: Phụ lục thoái thu hoàn trả (Clawback Appendix)
@@ -629,6 +632,7 @@ const FinancialSettlement: React.FC = () => {
         ];
       });
       const wsClawback = XLSX.utils.aoa_to_sheet([clawbackHeader, ...clawbackRows]);
+      protectWorksheetFormulas(wsClawback);
       XLSX.utils.book_append_sheet(wb, wsClawback, 'Phu_Luc_Thoai_Thu');
 
       // Sheet 4: Danh sách giao dịch chi tiết
@@ -651,6 +655,7 @@ const FinancialSettlement: React.FC = () => {
         ];
       });
       const wsRecords = XLSX.utils.aoa_to_sheet([recordHeader, ...recordRows]);
+      protectWorksheetFormulas(wsRecords);
       XLSX.utils.book_append_sheet(wb, wsRecords, 'Danh_Sach_Giao_Dich');
 
       const safePeriodFileName = currentPeriodLabel
