@@ -42,10 +42,12 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   onStatusClick,
   renderPII
 }) => {
+  if (!c) return null;
+  const safeStaffList = Array.isArray(staffList) ? staffList : [];
   const rawCccd = c.cccd || '';
   const rawPhone = c.phone || '';
   const rawBhxh = c.bhxh || '';
-  const assignedStaff = staffList.find(s => s.id === (c.staff_id || c.staffId));
+  const assignedStaff = safeStaffList.find(s => s && s.id === (c.staff_id || c.staffId));
 
   const fromM = c.from_month || c.fromMonth || '';
   const toM = c.to_month || c.toMonth || '';

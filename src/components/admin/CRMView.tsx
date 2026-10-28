@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { customerService, recordService } from '../../services';
 import { 
@@ -261,33 +261,36 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const startIdx = (currentPage - 1) * itemsPerPage;
   const paginatedCustomers = useMemo(() => {
     let rawList: any[] = [];
-    if (useServerData && serverCustomers.length > 0) {
-      rawList = [...serverCustomers].sort((a, b) => {
-        const dateA = getSafeTimestamp(a.latest_date || a.date || a.created_at);
-        const dateB = getSafeTimestamp(b.latest_date || b.date || b.created_at);
+    if (useServerData && Array.isArray(serverCustomers) && serverCustomers.length > 0) {
+      rawList = [...serverCustomers].filter(Boolean).sort((a, b) => {
+        const dateA = getSafeTimestamp(a?.latest_date || a?.date || a?.created_at);
+        const dateB = getSafeTimestamp(b?.latest_date || b?.date || b?.created_at);
         if (dateB !== dateA) return dateB - dateA;
-        const idA = Number(a.latest_record_id || a.record_id || a.id) || 0;
-        const idB = Number(b.latest_record_id || b.record_id || b.id) || 0;
+        const idA = Number(a?.latest_record_id || a?.record_id || a?.id) || 0;
+        const idB = Number(b?.latest_record_id || b?.record_id || b?.id) || 0;
         return idB - idA;
       });
     } else {
-      rawList = uniqueCustomersList.slice(startIdx, startIdx + itemsPerPage);
+      rawList = (uniqueCustomersList || []).filter(Boolean).slice(startIdx, startIdx + itemsPerPage);
     }
 
     if (!records || records.length === 0) return rawList;
 
     const activeRecords = records.filter(r => {
+      if (!r) return false;
       const pStatus = r.payment_status || (r as any).paymentStatus;
       return pStatus !== 'Đã hủy' && pStatus !== 'Đã thoái thu';
     });
 
     const enrichedList = rawList.map(c => {
+      if (!c) return c;
       const cleanC = (c.cccd || '').replace(/\D/g, '');
       const cleanB = (c.bhxh || '').replace(/\D/g, '');
       const cleanO = (c.old_bhxh || (c as any).oldBhxh || '').replace(/\D/g, '');
       const cleanK = (c.customer_key || (c as any).customerKey || '').trim();
 
       const matchedRecs = activeRecords.filter(r => {
+        if (!r) return false;
         if (cleanK && (r.customer_key === cleanK || (r as any).customerKey === cleanK)) return true;
         const rC = (r.cccd || '').replace(/\D/g, '');
         const rB = (r.bhxh || '').replace(/\D/g, '');
@@ -305,10 +308,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
       // Tìm giao dịch nộp/đóng tiền mới nhất của khách hàng theo thời gian thực (date DESC, id DESC)
       const sortedByTxn = [...matchedRecs].sort((a, b) => {
-        const tA = getSafeTimestamp(a.date || a.created_at);
-        const tB = getSafeTimestamp(b.date || b.created_at);
+        const tA = getSafeTimestamp(a?.date || a?.created_at);
+        const tB = getSafeTimestamp(b?.date || b?.created_at);
         if (tB !== tA) return tB - tA;
-        return (Number(b.id) || 0) - (Number(a.id) || 0);
+        return (Number(b?.id) || 0) - (Number(a?.id) || 0);
       });
       const newestTxn = sortedByTxn[0] || latestContract;
 
@@ -338,14 +341,14 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         latest_txn_timestamp: getSafeTimestamp(newestTxn.date || newestTxn.created_at),
         latest_txn_id: Number(newestTxn.id) || 0
       };
-    });
+    }).filter(Boolean);
 
     return [...enrichedList].sort((a, b) => {
-      const tA = (a as any).latest_txn_timestamp || getSafeTimestamp(a.latest_date || a.date || a.created_at);
-      const tB = (b as any).latest_txn_timestamp || getSafeTimestamp(b.latest_date || b.date || b.created_at);
+      const tA = (a as any)?.latest_txn_timestamp || getSafeTimestamp(a?.latest_date || a?.date || a?.created_at);
+      const tB = (b as any)?.latest_txn_timestamp || getSafeTimestamp(b?.latest_date || b?.date || b?.created_at);
       if (tB !== tA) return tB - tA;
-      const idA = (a as any).latest_txn_id || Number(a.latest_record_id || a.record_id || a.id) || 0;
-      const idB = (b as any).latest_txn_id || Number(b.latest_record_id || b.record_id || b.id) || 0;
+      const idA = (a as any)?.latest_txn_id || Number(a?.latest_record_id || a?.record_id || a?.id) || 0;
+      const idB = (b as any)?.latest_txn_id || Number(b?.latest_record_id || b?.record_id || b?.id) || 0;
       return idB - idA;
     });
   }, [useServerData, serverCustomers, uniqueCustomersList, startIdx, itemsPerPage, records]);
@@ -1057,10 +1060,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                     <CustomerDirectoryCard
                       key={c.id || `dir-${idx}`}
                       customer={c}
-                      isSelected={c.id ? selectedIds.some(sid => String(sid) === String(c.id)) : false}
+                      isSelected={c.id ? (Array.isArray(selectedIds) ? selectedIds : []).some(sid => String(sid) === String(c.id)) : false}
                       isFullyRevealed={isFullyRevealed}
                       isPIIMasked={isPIIMasked}
-                      staffList={staff}
+                      staffList={Array.isArray(staff) ? staff : []}
                       canEdit={canEditCustomer}
                       canDelete={canDeleteCustomer}
                       onSelect={handleSelectRow}
@@ -1084,7 +1087,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           <div className="p-3">
             <VirtualizedRecordTable
               records={filteredRecords}
-              selectedIds={selectedIds}
+              selectedIds={Array.isArray(selectedIds) ? selectedIds : []}
               onSelectRow={handleSelectRow}
               onSelectAll={(selected) => {
                 if (selected) {
@@ -1108,9 +1111,9 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         ) : (
           /* ================= VIEW 3: BẢNG QUẢN LÝ THÔNG TIN KHÁCH HÀNG (TABLE VIEW) ================= */
           <CustomerTableView
-            customers={paginatedCustomers}
-            selectedIds={selectedIds}
-            staffList={staff}
+            customers={Array.isArray(paginatedCustomers) ? paginatedCustomers.filter(Boolean) : []}
+            selectedIds={Array.isArray(selectedIds) ? selectedIds : []}
+            staffList={Array.isArray(staff) ? staff : []}
             onSelectAll={handleSelectAll}
             onSelectRow={handleSelectRow}
             renderCustomerPII={renderCustomerPII}

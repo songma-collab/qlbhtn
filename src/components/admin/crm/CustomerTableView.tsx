@@ -55,6 +55,10 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
   onEditClick,
   onDeleteClick,
 }) => {
+  const safeStaffList = Array.isArray(staffList) ? staffList : [];
+  const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
+  const safeCustomers = Array.isArray(customers) ? customers.filter(Boolean) : [];
+
   return (
     <>
       {/* Desktop Table View */}
@@ -65,7 +69,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               <th className="p-4 w-12 text-center">
                 <input 
                   type="checkbox" 
-                  checked={customers.length > 0 && customers.every(c => c.id && selectedIds.some(sid => String(sid) === String(c.id)))}
+                  checked={safeCustomers.length > 0 && safeCustomers.every(c => c?.id && safeSelectedIds.some(sid => String(sid) === String(c.id)))}
                   onChange={onSelectAll}
                   className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
                 />
@@ -81,7 +85,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
-            {customers.map((r, index) => {
+            {safeCustomers.map((r, index) => {
+              if (!r) return null;
               const rawCccd = r.cccd || '';
               const rawBhxh = r.bhxh || '';
               const rawPhone = r.phone || '';
@@ -90,7 +95,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
               const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
-              const assignedStaff = staffList.find(s => s.id === (r.staff_id || r.staffId));
+              const assignedStaff = safeStaffList.find(s => s && s.id === (r.staff_id || r.staffId));
 
               const fromM = r.from_month || r.fromMonth || '';
               const toM = r.to_month || r.toMonth || '';
@@ -108,13 +113,13 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                 <tr 
                   key={r.id || `row-${index}`} 
                   className={`hover:bg-slate-50/80 transition border-b border-slate-100 ${
-                    r.id && selectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : ''
+                    r.id && safeSelectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : ''
                   }`}
                 >
                   <td className="p-4 text-center">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false}
+                      checked={r.id ? safeSelectedIds.some(sid => String(sid) === String(r.id)) : false}
                       onChange={() => r.id && onSelectRow(r.id)}
                       disabled={!r.id}
                       className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
@@ -315,12 +320,13 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
 
       {/* Mobile Cards View */}
       <div className="md:hidden divide-y divide-slate-100">
-        {customers.length === 0 ? (
+        {safeCustomers.length === 0 ? (
           <div className="p-8 text-center text-slate-500">
             Không tìm thấy hồ sơ nào phù hợp.
           </div>
         ) : (
-          customers.map((r, index) => {
+          safeCustomers.map((r, index) => {
+            if (!r) return null;
             const rawCccd = r.cccd || '';
             const rawBhxh = r.bhxh || '';
             const rawPhone = r.phone || '';
@@ -341,18 +347,18 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             }
             const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
-            const assignedStaff = staffList.find(s => s.id === (r.staff_id || r.staffId));
+            const assignedStaff = safeStaffList.find(s => s && s.id === (r.staff_id || r.staffId));
 
             return (
               <div 
                 key={r.id || `mob-${index}`} 
-                className={`p-4 ${r.id && selectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : 'bg-white'}`}
+                className={`p-4 ${r.id && safeSelectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : 'bg-white'}`}
               >
                 <div className="flex justify-between items-start mb-2.5">
                   <div className="flex items-start gap-2.5">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false}
+                      checked={r.id ? safeSelectedIds.some(sid => String(sid) === String(r.id)) : false}
                       onChange={() => r.id && onSelectRow(r.id)}
                       className="mt-1 w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
                     />

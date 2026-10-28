@@ -294,10 +294,10 @@ describe('Giai đoạn 4: Kiểm thử Hiệu năng Mở rộng Quy mô lớn & 
 
       // Kiểm tra tính nhất quán từng dòng
       for (let i = 0; i < syncResult.records.length; i++) {
-        expect(asyncResult.records[i].name).toBe(syncResult.records[i].name);
-        expect(asyncResult.records[i].cccd).toBe(syncResult.records[i].cccd);
-        expect(asyncResult.records[i].amount).toBe(syncResult.records[i].amount);
-        expect(asyncResult.records[i].months).toBe(syncResult.records[i].months);
+        expect(asyncResult.records[i]?.name).toBe(syncResult.records[i]?.name);
+        expect(asyncResult.records[i]?.cccd).toBe(syncResult.records[i]?.cccd);
+        expect(asyncResult.records[i]?.amount).toBe(syncResult.records[i]?.amount);
+        expect(asyncResult.records[i]?.months).toBe(syncResult.records[i]?.months);
       }
     });
 

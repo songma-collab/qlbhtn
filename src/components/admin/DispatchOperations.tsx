@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord } from '../../utils/helpers';
-import { recordService, auditService } from '../../services';
+import { recordService, auditService, customerService } from '../../services';
 import {
   Users,
   AlertTriangle,
@@ -37,6 +37,8 @@ import { filterRenewalDispatchCustomers } from '../../utils/customerStatus';
 
 interface CustomerItem {
   id: number | string;
+  customer_key?: string;
+  customerKey?: string;
   name: string;
   phone: string;
   cccd: string;

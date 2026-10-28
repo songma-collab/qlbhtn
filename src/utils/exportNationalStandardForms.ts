@@ -596,7 +596,7 @@ export const exportD05TSStandardExcel = async ({
       return `Tháng ${nowVN.getMonth() + 1} năm ${nowVN.getFullYear()}`;
     }
     const match = period.match(/(?:Tháng\s*)?0?(\d{1,2})[/-](\d{4})/i);
-    if (match) {
+    if (match && match[1] && match[2]) {
       return `Tháng ${parseInt(match[1], 10)} năm ${match[2]}`;
     }
     return period;
@@ -822,7 +822,7 @@ export const exportD05TSStandardExcel = async ({
   }
 
   // Hàng TỔNG CỘNG: Col 0..9 merged, Col 10..19 các cột số
-  const rowTotal = Array(20).fill(null).map(() => ({ v: '', s: totalStyle }));
+  const rowTotal: Array<{ v: string | number; s: any }> = Array(20).fill(null).map(() => ({ v: '', s: totalStyle }));
   rowTotal[0] = { v: 'TỔNG CỘNG', s: totalStyle };
   rowTotal[10] = { v: totalBasePremium, s: totalNumberStyle };
   rowTotal[11] = { v: totalAmount, s: totalNumberStyle };

@@ -338,7 +338,7 @@ describe('Kiểm thử Toàn diện Cơ chế Cài đặt Tỷ lệ Hoa hồng �
         amount: 1000000,
         date: '2026-01-15'
       };
-      expect(getCommissionRateForRecord(newRec, legacyPolicies)).toBe(0.05);
+      expect(getCommissionRateForRecord(newRec, legacyPolicies, null)).toBe(0.05);
 
       const renewRec: Partial<RecordType> = {
         type: 'BHXH',
@@ -347,7 +347,7 @@ describe('Kiểm thử Toàn diện Cơ chế Cài đặt Tỷ lệ Hoa hồng �
         amount: 6000000,
         date: '2026-01-15'
       };
-      expect(getCommissionRateForRecord(renewRec, legacyPolicies)).toBe(0.03);
+      expect(getCommissionRateForRecord(renewRec, legacyPolicies, null)).toBe(0.03);
     });
   });
 });

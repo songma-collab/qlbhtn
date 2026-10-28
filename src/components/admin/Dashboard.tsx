@@ -403,8 +403,8 @@ const Dashboard: React.FC = () => {
       return rDate.startsWith(selectedMonth);
     });
 
-    const bhxhAdj = monthAdjustments.filter(r => r.type === 'BHXH').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
-    const bhytAdj = monthAdjustments.filter(r => r.type === 'BHYT').reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    const bhxhAdj = monthAdjustments.filter((r: RecordType) => r.type === 'BHXH').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
+    const bhytAdj = monthAdjustments.filter((r: RecordType) => r.type === 'BHYT').reduce((sum: number, r: RecordType) => sum + (Number(r.amount) || 0), 0);
 
     const typeMixData = [
       {

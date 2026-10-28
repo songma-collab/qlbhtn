@@ -99,6 +99,7 @@ export interface AppContextType {
   updateSettings: (settings: Partial<SettingsType>) => Promise<boolean>;
   setSettings: (settings: Partial<SettingsType>) => Promise<boolean>;
   addAuditLog: (action: string, details: string) => Promise<void>;
+  refreshAdminData?: () => Promise<void>;
 
   toastMessage: string | null;
   toastConfig: ToastConfig | null;
@@ -300,6 +301,7 @@ const AppContextFacadeBridge: React.FC<{ children: ReactNode }> = ({ children })
     updateSettings: admin.updateSettings,
     setSettings: admin.setSettings,
     addAuditLog: admin.addAuditLog,
+    refreshAdminData: admin.refreshAdminData,
     isAuthReady: admin.isAuthReady,
 
     // UIContext
