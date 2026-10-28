@@ -28,7 +28,7 @@ import {
   formatMonthToISO,
   formatMonthToVN
 } from '../../utils/dateFormatter';
-import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths } from '../../utils/calculations';
+import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths, getEffectiveCommissionConfig } from '../../utils/calculations';
 import { X, Check, Clock, ShieldCheck } from 'lucide-react';
 import { recordService, customerService } from '../../services';
 import { callPublicPortal } from '../../utils/publicPortal';
@@ -103,24 +103,10 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
   const [bhxhActionType, setBhxhActionType] = useState<'Tăng mới' | 'Gia hạn'>('Gia hạn');
 
   const commRates = useMemo(() => {
-    const defaultObj = {
-      commBHXHNew: settings?.commBHXHNew || 5,
-      commBHXHRenew: settings?.commBHXHRenew || 3,
-      commBHYTNew: settings?.commBHYTNew || 5,
-      commBHYTRenew: settings?.commBHYTRenew || 3
-    };
-    const dateStr = getLocalYYYYMMDD();
-    const commObjRaw = getPolicyValueForDate(policies, 'commission', dateStr, defaultObj);
-    let commObj = defaultObj;
-    if (commObjRaw) {
-      if (typeof commObjRaw === 'object') commObj = commObjRaw;
-      else if (typeof commObjRaw === 'string') {
-        try { commObj = JSON.parse(commObjRaw); } catch { commObj = defaultObj; }
-      }
-    }
+    const config = getEffectiveCommissionConfig(policies, settings);
     return {
-      commBHXHNewPct: Number(commObj.commBHXHNew) || 5,
-      commBHXHRenewPct: Number(commObj.commBHXHRenew) || 3
+      commBHXHNewPct: config.commBHXHNew12M,
+      commBHXHRenewPct: config.commBHXHRenew
     };
   }, [policies, settings]);
 

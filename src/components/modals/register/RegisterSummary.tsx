@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ReceiptText, QrCode, Copy, Check, ChevronDown, ChevronUp, CalendarClock } from 'lucide-react';
-import { formatMoney } from '../../../utils/helpers';
+import { formatMoney, parseMonthISO, getLocalYYYYMMDD } from '../../../utils/helpers';
 import { useAppContext } from '../../../context/AppContext';
 import {
   DEFAULT_VIETQR_CONFIG,
@@ -9,7 +9,7 @@ import {
   VietQRConfig
 } from '../../../utils/vietqr';
 import { getStoredVietQRConfig } from '../../../utils/settingsHelper';
-import { getCommissionRateForRecord } from '../../../utils/calculations';
+import { getCommissionRateForRecord, getCommissionBreakdownForRecord } from '../../../utils/calculations';
 
 interface RegisterSummaryProps {
   type: 'BHXH' | 'BHYT';
@@ -218,32 +218,61 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
             {formatMoney(totalAmount)}
           </span>
         </div>
-        {type === 'BHXH' && appContext?.currentUser && (() => {
+        {appContext?.currentUser && (() => {
+          const simMonths = type === 'BHXH'
+            ? (bhxhCalc?.method === 'post_custom'
+                ? (Number(bhxhCalc.customMonths) || 1)
+                : (typeof bhxhCalc?.method === 'string' && bhxhCalc.method.startsWith('pre_')
+                    ? (parseInt(bhxhCalc.method.split('_')[1] || '1', 10) || 1)
+                    : (parseInt(String(bhxhCalc?.method || '1'), 10) || 1)))
+            : (Number(bhytCalc?.duration) || 12);
+
+          const rawIso = bhxhCalc?.fromMonth ? parseMonthISO(bhxhCalc.fromMonth) : '';
+          const simDate = (type === 'BHXH' && rawIso && rawIso.length >= 7)
+            ? `${rawIso}-01`
+            : getLocalYYYYMMDD();
+
+          const simActionType = type === 'BHXH'
+            ? (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới'))
+            : (isRenew ? 'Gia hạn' : 'Tăng mới');
+
           const simRecord = {
-            type: 'BHXH' as const,
-            action_type: (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')),
-            actionType: (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')),
-            months: bhxhCalc.customMonths || 1,
-            amount: totalAmount
+            type,
+            action_type: simActionType,
+            actionType: simActionType,
+            months: simMonths,
+            method: type === 'BHXH' ? bhxhCalc?.method : String(simMonths),
+            amount: totalAmount,
+            date: simDate
           };
-          const rateDec = getCommissionRateForRecord(simRecord, appContext?.policies, appContext?.settings);
-          const effectiveRate = Math.round(rateDec * 10000) / 100;
-          const estimatedComm = Math.round(totalAmount * rateDec);
+
+          const breakdown = getCommissionBreakdownForRecord(simRecord, appContext?.policies, appContext?.settings);
+          const effectiveRate = breakdown.effectiveRatePct;
+          const estimatedComm = breakdown.totalCommission;
+
           return (
-            <div className="flex justify-between items-center text-xs text-blue-900 bg-blue-50/90 px-3 py-2 rounded-xl border border-blue-200 shadow-2xs">
-              <span className="font-semibold flex items-center gap-1.5">
-                <span>Hoa hồng đại lý</span>
-                <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
-                  (bhxhActionType || (isRenew ? 'Gia hạn' : 'Tăng mới')) === 'Tăng mới'
-                    ? 'bg-emerald-100 text-emerald-800'
-                    : 'bg-amber-100 text-amber-900'
-                }`}>
-                  {effectiveRate}%
+            <div className="flex flex-col gap-1 text-xs text-blue-900 bg-blue-50/90 px-3 py-2 rounded-xl border border-blue-200 shadow-2xs">
+              <div className="flex justify-between items-center">
+                <span className="font-semibold flex items-center gap-1.5">
+                  <span>Hoa hồng đại lý</span>
+                  <span className={`px-1.5 py-0.5 rounded font-bold text-[10px] ${
+                    simActionType === 'Tăng mới'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-amber-100 text-amber-900'
+                  }`}>
+                    {effectiveRate}%
+                  </span>
                 </span>
-              </span>
-              <span className="font-black text-[#004182] text-sm">
-                {formatMoney(estimatedComm)}
-              </span>
+                <span className="font-black text-[#004182] text-sm">
+                  {formatMoney(estimatedComm)}
+                </span>
+              </div>
+              {breakdown.isMultiStage && (
+                <div className="text-[11px] text-blue-700/80 font-medium flex justify-between items-center pt-1 border-t border-blue-200/50">
+                  <span>Phân kỳ hoa hồng ({simMonths} tháng):</span>
+                  <span>12T đầu {breakdown.stage1RatePct}% + {breakdown.stage2Months}T sau {breakdown.stage2RatePct}%</span>
+                </div>
+              )}
             </div>
           );
         })()}
