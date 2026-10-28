@@ -176,15 +176,22 @@ export const customerService = {
   },
 
   /**
-   * Cập nhật trạng thái khách hàng trong bảng customers
+   * Cập nhật trạng thái khách hàng trong bảng customers (hỗ trợ customer_key, UUID id, CCCD, BHXH)
    */
-  async updateCustomerStatus(customerKey: string, status: string): Promise<{ success: boolean; error: Error | null }> {
+  async updateCustomerStatus(customerKeyOrId: string, status: string): Promise<{ success: boolean; error: Error | null }> {
     try {
-      const { error } = await supabase
-        .from('customers')
-        .update({ status, updated_at: new Date().toISOString() })
-        .eq('customer_key', customerKey);
+      const trimmed = (customerKeyOrId || '').trim();
+      if (!trimmed) return { success: false, error: new Error('Mã khách hàng không hợp lệ') };
 
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
+      let query = supabase.from('customers').update({ status, updated_at: new Date().toISOString() });
+      if (isUuid) {
+        query = query.eq('id', trimmed);
+      } else {
+        query = query.or(`customer_key.eq.${trimmed},cccd.eq.${trimmed},bhxh.eq.${trimmed}`);
+      }
+
+      const { error } = await query;
       if (error) throw error;
       return { success: true, error: null };
     } catch (err: any) {
@@ -545,35 +552,64 @@ export const customerService = {
   },
 
   /**
-   * Phân công cán bộ thu cho danh sách khách hàng
+   * Phân công cán bộ thu cho danh sách khách hàng (hỗ trợ cả UUID, customer_key, CCCD, BHXH)
    */
   async assignStaffToCustomers(customerKeys: string[], staffId: string | null): Promise<number> {
     if (!customerKeys || customerKeys.length === 0) return 0;
     try {
-      const { data, error } = await supabase
-        .from('customers')
-        .update({
-          staff_id: staffId || null,
-          updated_at: new Date().toISOString()
-        })
-        .in('customer_key', customerKeys)
-        .select('id');
+      const cleanKeys = Array.from(new Set(customerKeys.map(k => (k || '').trim()).filter(Boolean)));
+      if (cleanKeys.length === 0) return 0;
 
-      if (!error && data) return data.length;
+      const uuids = cleanKeys.filter(k => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k));
+      const nonUuids = cleanKeys.filter(k => !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(k));
 
-      let totalUpdated = 0;
-      for (const cKey of customerKeys) {
-        const { error: singleErr } = await supabase
+      let updatedCount = 0;
+
+      if (uuids.length > 0) {
+        const { data: uuidData, error: uuidErr } = await supabase
           .from('customers')
           .update({
             staff_id: staffId || null,
             updated_at: new Date().toISOString()
           })
-          .or(`customer_key.eq.${cKey},cccd.eq.${cKey},bhxh.eq.${cKey},phone.eq.${cKey}`);
-
-        if (!singleErr) totalUpdated++;
+          .in('id', uuids)
+          .select('id');
+        if (!uuidErr && uuidData) {
+          updatedCount += uuidData.length;
+        }
       }
-      return totalUpdated;
+
+      if (nonUuids.length > 0) {
+        const { data, error } = await supabase
+          .from('customers')
+          .update({
+            staff_id: staffId || null,
+            updated_at: new Date().toISOString()
+          })
+          .in('customer_key', nonUuids)
+          .select('id');
+
+        if (!error && data && data.length > 0) {
+          updatedCount += data.length;
+        } else {
+          for (const cKey of nonUuids) {
+            const { data: singleData, error: singleErr } = await supabase
+              .from('customers')
+              .update({
+                staff_id: staffId || null,
+                updated_at: new Date().toISOString()
+              })
+              .or(`customer_key.eq.${cKey},cccd.eq.${cKey},bhxh.eq.${cKey},phone.eq.${cKey}`)
+              .select('id');
+
+            if (!singleErr && singleData) {
+              updatedCount += singleData.length;
+            }
+          }
+        }
+      }
+
+      return updatedCount;
     } catch (err) {
       console.warn('[CustomerService] assignStaffToCustomers error:', err);
       return 0;

@@ -6,8 +6,8 @@ import { STOP_CONTRIBUTION_REASONS, type CustomerStatus } from '../../utils/cust
 interface CustomerStatusModalProps {
   isOpen: boolean;
   onClose: () => void;
-  record: RecordType | null;
-  onConfirm: (recordId: number, newStatus: CustomerStatus, reason: string) => Promise<boolean | void>;
+  record: any | null;
+  onConfirm: (recordId: number | string, newStatus: CustomerStatus, reason: string, customerMeta?: any) => Promise<boolean | void>;
 }
 
 export const CustomerStatusModal: React.FC<CustomerStatusModalProps> = ({
@@ -42,7 +42,7 @@ export const CustomerStatusModal: React.FC<CustomerStatusModalProps> = ({
       const reasonToLog = newStatus === 'Đã dừng đóng' 
         ? finalReason 
         : (customReason.trim() || 'Khách hàng quay lại đóng tiếp');
-      await onConfirm(record.id, newStatus, reasonToLog);
+      await onConfirm(record.latest_record_id || record.id, newStatus, reasonToLog, record);
       onClose();
     } catch (err: any) {
       setErrorMsg(err.message || 'Có lỗi xảy ra khi cập nhật trạng thái.');

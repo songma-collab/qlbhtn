@@ -68,7 +68,7 @@ export interface AppContextType {
   addRecord: (record: Omit<RecordType, 'id'>) => Promise<RecordType | null>;
   bulkPutRecords: (records: RecordType[]) => Promise<boolean>;
   updateRecord: (id: number, record: Partial<RecordType>) => Promise<boolean>;
-  updateCustomerStatus: (recordId: number, newStatus: CustomerStatus, reason?: string | undefined) => Promise<boolean>;
+  updateCustomerStatus: (recordId: number | string, newStatus: CustomerStatus, reason?: string | undefined, customerMeta?: any) => Promise<boolean>;
   updateCustomerParticipation: (
     targetIdOrKey: string,
     data: {

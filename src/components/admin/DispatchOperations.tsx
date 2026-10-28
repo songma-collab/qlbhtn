@@ -280,7 +280,9 @@ const DispatchOperations: React.FC = () => {
   // Toggle Selection
   const handleToggleSelect = (id: number | string) => {
     setSelectedIds(prev => 
-      prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id]
+      prev.some(item => String(item) === String(id))
+        ? prev.filter(item => String(item) !== String(id))
+        : [...prev, id]
     );
   };
 
@@ -311,6 +313,19 @@ const DispatchOperations: React.FC = () => {
 
       // Update qua recordService
       await recordService.assignStaffToRecords(selectedIds, targetStaffId);
+
+      // Đồng thời đồng bộ vào bảng customers
+      const selectedCustomers = paginatedList.filter(c => selectedIds.some(sid => String(sid) === String(c.id)));
+      const targetCustomerKeys = Array.from(
+        new Set(
+          selectedCustomers
+            .flatMap(c => [c.customer_key, c.customerKey, c.cccd, c.bhxh, typeof c.id === 'string' ? c.id : null])
+            .filter(Boolean) as string[]
+        )
+      );
+      if (targetCustomerKeys.length > 0) {
+        await customerService.assignStaffToCustomers(targetCustomerKeys, targetStaffId);
+      }
 
       await addAuditLog('Bulk Dispatch Reassignment', `Đã điều phối ${selectedIds.length} khách hàng cho cán bộ ${staffName}`);
 
@@ -799,7 +814,7 @@ const DispatchOperations: React.FC = () => {
               onClick={handleSelectAll}
               className="flex items-center gap-2 text-xs font-bold text-slate-700 hover:text-[#004182] transition cursor-pointer"
             >
-              {selectedIds.length > 0 && selectedIds.length === paginatedList.length ? (
+              {selectedIds.length > 0 && paginatedList.length > 0 && paginatedList.every(c => c.id && selectedIds.some(sid => String(sid) === String(c.id))) ? (
                 <CheckSquare className="w-4 h-4 text-[#004182]" />
               ) : (
                 <Square className="w-4 h-4 text-slate-400" />
@@ -846,7 +861,7 @@ const DispatchOperations: React.FC = () => {
               ) : (
                 paginatedList.map(c => {
                   const staffObj = staff.find(s => s.id === c.staffId);
-                  const isSelected = selectedIds.includes(c.id);
+                  const isSelected = selectedIds.some(sid => String(sid) === String(c.id));
 
                   return (
                     <tr key={c.id} className={`hover:bg-slate-50/80 transition ${isSelected ? 'bg-blue-50/50' : ''}`}>

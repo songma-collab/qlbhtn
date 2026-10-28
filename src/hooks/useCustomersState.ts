@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import type { CustomerType, RecordType } from '../context/types';
 import type { CustomerStatus } from '../utils/customerStatus';
+import { supabase } from '../lib/supabase';
 import { customerService } from '../services/customerService';
 import { recordService } from '../services/recordService';
 
@@ -44,42 +45,91 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
   }, [currentUser?.id, isAdmin]);
 
   const updateCustomerStatus = useCallback(async (
-    recordId: number, 
+    targetIdOrKey: number | string, 
     newStatus: CustomerStatus, 
-    reason?: string
+    reason?: string,
+    customerMeta?: any
   ): Promise<boolean> => {
     try {
-      const targetRecord = recordsLive.find(r => r.id === recordId);
-      if (!targetRecord) {
+      const strId = String(targetIdOrKey || '').trim();
+      const numId = Number(targetIdOrKey);
+      const isNumIdValid = !isNaN(numId) && numId > 0;
+      
+      const metaKey = (customerMeta?.customer_key || customerMeta?.customerKey || '').trim();
+      const metaCccd = (customerMeta?.cccd || '').replace(/\D/g, '');
+      const metaBhxh = (customerMeta?.bhxh || '').replace(/\D/g, '');
+      const metaName = customerMeta?.name || '';
+      const metaLatestRecId = customerMeta?.latest_record_id || customerMeta?.latestRecordId;
+
+      // 1. Tìm bản ghi tương ứng trong recordsLive
+      const targetRecord = recordsLive.find(r => {
+        if (isNumIdValid && r.id === numId) return true;
+        if (metaLatestRecId && r.id === Number(metaLatestRecId)) return true;
+        if (metaKey && ((r.customer_key && r.customer_key === metaKey) || ((r as any).customerKey && (r as any).customerKey === metaKey))) return true;
+        if (metaCccd && r.cccd && r.cccd.replace(/\D/g, '') === metaCccd) return true;
+        if (metaBhxh && r.bhxh && r.bhxh.replace(/\D/g, '') === metaBhxh) return true;
+        if (strId && (
+          (r.customer_key && r.customer_key === strId) || 
+          ((r as any).customerKey && (r as any).customerKey === strId) ||
+          (r.cccd && r.cccd.replace(/\D/g, '') === strId.replace(/\D/g, '')) ||
+          (r.bhxh && r.bhxh.replace(/\D/g, '') === strId.replace(/\D/g, ''))
+        )) return true;
+        return false;
+      });
+
+      // Nếu không có bất kỳ manh mối định danh nào
+      if (!targetRecord && !metaKey && !strId && !metaCccd && !metaBhxh) {
         showAlert?.('Không tìm thấy', 'Không tìm thấy hồ sơ khách hàng cần đổi trạng thái.');
         return false;
       }
 
       const todayStr = new Date().toISOString().split('T')[0];
       const reasonText = reason?.trim() ? ` [Lý do: ${reason.trim()}]` : '';
-      const existingNotes = targetRecord.notes || '';
-      const updatedNotes = existingNotes 
-        ? `${existingNotes}\n[${todayStr}] Đổi trạng thái -> ${newStatus}${reasonText}`
-        : `[${todayStr}] Đổi trạng thái -> ${newStatus}${reasonText}`;
 
-      const { error: recErr } = await recordService.updateRecordStatusAndNotes(recordId, newStatus, updatedNotes);
-      if (recErr) throw recErr;
+      // 2. Cập nhật bảng records
+      if (targetRecord) {
+        const existingNotes = targetRecord.notes || '';
+        const updatedNotes = existingNotes 
+          ? `${existingNotes}\n[${todayStr}] Đổi trạng thái -> ${newStatus}${reasonText}`
+          : `[${todayStr}] Đổi trạng thái -> ${newStatus}${reasonText}`;
 
-      const customerKey = (targetRecord as any).customer_key || (targetRecord as any).customerKey;
-      if (customerKey) {
+        const { error: recErr } = await recordService.updateRecordStatusAndNotes(targetRecord.id, newStatus, updatedNotes);
+        if (recErr) throw recErr;
+      } else {
+        // Cập nhật tất cả bản ghi tương ứng trong CSDL records nếu có customerKey hoặc CCCD/BHXH
+        const filterKey = metaKey || (strId.includes('-') ? '' : strId);
+        if (filterKey || metaCccd || metaBhxh) {
+          const orConditions: string[] = [];
+          if (filterKey) orConditions.push(`customer_key.eq.${filterKey}`);
+          if (metaCccd) orConditions.push(`cccd.eq.${metaCccd}`);
+          if (metaBhxh) orConditions.push(`bhxh.eq.${metaBhxh}`);
+          if (orConditions.length > 0) {
+            await supabase
+              .from('records')
+              .update({ status: newStatus, updated_at: new Date().toISOString() })
+              .or(orConditions.join(','));
+          }
+        }
+      }
+
+      // 3. Đồng bộ trạng thái vào bảng danh bạ trung tâm (customers master)
+      const customerLookupKey = metaKey || (strId.includes('-') ? strId : (metaCccd || metaBhxh || strId));
+      if (customerLookupKey) {
         try {
-          await customerService.updateCustomerStatus(customerKey, newStatus);
+          await customerService.updateCustomerStatus(customerLookupKey, newStatus);
         } catch (syncErr) {
           console.warn('[useCustomersState] Failed to sync status to customer master:', syncErr);
         }
       }
 
+      // 4. Cập nhật state nội bộ và thông báo
       await fetchCustomers();
       onCustomerChanged?.();
 
+      const customerDisplayName = metaName || targetRecord?.name || 'Khách hàng';
       addAuditLog?.(
         'Đổi trạng thái khách hàng',
-        `Chuyển trạng thái khách hàng "${targetRecord.name}" sang "${newStatus}".${reasonText}`
+        `Chuyển trạng thái khách hàng "${customerDisplayName}" sang "${newStatus}".${reasonText}`
       );
       return true;
     } catch (error: any) {

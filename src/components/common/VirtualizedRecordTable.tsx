@@ -7,18 +7,18 @@ import { RecordType } from '../../context/types';
 
 interface VirtualizedRecordTableProps {
   records: RecordType[];
-  selectedIds: number[];
-  onSelectRow: (id: number) => void;
+  selectedIds: (number | string)[];
+  onSelectRow: (id: number | string) => void;
   onSelectAll: (selected: boolean) => void;
   onStatusClick: (record: RecordType) => void;
   onParticipationClick?: ((record: RecordType) => void) | undefined;
   onViewHistory: (record: RecordType) => void;
   onVietQrClick: (record: RecordType) => void;
-  onAssignClick: (id: number) => void;
+  onAssignClick: (id: number | string) => void;
   onCopyZalo: (record: RecordType) => void;
   onExtendClick: (record: RecordType) => void;
   onEditClick: (record: RecordType) => void;
-  onDeleteClick: (id: number) => void;
+  onDeleteClick: (id: number | string) => void;
   currentUserRole?: string | undefined;
 }
 
@@ -47,7 +47,7 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
     overscan: 10,
   });
 
-  const allSelected = records.length > 0 && records.every(r => r.id && selectedIds.includes(r.id));
+  const allSelected = records.length > 0 && records.every(r => r.id && selectedIds.some(sid => String(sid) === String(r.id)));
 
   if (records.length === 0) {
     return (
@@ -93,7 +93,7 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const r = records[virtualRow.index];
             if (!r) return null;
-            const isSelected = r.id ? selectedIds.includes(r.id) : false;
+            const isSelected = r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false;
             const rawCccd = r.cccd || r.bhxh || '';
 
             return (

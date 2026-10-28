@@ -599,6 +599,27 @@ export const recordService = {
     } catch (err) {
       console.warn('[RecordService] assignStaffToRecords error:', err);
     }
+  },
+
+  /**
+   * Phân công cán bộ thu cho hồ sơ theo mã khách hàng / CCCD / BHXH
+   */
+  async assignStaffToRecordsByCustomerKeys(customerKeys: string[], staffId: string | null): Promise<void> {
+    if (!customerKeys || customerKeys.length === 0) return;
+    try {
+      const cleanKeys = Array.from(new Set(customerKeys.map(k => (k || '').trim()).filter(Boolean)));
+      if (cleanKeys.length === 0) return;
+
+      await supabase
+        .from('records')
+        .update({
+          staff_id: staffId || null,
+          updated_at: new Date().toISOString()
+        })
+        .in('customer_key', cleanKeys);
+    } catch (err) {
+      console.warn('[RecordService] assignStaffToRecordsByCustomerKeys error:', err);
+    }
   }
 };
 

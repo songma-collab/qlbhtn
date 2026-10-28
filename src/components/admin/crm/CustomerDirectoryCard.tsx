@@ -1,5 +1,5 @@
 import React from 'react';
-import { Phone, Eye, EyeOff, History, QrCode, Copy, RefreshCw, Edit, Trash2 } from 'lucide-react';
+import { Phone, Eye, EyeOff, History, QrCode, Copy, RefreshCw, Edit, Trash2, UserCheck } from 'lucide-react';
 import { CustomerParticipationBadge, CustomerStatusBadge } from '../../common/CustomerStatusBadge';
 import { formatDateVN, formatMonthVN, calculateNextPaymentFromToMonth } from '../../../utils/helpers';
 
@@ -8,6 +8,7 @@ export interface CustomerDirectoryCardProps {
   isSelected: boolean;
   isFullyRevealed: boolean;
   isPIIMasked?: boolean;
+  staffList?: any[];
   canEdit: boolean;
   canDelete: boolean;
   onSelect: (id: number | string) => void;
@@ -27,6 +28,7 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   isSelected,
   isFullyRevealed,
   isPIIMasked = false,
+  staffList = [],
   canEdit,
   canDelete,
   onSelect,
@@ -43,6 +45,7 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   const rawCccd = c.cccd || '';
   const rawPhone = c.phone || '';
   const rawBhxh = c.bhxh || '';
+  const assignedStaff = staffList.find(s => s.id === (c.staff_id || c.staffId));
 
   const fromM = c.from_month || c.fromMonth || '';
   const toM = c.to_month || c.toMonth || '';
@@ -80,6 +83,12 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
                 <Phone size={11} className="text-slate-400 shrink-0" />
                 {renderPII(rawPhone, 'PHONE', c.id)}
               </p>
+              {assignedStaff && (
+                <div className="mt-1 text-[10px] text-purple-700 bg-purple-50/80 border border-purple-200 px-1.5 py-0.5 rounded inline-flex items-center gap-1 font-medium" title={`Cán bộ phụ trách: ${assignedStaff.name}`}>
+                  <UserCheck size={10} className="shrink-0 text-purple-600" />
+                  <span>NV: {assignedStaff.name}</span>
+                </div>
+              )}
             </div>
           </div>
 

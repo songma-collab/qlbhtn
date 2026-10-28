@@ -198,6 +198,11 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const [serverCustomers, setServerCustomers] = useState<any[]>([]);
   const [serverTotalCount, setServerTotalCount] = useState<number>(0);
   const [isServerLoading, setIsServerLoading] = useState<boolean>(false);
+  const [serverReloadTrigger, setServerReloadTrigger] = useState<number>(0);
+
+  const refreshServerData = useCallback(() => {
+    setServerReloadTrigger(prev => prev + 1);
+  }, []);
 
   useEffect(() => {
     let isSubscribed = true;
@@ -246,6 +251,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     filterState.customerStatus,
     filterState.customStartDate,
     filterState.customEndDate,
+    serverReloadTrigger,
   ]);
 
   const useServerData = serverSideMode && serverTotalCount > 0;
@@ -378,9 +384,9 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   const [isImporting, setIsImporting] = useState(false);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | string | null>(null);
 
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedIds, setSelectedIds] = useState<(number | string)[]>([]);
   const [isBulkDeleteConfirmOpen, setIsBulkDeleteConfirmOpen] = useState(false);
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignStaffId, setAssignStaffId] = useState('');
@@ -411,27 +417,34 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     setIsRegisterModalOpen(true);
   };
 
-  const confirmDelete = (id: number) => {
+  const confirmDelete = (id: number | string) => {
     setDeletingId(id);
     setIsConfirmOpen(true);
   };
 
   const executeDelete = async () => {
     if (deletingId) {
-      const recordToDelete = filteredRecords.find(r => r.id === deletingId);
+      const allCustomers = [
+        ...(serverCustomers || []),
+        ...(paginatedCustomers || []),
+        ...(filteredRecords || [])
+      ];
+      const recordToDelete = allCustomers.find(r => r && String(r.id) === String(deletingId));
       if (recordToDelete) {
         const customerKey = (recordToDelete.customer_key || recordToDelete.customerKey || recordToDelete.cccd || recordToDelete.bhxh || recordToDelete.phone || '').trim();
         let success = false;
         if (customerKey) {
           success = await deleteCustomer(customerKey);
         }
-        if (!success && recordToDelete.id) {
+        if (!success && recordToDelete.id && typeof recordToDelete.id === 'number') {
           success = await deleteRecord(recordToDelete.id);
         }
 
         if (success) {
           addAuditLog('Xóa hồ sơ khách hàng', `Đã xóa khách hàng ${recordToDelete.name} và lịch sử giao dịch liên quan`);
           showToast('Đã xóa hồ sơ khách hàng và các giao dịch liên quan!', 'success');
+          await refreshData();
+          refreshServerData();
         }
       }
       setIsConfirmOpen(false);
@@ -447,21 +460,33 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     if (isBulkDeleting) return;
     setIsBulkDeleting(true);
     try {
-      const recordsToDelete = filteredRecords.filter(r => selectedIds.includes(r.id));
+      const allCustomers = [
+        ...(serverCustomers || []),
+        ...(paginatedCustomers || []),
+        ...(filteredRecords || [])
+      ];
+      const recordsToDelete = allCustomers.filter(r => 
+        r && r.id && selectedIds.some(sid => String(sid) === String(r.id))
+      );
+      // Lọc các bản ghi duy nhất theo ID/Key
+      const uniqueRecordsToDelete = Array.from(
+        new Map(recordsToDelete.map(r => [String(r.id), r])).values()
+      );
+
       let successCount = 0;
       
-      for (const rec of recordsToDelete) {
-        const customerKey = rec.customer_key || rec.customerKey;
+      for (const rec of uniqueRecordsToDelete) {
+        const customerKey = rec.customer_key || rec.customerKey || rec.cccd || rec.bhxh;
         if (customerKey) {
           const ok = await deleteCustomer(customerKey);
           if (ok) successCount++;
         }
       }
 
-      if (successCount === 0 && recordsToDelete.length > 0) {
+      if (successCount === 0 && uniqueRecordsToDelete.length > 0) {
         const allIdsToDelete = new Set<number>();
-        for (const recordToDelete of recordsToDelete) {
-          if (recordToDelete.id) allIdsToDelete.add(recordToDelete.id);
+        for (const recordToDelete of uniqueRecordsToDelete) {
+          if (typeof recordToDelete.id === 'number') allIdsToDelete.add(recordToDelete.id);
           (records || []).forEach(r => {
             if (r.id && (
               (recordToDelete.bhxh && r.bhxh === recordToDelete.bhxh) ||
@@ -473,8 +498,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           });
         }
         const idArray = Array.from(allIdsToDelete);
-        const ok = await bulkDeleteRecords(idArray);
-        if (ok) successCount = recordsToDelete.length;
+        if (idArray.length > 0) {
+          const ok = await bulkDeleteRecords(idArray);
+          if (ok) successCount = uniqueRecordsToDelete.length;
+        }
       }
 
       if (successCount > 0) {
@@ -483,6 +510,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         }
         setSelectedIds([]);
         showToast(`Đã xóa ${successCount} khách hàng thành công!`, 'success');
+        await refreshData();
+        refreshServerData();
       }
       setIsBulkDeleteConfirmOpen(false);
     } catch (err: any) {
@@ -493,7 +522,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     }
   };
 
-  const openAssignModal = (id?: number) => {
+  const openAssignModal = (id?: number | string) => {
     if (id) {
       setSelectedIds([id]);
     } else if (selectedIds.length === 0) {
@@ -507,12 +536,26 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     if (isAssigning || selectedIds.length === 0) return;
     setIsAssigning(true);
     try {
-      const selectedRecords = filteredRecords.filter(r => selectedIds.includes(r.id));
+      const allCustomers = [
+        ...(serverCustomers || []),
+        ...(paginatedCustomers || []),
+        ...(filteredRecords || [])
+      ];
+      const selectedRecords = allCustomers.filter(r => 
+        r && r.id && selectedIds.some(sid => String(sid) === String(r.id))
+      );
+      
       const targetCustomerKeys = Array.from(
         new Set(
           selectedRecords
-            .map(r => r.customer_key || r.customerKey || r.cccd || r.bhxh || r.phone)
-            .filter(Boolean)
+            .flatMap(r => [
+              r.customer_key,
+              r.customerKey,
+              r.cccd ? r.cccd.replace(/\D/g, '') : null,
+              r.bhxh ? r.bhxh.replace(/\D/g, '') : null,
+              typeof r.id === 'string' ? r.id : null
+            ])
+            .filter(Boolean) as string[]
         )
       );
 
@@ -520,15 +563,40 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       const staffName = staffTarget ? staffTarget.name : 'Chưa phân công';
 
       const totalUpdated = await customerService.assignStaffToCustomers(targetCustomerKeys, assignStaffId);
-      await recordService.assignStaffToRecords(selectedIds, assignStaffId);
+      
+      // Đồng thời cập nhật các bản ghi trong records table
+      const recordIdsToUpdate = new Set<number>();
+      selectedRecords.forEach(r => {
+        if (typeof r.id === 'number') recordIdsToUpdate.add(r.id);
+        if (r.latest_record_id && typeof r.latest_record_id === 'number') recordIdsToUpdate.add(r.latest_record_id);
+      });
+      (records || []).forEach(r => {
+        const matches = selectedRecords.some(sr => 
+          (sr.customer_key && (r.customer_key === sr.customer_key || (r as any).customerKey === sr.customer_key)) ||
+          (sr.cccd && r.cccd && r.cccd.replace(/\D/g, '') === sr.cccd.replace(/\D/g, '')) ||
+          (sr.bhxh && r.bhxh && r.bhxh.replace(/\D/g, '') === sr.bhxh.replace(/\D/g, ''))
+        );
+        if (matches && r.id) {
+          recordIdsToUpdate.add(r.id);
+        }
+      });
+      if (recordIdsToUpdate.size > 0) {
+        await recordService.assignStaffToRecords(Array.from(recordIdsToUpdate), assignStaffId);
+      }
+      if (targetCustomerKeys.length > 0) {
+        await recordService.assignStaffToRecordsByCustomerKeys(targetCustomerKeys, assignStaffId);
+      }
 
+      const reportCount = totalUpdated || selectedRecords.length;
       addAuditLog?.(
         'Phân công khách hàng',
-        `Đã phân công ${totalUpdated} khách hàng cho nhân viên: ${staffName}`
+        `Đã phân công ${reportCount} khách hàng cho nhân viên: ${staffName}`
       );
-      showToast(`Đã cập nhật phân công cho ${totalUpdated} khách hàng!`, 'success');
+      showToast(`Đã cập nhật phân công cho ${reportCount} khách hàng!`, 'success');
       setIsAssignModalOpen(false);
       setSelectedIds([]);
+      await refreshData();
+      refreshServerData();
     } catch (err: any) {
       console.error('Lỗi khi phân công nhân viên:', err);
       showAlert?.('Lỗi phân công', err.message || 'Không thể cập nhật nhân viên phụ trách', 'error');
@@ -539,9 +607,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const handleExportD03TS = async () => {
     try {
+      const allCustomers = useServerData ? serverCustomers : filteredRecords;
       const byhtRecords = selectedIds.length > 0
-        ? filteredRecords.filter(r => selectedIds.includes(r.id) && r.type === 'BHYT')
-        : filteredRecords.filter(r => r.type === 'BHYT');
+        ? allCustomers.filter(r => selectedIds.some(sid => String(sid) === String(r.id)) && r.type === 'BHYT')
+        : allCustomers.filter(r => r.type === 'BHYT');
 
       if (byhtRecords.length === 0) {
         if (selectedIds.length > 0) {
@@ -561,9 +630,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const handleExportD05TS = async () => {
     try {
+      const allCustomers = useServerData ? serverCustomers : filteredRecords;
       const bhxhRecords = selectedIds.length > 0
-        ? filteredRecords.filter(r => selectedIds.includes(r.id) && r.type === 'BHXH')
-        : filteredRecords.filter(r => r.type === 'BHXH');
+        ? allCustomers.filter(r => selectedIds.some(sid => String(sid) === String(r.id)) && r.type === 'BHXH')
+        : allCustomers.filter(r => r.type === 'BHXH');
 
       if (bhxhRecords.length === 0) {
         if (selectedIds.length > 0) {
@@ -582,9 +652,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   };
 
   const exportExcel = async () => {
+    const allCustomers = useServerData ? serverCustomers : filteredRecords;
     const targetRecords = selectedIds.length > 0
-      ? filteredRecords.filter(r => selectedIds.includes(r.id))
-      : filteredRecords;
+      ? allCustomers.filter(r => selectedIds.some(sid => String(sid) === String(r.id)))
+      : allCustomers;
 
     if (targetRecords.length === 0) {
       showAlert("Trống dữ liệu", "Không có dữ liệu nào để xuất ra file Excel vào lúc này.", "warning");
@@ -752,9 +823,11 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
   };
 
   const handleSelectRow = (id: string | number) => {
-    const numId = Number(id);
+    if (!id) return;
     setSelectedIds(prev => 
-      prev.includes(numId) ? prev.filter(item => item !== numId) : [...prev, numId]
+      prev.some(item => String(item) === String(id))
+        ? prev.filter(item => String(item) !== String(id))
+        : [...prev, id]
     );
   };
 
@@ -984,9 +1057,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                     <CustomerDirectoryCard
                       key={c.id || `dir-${idx}`}
                       customer={c}
-                      isSelected={c.id ? selectedIds.includes(c.id) : false}
+                      isSelected={c.id ? selectedIds.some(sid => String(sid) === String(c.id)) : false}
                       isFullyRevealed={isFullyRevealed}
                       isPIIMasked={isPIIMasked}
+                      staffList={staff}
                       canEdit={canEditCustomer}
                       canDelete={canDeleteCustomer}
                       onSelect={handleSelectRow}
@@ -1036,6 +1110,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           <CustomerTableView
             customers={paginatedCustomers}
             selectedIds={selectedIds}
+            staffList={staff}
             onSelectAll={handleSelectAll}
             onSelectRow={handleSelectRow}
             renderCustomerPII={renderCustomerPII}
@@ -1212,10 +1287,16 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           record={statusModalRecord}
           onConfirm={async (recId, newStatus, reason) => {
             if (updateCustomerStatus) {
-              await updateCustomerStatus(recId, newStatus, reason);
+              const success = await updateCustomerStatus(recId, newStatus, reason, statusModalRecord);
+              if (success) {
+                setStatusModalRecord(null);
+                showToast('Cập nhật trạng thái tham gia thành công!', 'success');
+                await refreshData();
+                refreshServerData();
+              }
+            } else {
+              setStatusModalRecord(null);
             }
-            setStatusModalRecord(null);
-            showToast('Cập nhật trạng thái tham gia thành công!', 'success');
           }}
         />
       )}

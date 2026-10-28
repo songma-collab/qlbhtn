@@ -9,6 +9,7 @@ import { CustomerStatusBadge, CustomerParticipationBadge } from '../../common/Cu
 interface CustomerTableViewProps {
   customers: any[];
   selectedIds: (number | string)[];
+  staffList?: any[];
   onSelectAll: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSelectRow: (id: number | string) => void;
   renderCustomerPII: (val: string | null | undefined, type: 'CCCD' | 'PHONE' | 'BHXH', id?: any) => React.ReactNode;
@@ -33,6 +34,7 @@ interface CustomerTableViewProps {
 export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
   customers,
   selectedIds,
+  staffList = [],
   onSelectAll,
   onSelectRow,
   renderCustomerPII,
@@ -63,7 +65,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               <th className="p-4 w-12 text-center">
                 <input 
                   type="checkbox" 
-                  checked={customers.length > 0 && selectedIds.length === customers.length}
+                  checked={customers.length > 0 && customers.every(c => c.id && selectedIds.some(sid => String(sid) === String(c.id)))}
                   onChange={onSelectAll}
                   className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
                 />
@@ -88,6 +90,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
               const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
+              const assignedStaff = staffList.find(s => s.id === (r.staff_id || r.staffId));
+
               const fromM = r.from_month || r.fromMonth || '';
               const toM = r.to_month || r.toMonth || '';
               const fromMStr = fromM ? formatMonthVN(fromM) : '';
@@ -104,13 +108,13 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                 <tr 
                   key={r.id || `row-${index}`} 
                   className={`hover:bg-slate-50/80 transition border-b border-slate-100 ${
-                    r.id && selectedIds.includes(r.id) ? 'bg-blue-50/40' : ''
+                    r.id && selectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : ''
                   }`}
                 >
                   <td className="p-4 text-center">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? selectedIds.includes(r.id) : false}
+                      checked={r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false}
                       onChange={() => r.id && onSelectRow(r.id)}
                       disabled={!r.id}
                       className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
@@ -127,6 +131,12 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                         </span>
                       )}
                     </div>
+                    {assignedStaff && (
+                      <div className="mt-1 text-[11px] text-purple-700 bg-purple-50/80 border border-purple-200 px-2 py-0.5 rounded-md inline-flex items-center gap-1 font-medium" title={`Cán bộ phụ trách: ${assignedStaff.name}`}>
+                        <UserCheck size={11} className="shrink-0 text-purple-600" />
+                        <span>NV: {assignedStaff.name}</span>
+                      </div>
+                    )}
                     {r.notes && (
                       <div className="mt-1 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block max-w-[260px] truncate" title={r.notes}>
                         <span className="font-semibold text-slate-400">Ghi chú:</span> {r.notes}
@@ -331,21 +341,29 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             }
             const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
+            const assignedStaff = staffList.find(s => s.id === (r.staff_id || r.staffId));
+
             return (
               <div 
                 key={r.id || `mob-${index}`} 
-                className={`p-4 ${r.id && selectedIds.includes(r.id) ? 'bg-blue-50/40' : 'bg-white'}`}
+                className={`p-4 ${r.id && selectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : 'bg-white'}`}
               >
                 <div className="flex justify-between items-start mb-2.5">
                   <div className="flex items-start gap-2.5">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? selectedIds.includes(r.id) : false}
+                      checked={r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false}
                       onChange={() => r.id && onSelectRow(r.id)}
                       className="mt-1 w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
                     />
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">{r.name}</h4>
+                      {assignedStaff && (
+                        <div className="mt-0.5 text-[10px] text-purple-700 bg-purple-50/80 border border-purple-200 px-1.5 py-0.5 rounded inline-flex items-center gap-1 font-medium">
+                          <UserCheck size={10} className="shrink-0 text-purple-600" />
+                          <span>NV: {assignedStaff.name}</span>
+                        </div>
+                      )}
                       {r.notes ? (
                         <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5" title={r.notes}>
                           {r.notes}
