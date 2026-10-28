@@ -94,22 +94,30 @@ export const getEffectiveCommissionConfig = (
     }
   }
 
-  // Kiểm tra nếu là chính sách cũ chỉ có commBHXHNew chung (không có phân loại 1M, 3M, 6M, 12M)
+  // Kiểm tra nếu là chính sách cũ hoặc cài đặt cũ chỉ có commBHXHNew chung (không có phân loại 1M, 3M, 6M, 12M)
   const rawObj = (typeof commObjRaw === 'object' ? commObjRaw : {}) as any;
-  const isLegacySingleRate = rawObj && rawObj.commBHXHNew1M === undefined && rawObj.comm_bhxh_new_1m === undefined &&
+  const isPolicyLegacySingleRate = rawObj && rawObj.commBHXHNew1M === undefined && rawObj.comm_bhxh_new_1m === undefined &&
     (rawObj.commBHXHNew !== undefined || rawObj.comm_bhxh_new !== undefined);
 
-  const legacyRate = isLegacySingleRate ? Number(rawObj.commBHXHNew ?? rawObj.comm_bhxh_new) : null;
-  const new12 = Number(commObj.commBHXHNew12M ?? legacyRate ?? commObj.commBHXHNew ?? 20);
+  const isSettingsLegacySingleRate = (!policies || policies.length === 0) && settings && 
+    (settings as any).commBHXHNew1M === undefined && (settings as any).comm_bhxh_new_1m === undefined &&
+    ((settings as any).commBHXHNew !== undefined || (settings as any).comm_bhxh_new !== undefined);
+
+  const isLegacySingleRate = isPolicyLegacySingleRate || isSettingsLegacySingleRate;
+  const legacyRate = isPolicyLegacySingleRate 
+    ? Number(rawObj.commBHXHNew ?? rawObj.comm_bhxh_new)
+    : (isSettingsLegacySingleRate ? Number((settings as any).commBHXHNew ?? (settings as any).comm_bhxh_new) : null);
+
+  const new12 = isLegacySingleRate ? legacyRate! : Number(commObj.commBHXHNew12M ?? commObj.commBHXHNew ?? 20);
 
   return {
     commBHXHNew: new12,
     commBHXHRenew: Number(commObj.commBHXHRenew ?? 9),
     commBHYTNew: Number(commObj.commBHYTNew ?? 9),
     commBHYTRenew: Number(commObj.commBHYTRenew ?? 5),
-    commBHXHNew1M: Number(commObj.commBHXHNew1M ?? (legacyRate ?? 12)),
-    commBHXHNew3M: Number(commObj.commBHXHNew3M ?? (legacyRate ?? 15)),
-    commBHXHNew6M: Number(commObj.commBHXHNew6M ?? (legacyRate ?? 17)),
+    commBHXHNew1M: isLegacySingleRate ? legacyRate! : Number(commObj.commBHXHNew1M ?? 12),
+    commBHXHNew3M: isLegacySingleRate ? legacyRate! : Number(commObj.commBHXHNew3M ?? 15),
+    commBHXHNew6M: isLegacySingleRate ? legacyRate! : Number(commObj.commBHXHNew6M ?? 17),
     commBHXHNew12M: new12
   };
 };

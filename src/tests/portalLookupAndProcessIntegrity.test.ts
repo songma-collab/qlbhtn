@@ -14,52 +14,19 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
     vi.restoreAllMocks();
   });
 
-  it('1. callPublicPortal tự động dự phòng sang RPC public_lookup_process khi Edge Function báo lỗi kết nối ("Failed to send a request to the Edge Function")', async () => {
+  it('1. callPublicPortal chặn kết nối trực tiếp và ném lỗi an toàn khi Edge Function báo lỗi (chống bypass bảo mật)', async () => {
     // Giả lập Edge Function bị lỗi không kết nối được (chưa deploy hoặc lỗi mạng)
     const invokeSpy = vi.spyOn(Object.getPrototypeOf(supabase.functions), 'invoke').mockRejectedValue(
       new Error('Failed to send a request to the Edge Function')
     );
 
-    // Giả lập RPC public_lookup_process trong CSDL hoạt động bình thường
-    const mockLookupData = [
-      {
-        name: 'L***H***',
-        cccd: '014***5767',
-        type: 'BHXH',
-        from_month: '01/2026',
-        to_month: '01/2026',
-        months: 1,
-        income: 4000000,
-        amount: 781000,
-        next_payment: '2026-02-15',
-        status: 'Đang tham gia',
-        payment_status: 'Đã thu tiền',
-        registration_date: '2026-01-10'
-      }
-    ];
-
-    const rpcSpy = vi.spyOn(supabase, 'rpc').mockResolvedValueOnce({
-      data: mockLookupData,
-      error: null
-    } as any);
-
-    // Gọi tra cứu từ Portal
-    const result = await callPublicPortal<any[]>('lookup', {
+    // Xác nhận gọi qua Edge Function và ném lỗi bảo vệ người dùng, tuyệt đối không bypass gọi trực tiếp RPC anon
+    await expect(callPublicPortal<any[]>('lookup', {
       code: '014196005767',
       type: 'BHXH'
-    });
+    })).rejects.toThrow('Failed to send a request to the Edge Function');
 
-    // Xác nhận Edge Function đã được gọi trước
     expect(invokeSpy).toHaveBeenCalledWith('public-customer-intake', expect.anything());
-    // Xác nhận hệ thống đã tự động Failover sang RPC dự phòng mà KHÔNG làm văng lỗi ra màn hình
-    expect(rpcSpy).toHaveBeenCalledWith('public_lookup_process', {
-      p_code: '014196005767',
-      p_type: 'BHXH'
-    });
-    // Kết quả trả về danh sách lịch sử quá trình đầy đủ
-    expect(result).toHaveLength(1);
-    expect(result[0].amount).toBe(781000);
-    expect(result[0].from_month).toBe('01/2026');
   });
 
   it('2. Chuẩn hóa bản ghi thuần snake_case từ Database: hiển thị đầy đủ Thời gian, Hạn tiếp theo, Phân kỳ và Trạng thái', () => {

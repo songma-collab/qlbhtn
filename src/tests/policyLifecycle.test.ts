@@ -574,7 +574,7 @@ describe('Kiểm thử Vòng đời Chính sách & Bền vững Dữ liệu Tài
       const commissionPolicies = DEFAULT_SYSTEM_POLICIES.filter(p => p.parameter_type === 'commission');
       expect(commissionPolicies).toHaveLength(2);
       const comm2026 = commissionPolicies.find(p => p.is_active);
-      expect(comm2026?.value.commBHXHNew).toBe(15);
+      expect(comm2026?.value.commBHXHNew).toBe(20);
       expect(comm2026?.value.commBHXHRenew).toBe(9);
       expect(comm2026?.value.commBHYTNew).toBe(9);
       expect(comm2026?.value.commBHYTRenew).toBe(5);
