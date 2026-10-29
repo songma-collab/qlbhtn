@@ -15,7 +15,8 @@ import {
   compareRecordsByContractLatest,
   normalizeMethodValue,
   getSafeTimestamp,
-  prepareRenewalRecord
+  prepareRenewalRecord,
+  calculateNextPaymentFromToMonth
 } from '../../utils/helpers';
 import { 
   maskCCCD, 
@@ -317,7 +318,9 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
       const fromM = latestContract.from_month || (latestContract as any).fromMonth;
       const toM = latestContract.to_month || (latestContract as any).toMonth;
-      const nextP = latestContract.next_payment || (latestContract as any).nextPayment;
+      const nextP = (toM || fromM)
+        ? calculateNextPaymentFromToMonth(toM || fromM, latestContract.months || latestContract.method, latestContract.type)
+        : (latestContract.next_payment || (latestContract as any).nextPayment);
       const paySt = latestContract.payment_status || (latestContract as any).paymentStatus;
 
       return {

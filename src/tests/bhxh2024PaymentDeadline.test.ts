@@ -6,7 +6,7 @@ import {
   formatDateVN,
   formatMonthVN
 } from '../utils/helpers';
-import { classifyRenewalRecords } from '../utils/renewalDispatchHelper';
+import { classifyRenewalRecords, generateRenewalMessage } from '../utils/renewalDispatchHelper';
 
 describe('Kiểm thử Toàn diện Quy định Thời hạn Đóng BHXH Tự Nguyện theo Luật BHXH 2024', () => {
 
@@ -179,6 +179,33 @@ describe('Kiểm thử Toàn diện Quy định Thời hạn Đóng BHXH Tự Ng
 
       const classification = classifyRenewalRecords([mockRecord]);
       expect(classification.all.length).toBe(1);
+    });
+
+    it('4.3. generateRenewalMessage tạo tin nhắn Zalo chứa đúng ngày định dạng DD/MM/YYYY từ snake_case next_payment', () => {
+      const mockRecord = {
+        name: 'Lò Thị Thuận',
+        type: 'BHXH',
+        bhxhCode: '1428991153',
+        next_payment: '2026-12-31'
+      };
+
+      const msg = generateRenewalMessage(mockRecord);
+      expect(msg).toContain('31/12/2026');
+      expect(msg).not.toContain('sắp tới');
+    });
+
+    it('4.4. generateRenewalMessage tự suy luận hạn đóng theo Luật 2024 khi next_payment bị null', () => {
+      const mockRecord = {
+        name: 'Lò Thị Nga',
+        type: 'BHXH',
+        bhxhCode: '1428953815',
+        to_month: '12/2026',
+        months: 3,
+        next_payment: null
+      };
+
+      const msg = generateRenewalMessage(mockRecord);
+      expect(msg).toContain('31/03/2027');
     });
   });
 });

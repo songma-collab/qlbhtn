@@ -2,7 +2,7 @@ import React, { useRef } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { UserCheck, Eye, QrCode, UserPlus, Copy, Zap, Edit, Trash2, Phone, History } from 'lucide-react';
 import { CustomerStatusBadge, CustomerParticipationBadge } from './CustomerStatusBadge';
-import { formatDateVN } from '../../utils/helpers';
+import { formatDateVN, calculateNextPaymentFromToMonth } from '../../utils/helpers';
 import { RecordType } from '../../context/types';
 
 interface VirtualizedRecordTableProps {
@@ -95,6 +95,11 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
             if (!r) return null;
             const isSelected = r.id ? selectedIds.some(sid => String(sid) === String(r.id)) : false;
             const rawCccd = r.cccd || r.bhxh || '';
+            const toM = r.to_month || (r as any).toMonth;
+            const fromM = r.from_month || (r as any).fromMonth;
+            const nextPay = (toM || fromM)
+              ? calculateNextPaymentFromToMonth(toM || fromM, r.months || (r as any).method, r.type)
+              : (r.next_payment || (r as any).nextPayment);
 
             return (
               <div
@@ -155,11 +160,14 @@ export const VirtualizedRecordTable: React.FC<VirtualizedRecordTableProps> = ({
 
                 {/* Date & Badge */}
                 <div className="col-span-2">
-                  <span className="text-gray-600 font-medium block text-xs">
-                    {formatDateVN(r.next_payment || (r as any).nextPayment) || '---'}
+                  <span 
+                    className="text-gray-700 font-bold block text-xs cursor-help border-b border-dotted border-slate-400"
+                    title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                  >
+                    {formatDateVN(nextPay) || '---'}
                   </span>
                   <div className="mt-1">
-                    <CustomerStatusBadge payment_status={r.payment_status} next_payment={r.next_payment} />
+                    <CustomerStatusBadge payment_status={r.payment_status} next_payment={nextPay} />
                   </div>
                 </div>
 

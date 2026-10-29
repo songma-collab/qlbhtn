@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, getLocalYYYYMMDD, groupRecordsByCustomer } from '../../utils/helpers';
+import { formatMoney, getLocalYYYYMMDD, groupRecordsByCustomer, calculateNextPaymentFromToMonth } from '../../utils/helpers';
 import { getCommissionRateForRecord } from '../../utils/calculations';
 import {
   ResponsiveContainer,
@@ -182,7 +182,11 @@ const Dashboard: React.FC = () => {
 
     // 3. Tính số lượng Hồ Sơ Sắp Hết Hạn (< 30 ngày)
     const expiringRecordsCount = activeUniqueCustomers.filter((c: any) => {
-      const nextPay = c.next_payment || c.nextPayment;
+      const toM = c.to_month || c.toMonth;
+      const fromM = c.from_month || c.fromMonth;
+      const nextPay = (toM || fromM)
+        ? calculateNextPaymentFromToMonth(toM || fromM, c.months || c.method, c.type)
+        : (c.next_payment || c.nextPayment);
       const payStatus = c.payment_status || c.paymentStatus;
       if (!nextPay || payStatus === 'Đã hủy') return false;
       const amt = Number(c.amount) || 0;

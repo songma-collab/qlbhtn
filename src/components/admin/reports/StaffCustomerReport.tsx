@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../../context/AppContext';
-import { formatMoney, formatDateVN } from '../../../utils/helpers';
+import { formatMoney, formatDateVN, calculateNextPaymentFromToMonth } from '../../../utils/helpers';
 import { protectWorksheetFormulas } from '../../../utils/excelSecurity';
 import { 
   Users, 
@@ -123,6 +123,12 @@ export const StaffCustomerReport: React.FC = () => {
             ? `PHONE_${cleanPhone}` 
             : `NAME_${cleanName}_${(r.address || '').trim().toLowerCase()}`;
 
+        const toM = r.to_month || (r as any).toMonth;
+        const fromM = r.from_month || (r as any).fromMonth;
+        const rNext = (toM || fromM)
+          ? calculateNextPaymentFromToMonth(toM || fromM, r.months || (r as any).method, r.type)
+          : (r.next_payment || (r as any).nextPayment || (r as any).targetDate);
+
         if (!customerMap.has(custKey)) {
           customerMap.set(custKey, {
             key: custKey,
@@ -135,7 +141,7 @@ export const StaffCustomerReport: React.FC = () => {
             recordsCount: 0,
             totalPaid: 0,
             lastPaymentDate: r.date,
-            nextPayment: r.next_payment || (r as any).nextPayment || (r as any).targetDate,
+            nextPayment: rNext,
             status: r.status || 'Hoạt động'
           });
         }
@@ -157,7 +163,6 @@ export const StaffCustomerReport: React.FC = () => {
         if (r.date > c.lastPaymentDate) {
           c.lastPaymentDate = r.date;
         }
-        const rNext = r.next_payment || (r as any).nextPayment;
         if (rNext && (!c.nextPayment || rNext > c.nextPayment)) {
           c.nextPayment = rNext;
         }

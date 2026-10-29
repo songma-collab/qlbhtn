@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Search, User, CreditCard, Plus, ArrowRight, X, Phone } from 'lucide-react';
-import { formatDateVN } from '../../utils/helpers';
+import { formatDateVN, calculateNextPaymentFromToMonth } from '../../utils/helpers';
 
 interface CommandPaletteModalProps {
   isOpen: boolean;
@@ -178,7 +178,14 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-semibold text-gray-500 block">
-                        Hạn: {formatDateVN(r.next_payment || (r as any).nextPayment) || '---'}
+                        Hạn: {(() => {
+                          const toM = r.to_month || (r as any).toMonth;
+                          const fromM = r.from_month || (r as any).fromMonth;
+                          const nextPay = (toM || fromM)
+                            ? calculateNextPaymentFromToMonth(toM || fromM, r.months || (r as any).method, r.type)
+                            : (r.next_payment || (r as any).nextPayment);
+                          return formatDateVN(nextPay) || '---';
+                        })()}
                       </span>
                       <span className="text-[10px] font-bold text-emerald-600">
                         {r.status || 'Đang tham gia'}

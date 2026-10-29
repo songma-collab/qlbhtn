@@ -137,8 +137,13 @@ export const generateRenewalMessage = (record: any, staffMember?: any): string =
     : (record.bhxhCode || record.code || 'Chưa cập nhật');
   
   let formattedDate = 'sắp tới';
-  if (record.nextPayment) {
-    const d = new Date(record.nextPayment);
+  const toM = record.to_month || record.toMonth;
+  const fromM = record.from_month || record.fromMonth;
+  const rawNext = record.next_payment || record.nextPayment || ((toM || fromM)
+    ? calculateNextPaymentFromToMonth(toM || fromM, record.months || record.method, record.type)
+    : null);
+  if (rawNext) {
+    const d = new Date(rawNext);
     if (!isNaN(d.getTime())) {
       formattedDate = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
     }
@@ -209,9 +214,15 @@ export const exportRenewalListToExcel = async (
 
   const dataRows = items.map((item, index) => {
     const r = item.record;
+    const toM = r.to_month || r.toMonth;
+    const fromM = r.from_month || r.fromMonth;
+    const np = r.next_payment || r.nextPayment || ((toM || fromM)
+      ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
+      : null);
+
     let nextPayStr = '';
-    if (r.nextPayment) {
-      const d = new Date(r.nextPayment);
+    if (np) {
+      const d = new Date(np);
       if (!isNaN(d.getTime())) {
         nextPayStr = `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
       }

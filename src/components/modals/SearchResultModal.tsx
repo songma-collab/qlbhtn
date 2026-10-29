@@ -73,9 +73,9 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
       }
     }
 
-    // Nếu thiếu nextPayment nhưng có toM -> tự động tính ngày 15 của tháng liền kề
-    if (!nextP && toM) {
-      nextP = calculateNextPaymentFromToMonth(toM);
+    // Tính hạn nộp tiếp theo theo Luật BHXH 2024
+    if (toM || fromM) {
+      nextP = calculateNextPaymentFromToMonth(toM || fromM, months, type);
     }
 
     // Chuỗi hiển thị kỳ đóng
