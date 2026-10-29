@@ -103,10 +103,9 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const toMStr = toM ? formatMonthVN(toM) : '';
               const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
 
-              let nextPay = r.next_payment || r.nextPayment || null;
-              if (!nextPay && (toM || fromM)) {
-                nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1);
-              }
+              let nextPay = (toM || fromM)
+                ? calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1, r.type)
+                : (r.next_payment || r.nextPayment || null);
               const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
               return (
@@ -194,7 +193,10 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   </td>
                   <td className="p-4 text-slate-700 text-xs font-medium">
                     {nextPay ? (
-                      <span className="font-mono tabular-nums">
+                      <span 
+                        className="font-mono tabular-nums font-bold cursor-help border-b border-dotted border-slate-400"
+                        title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                      >
                         {formatDateVN(nextPay)}
                       </span>
                     ) : '---'}
@@ -341,10 +343,9 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const toMStr = toM ? formatMonthVN(toM) : '';
             const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
 
-            let nextPay = r.next_payment || r.nextPayment || null;
-            if (!nextPay && (toM || fromM)) {
-              nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1);
-            }
+            let nextPay = (toM || fromM)
+              ? calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1, r.type)
+              : (r.next_payment || r.nextPayment || null);
             const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
             const assignedStaff = safeStaffList.find(s => s && s.id === (r.staff_id || r.staffId));
@@ -427,7 +428,10 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] text-slate-400 block">Hạn đóng tiếp</span>
-                    <span className="text-slate-700 font-medium font-mono tabular-nums">
+                    <span 
+                      className="text-slate-700 font-bold font-mono tabular-nums cursor-help border-b border-dotted border-slate-400"
+                      title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                    >
                       {nextPay ? formatDateVN(nextPay) : '---'}
                     </span>
                   </div>

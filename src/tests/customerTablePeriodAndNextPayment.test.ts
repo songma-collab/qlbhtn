@@ -45,15 +45,16 @@ describe('Kiểm thử tính năng Cột Kỳ đóng, Hạn đóng tiếp và Tr
     expect(formatDateVN(nextPay2)).toBe('31/10/2026');
   });
 
-  it('3. Tự động suy luận Hạn đóng tiếp từ Kỳ đóng khi next_payment bị NULL trong DB', () => {
-    // Khách hàng có kỳ đóng đến 08/2026 nhưng next_payment null
+  it('3. Tự động suy luận Hạn đóng tiếp từ Kỳ đóng khi next_payment bị NULL trong DB theo Luật BHXH 2024', () => {
+    // Khách hàng có kỳ đóng đến 08/2026 nhưng next_payment null, đóng 1 tháng
+    // Kỳ mới là tháng 09/2026 -> Hạn đóng theo Luật BHXH 2024 là ngày cuối tháng 09/2026 (30/09/2026)
     const customer = { to_month: '2026-08', next_payment: null };
     let nextPay: string | null = customer.next_payment;
     if (!nextPay && customer.to_month) {
       nextPay = calculateNextPaymentFromToMonth(customer.to_month, 1);
     }
-    expect(nextPay).toBe('2026-09-15');
-    expect(formatDateVN(nextPay)).toBe('15/09/2026');
+    expect(nextPay).toBe('2026-09-30');
+    expect(formatDateVN(nextPay)).toBe('30/09/2026');
   });
 
   it('4. Phân loại Trạng Thái Đóng (Đã hết hạn, Sắp hết hạn, Bình thường) an toàn tuyệt đối với múi giờ', () => {

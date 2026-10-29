@@ -3,6 +3,8 @@
  * Phân loại mức độ khẩn cấp, sinh tin nhắn Zalo/SMS chuẩn nghiệp vụ và xuất Excel đôn đốc
  */
 
+import { calculateNextPaymentFromToMonth } from './dateUtils';
+
 export type RenewalUrgency = 'overdue' | 'urgent' | 'warning' | 'upcoming';
 
 export interface RenewalRecordItem {
@@ -30,7 +32,11 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   today.setHours(0, 0, 0, 0);
 
   const validRecords = records.filter(r => {
-    const nextPay = r.next_payment || r.nextPayment;
+    const toM = r.to_month || r.toMonth;
+    const fromM = r.from_month || r.fromMonth;
+    const nextPay = r.next_payment || r.nextPayment || ((toM || fromM)
+      ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
+      : null);
     const payStatus = r.payment_status || r.paymentStatus;
     if (!nextPay) return false;
     if (payStatus === 'Đã hủy') return false;
@@ -57,7 +63,11 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   const classifiedList: RenewalRecordItem[] = [];
 
   latestByPerson.forEach(record => {
-    const nextPayStr = record.next_payment || record.nextPayment;
+    const toM = record.to_month || record.toMonth;
+    const fromM = record.from_month || record.fromMonth;
+    const nextPayStr = record.next_payment || record.nextPayment || ((toM || fromM)
+      ? calculateNextPaymentFromToMonth(toM || fromM, record.months || record.method, record.type)
+      : null);
     const nextPayDate = new Date(nextPayStr);
     if (isNaN(nextPayDate.getTime())) return;
     nextPayDate.setHours(0, 0, 0, 0);

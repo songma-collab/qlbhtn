@@ -13,7 +13,7 @@
 
 import { RecordType, CustomerType } from '../context/types';
 import { getCommissionRateForRecord } from './calculations';
-import { getLocalYYYYMMDD, formatTitleCase } from './helpers';
+import { getLocalYYYYMMDD, formatTitleCase, calculateNextPaymentFromToMonth } from './helpers';
 import { parseMonthAndYear, toUIDate, toUIMonth } from './dateStandardHelper';
 import { isSafeColumnKey } from './excelSecurity';
 
@@ -157,24 +157,7 @@ export const parseDateSafe = (val: any): string => {
   return '';
 };
 
-/**
- * Tính toán ngày gia hạn tiếp theo (nextPayment) từ kỳ đóng đến tháng
- * Nếu đến tháng 09/2026 -> Hạn đóng tiếp là 15/10/2026
- */
-export const calculateNextPaymentFromToMonth = (toMonthStr?: string, fallbackMonths = 1): string => {
-  if (toMonthStr) {
-    const { month, year } = parseMonthAndYear(toMonthStr);
-    if (month && year) {
-      // Tháng kế tiếp sau khi hết hạn đóng
-      const nextDate = new Date(year, month, 15);
-      return getLocalYYYYMMDD(nextDate);
-    }
-  }
-  // Fallback: tính từ hiện tại cộng thêm số tháng
-  const fallback = new Date();
-  fallback.setMonth(fallback.getMonth() + fallbackMonths);
-  return getLocalYYYYMMDD(fallback);
-};
+export { calculateNextPaymentFromToMonth };
 
 export const generateCustomerKeyJs = (type: string, bhxh?: string, cccd?: string, name?: string, phone?: string): string => {
   const cleanCccd = String(cccd || '').replace(/\D/g, '');
@@ -304,8 +287,8 @@ export const processSingleExcelRow = (
   const parsedRegDate = parseDateSafe(rawDate);
   const date = parsedRegDate ? new Date(parsedRegDate).toISOString() : new Date().toISOString();
 
-  // 9. Tính hạn nộp tiếp theo chuẩn xác
-  const nextPayment = calculateNextPaymentFromToMonth(toMonth || fromMonth, months);
+  // 9. Tính hạn nộp tiếp theo chuẩn xác theo Luật BHXH 2024
+  const nextPayment = calculateNextPaymentFromToMonth(toMonth || fromMonth, months, type);
 
   const custKey = generateCustomerKeyJs(type, bhxh, cccd, name, phone);
 

@@ -14,7 +14,8 @@ import {
   compareRecordsByContractLatest,
   normalizeMethodValue,
   getMethodLabelFromValue,
-  prepareRenewalRecord
+  prepareRenewalRecord,
+  calculateNextPaymentFromToMonth
 } from '../../utils/helpers';
 import { calculateNextRenewalMonth, toUIDate, toUIMonth, toDbDate, toDbMonth, parseMonthAndYear } from '../../utils/dateStandardHelper';
 import { 
@@ -594,9 +595,11 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       };
 
       if (recordData.toMonth) {
-        const { month, year } = parseMonthAndYear(recordData.toMonth);
-        const nextD = new Date(year, month, 15);
-        recordData.nextPayment = getLocalYYYYMMDD(nextD);
+        recordData.nextPayment = calculateNextPaymentFromToMonth(
+          recordData.toMonth,
+          recordData.months || bhxhCalc.method,
+          'BHXH'
+        );
       } else {
         let nextYear = new Date();
         nextYear.setFullYear(nextYear.getFullYear() + 1);
@@ -628,7 +631,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
       const fromMonth = `${startYear}-${(startMonth + 1).toString().padStart(2, '0')}`;
       let toDateObj = new Date(startYear, startMonth + bhytCalc.duration - 1, 1);
       const toMonth = `${toDateObj.getFullYear()}-${(toDateObj.getMonth() + 1).toString().padStart(2, '0')}`;
-      const nextPayment = getLocalYYYYMMDD(new Date(toDateObj.getFullYear(), toDateObj.getMonth(), 15));
+      const nextPayment = calculateNextPaymentFromToMonth(toMonth, bhytCalc.duration, 'BHYT');
       const method = document.getElementById('modal-bhyt-duration')?.querySelector('option:checked')?.textContent || '';
 
       const dateStrForBHYT = getLocalYYYYMMDD();
@@ -702,7 +705,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           
           let memberToDateObj = new Date(startYear, startMonth + memberMonths - 1, 1);
           const memberToMonth = `${memberToDateObj.getFullYear()}-${(memberToDateObj.getMonth() + 1).toString().padStart(2, '0')}`;
-          const memberNextPayment = getLocalYYYYMMDD(new Date(memberToDateObj.getFullYear(), memberToDateObj.getMonth(), 15));
+          const memberNextPayment = calculateNextPaymentFromToMonth(memberToMonth, memberMonths, 'BHYT');
 
           let memberRecord = {
             ...baseRecordData,

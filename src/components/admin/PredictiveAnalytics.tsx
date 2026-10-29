@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord, calculateNextPaymentFromToMonth } from '../../utils/helpers';
 import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -82,7 +82,11 @@ const PredictiveAnalytics: React.FC = () => {
 
     latestCustomerRecords.forEach(r => {
       const pStatus = r.payment_status || (r as any).paymentStatus;
-      const nextPay = r.next_payment || (r as any).nextPayment;
+      const toM = r.to_month || (r as any).toMonth;
+      const fromM = r.from_month || (r as any).fromMonth;
+      const nextPay = (toM || fromM)
+        ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
+        : (r.next_payment || (r as any).nextPayment);
       if (pStatus === 'Đã hủy' || !nextPay || r.status === 'Đã dừng đóng') return;
 
       const expMonth = nextPay.substring(0, 7);
@@ -115,7 +119,11 @@ const PredictiveAnalytics: React.FC = () => {
       const amountVal = Number(r.amount) || 0;
       if (amountVal <= 0) return;
 
-      const nextPay = r.next_payment || (r as any).nextPayment;
+      const toM = r.to_month || (r as any).toMonth;
+      const fromM = r.from_month || (r as any).fromMonth;
+      const nextPay = (toM || fromM)
+        ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
+        : (r.next_payment || (r as any).nextPayment);
       if (!nextPay) return;
       const nextTs = new Date(nextPay).getTime();
       const diffDays = Math.ceil((nextTs - todayTs) / (1000 * 60 * 60 * 24));
@@ -496,7 +504,12 @@ const PredictiveAnalytics: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-slate-400 block">Hạn đóng tiếp theo</span>
-                  <span className="font-semibold text-slate-800">{formatDateVN(c.nextPayment)}</span>
+                  <span 
+                    className="font-bold text-slate-800 cursor-help border-b border-dotted border-slate-400"
+                    title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                  >
+                    {formatDateVN(c.nextPayment)}
+                  </span>
                 </div>
                 <div>
                   <span className="text-slate-400 block">Còn lại</span>
@@ -564,7 +577,14 @@ const PredictiveAnalytics: React.FC = () => {
                       {c.type}
                     </span>
                   </td>
-                  <td className="p-4 font-semibold text-slate-700">{formatDateVN(c.nextPayment)}</td>
+                  <td className="p-4 font-semibold text-slate-700">
+                    <span 
+                      className="font-bold text-slate-800 cursor-help border-b border-dotted border-slate-400"
+                      title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                    >
+                      {formatDateVN(c.nextPayment)}
+                    </span>
+                  </td>
                   <td className="p-4">
                     <span className={`font-black text-xs ${c.diffDays <= 7 ? 'text-red-600' : 'text-slate-800'}`}>
                       {c.diffDays < 0 ? `Đã quá ${Math.abs(c.diffDays)} ngày` : `${c.diffDays} ngày nữa`}

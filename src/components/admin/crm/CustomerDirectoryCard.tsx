@@ -55,10 +55,9 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
   const toMStr = toM ? formatMonthVN(toM) : '';
   const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
 
-  let nextPay = c.next_payment || c.nextPayment || null;
-  if (!nextPay && (toM || fromM)) {
-    nextPay = calculateNextPaymentFromToMonth(toM || fromM, Number(c.months) || 1);
-  }
+  let nextPay = (toM || fromM)
+    ? calculateNextPaymentFromToMonth(toM || fromM, Number(c.months) || 1, c.type)
+    : (c.next_payment || c.nextPayment || null);
   const payStatus = c.payment_status || c.paymentStatus || 'Chờ thu tiền';
 
   return (
@@ -135,7 +134,10 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
           </div>
           <div className="flex justify-between items-center text-slate-600">
             <span className="text-slate-400 text-[11px]">Hạn nộp tiếp theo:</span>
-            <span className="text-slate-700 font-medium font-mono tabular-nums">
+            <span 
+              className="text-slate-700 font-bold font-mono tabular-nums cursor-help border-b border-dotted border-slate-400"
+              title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+            >
               {nextPay ? formatDateVN(nextPay) : '---'}
             </span>
           </div>

@@ -78,10 +78,10 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
     const calculatedToMonth = calculateToMonthVN(partialRecord.from_month, partialRecord.months);
     expect(calculatedToMonth).toBe('06/2026');
 
-    const calculatedNextPayment = calculateNextPaymentFromToMonth(calculatedToMonth);
-    expect(calculatedNextPayment).toBe('2026-07-15');
+    const calculatedNextPayment = calculateNextPaymentFromToMonth(calculatedToMonth, partialRecord.months);
+    expect(calculatedNextPayment).toBe('2026-09-30');
 
     const formattedNext = formatDateVN(calculatedNextPayment);
-    expect(formattedNext).toBe('15/07/2026');
+    expect(formattedNext).toBe('30/09/2026');
   });
 });

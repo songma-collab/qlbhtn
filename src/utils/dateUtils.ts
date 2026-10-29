@@ -458,25 +458,135 @@ export const calculateNextRenewalMonth = (
 };
 
 /**
+ * getLastDayOfMonthISO:
+ * Lấy ngày cuối cùng của tháng theo định dạng YYYY-MM-DD
+ * Xử lý chính xác số ngày của từng tháng (28, 29, 30, 31) kể cả năm nhuận.
+ */
+export const getLastDayOfMonthISO = (year: number, month: number): string => {
+  // Trong JS: new Date(year, month, 0) trả về ngày cuối cùng của tháng `month` (với month từ 1 đến 12)
+  const d = new Date(year, month, 0);
+  const day = String(d.getDate()).padStart(2, '0');
+  const m = String(month).padStart(2, '0');
+  return `${year}-${m}-${day}`;
+};
+
+export interface BHXHLegalDeadlineInfo {
+  deadlineDate: string; // YYYY-MM-DD
+  deadlineMonth: string; // YYYY-MM
+  targetMonthIndex: number; // Tháng thứ mấy trong kỳ (1, 3, 4, 7)
+  legalBasis: string; // Căn cứ pháp lý
+}
+
+/**
+ * calculateBHXH2024LegalDeadline:
+ * Tính thời hạn đóng BHXH tự nguyện theo Khoản 3 Điều 36 Luật BHXH 2024:
+ * - Đóng hằng tháng: Trong tháng đó (ngày cuối cùng của tháng).
+ * - Đóng 03 tháng một lần: Trong 03 tháng đó (ngày cuối cùng của tháng thứ 3 trong kỳ).
+ * - Đóng 06 tháng một lần: Trong 04 tháng đầu của kỳ (ngày cuối cùng của tháng thứ 4 trong kỳ).
+ * - Đóng 12 tháng một lần: Trong 07 tháng đầu của kỳ (ngày cuối cùng của tháng thứ 7 trong kỳ).
+ * - Đóng một lần cho nhiều năm về sau / Đóng bù: Tại thời điểm đăng ký.
+ * 
+ * @param fromMonthStr Tháng bắt đầu kỳ đóng (MM/YYYY hoặc YYYY-MM)
+ * @param methodOrMonths Phương thức đóng ('1', '3', '6', '12', 'pre_24', 'post_custom' hoặc số tháng)
+ */
+export const calculateBHXH2024LegalDeadline = (
+  fromMonthStr?: string | null,
+  methodOrMonths: string | number = 1
+): BHXHLegalDeadlineInfo | null => {
+  if (!fromMonthStr) return null;
+  const { month, year } = parseMonthAndYear(fromMonthStr);
+  if (!month || !year) return null;
+
+  let mCount = 1;
+  const methodStr = String(methodOrMonths || '1').trim();
+  if (methodStr.startsWith('pre_')) {
+    mCount = parseInt(methodStr.split('_')[1] || '12', 10);
+  } else if (methodStr === 'post_custom') {
+    mCount = 1;
+  } else {
+    mCount = parseInt(methodStr, 10) || 1;
+  }
+
+  let targetMonthOffset = 0;
+  let targetMonthIndex = 1;
+  let legalBasis = 'Trong tháng đó (Điểm a Khoản 3 Điều 36 Luật BHXH 2024)';
+
+  if (mCount <= 1) {
+    targetMonthOffset = 0;
+    targetMonthIndex = 1;
+    legalBasis = 'Trong tháng đó (Điểm a Khoản 3 Điều 36 Luật BHXH 2024)';
+  } else if (mCount <= 3) {
+    targetMonthOffset = 2;
+    targetMonthIndex = 3;
+    legalBasis = 'Trong 03 tháng đó (Điểm b Khoản 3 Điều 36 Luật BHXH 2024)';
+  } else if (mCount <= 6) {
+    targetMonthOffset = 3; // Tháng thứ 4 trong kỳ!
+    targetMonthIndex = 4;
+    legalBasis = 'Trong 04 tháng đầu của kỳ (Điểm c Khoản 3 Điều 36 Luật BHXH 2024)';
+  } else {
+    // 12 tháng trở lên
+    targetMonthOffset = 6; // Tháng thứ 7 trong kỳ!
+    targetMonthIndex = 7;
+    legalBasis = 'Trong 07 tháng đầu của kỳ (Điểm d Khoản 3 Điều 36 Luật BHXH 2024)';
+  }
+
+  const totalMonths = (year * 12 + (month - 1)) + targetMonthOffset;
+  const deadlineYear = Math.floor(totalMonths / 12);
+  const deadlineMonth = (totalMonths % 12) + 1;
+
+  const deadlineDate = getLastDayOfMonthISO(deadlineYear, deadlineMonth);
+  const deadlineMonthStr = `${deadlineYear}-${String(deadlineMonth).padStart(2, '0')}`;
+
+  return {
+    deadlineDate,
+    deadlineMonth: deadlineMonthStr,
+    targetMonthIndex,
+    legalBasis
+  };
+};
+
+/**
  * calculateNextPaymentFromToMonth:
- * Tính toán ngày gia hạn tiếp theo (nextPayment) từ kỳ đóng đến tháng.
- * Ví dụ: đóng đến tháng 08/2026 -> Hạn đóng tiếp là 15/09/2026.
+ * Tính toán ngày gia hạn tiếp theo (nextPayment) từ kỳ đóng đến tháng theo Khoản 3 Điều 36 Luật BHXH 2024.
+ * 
+ * 1. Kỳ đóng mới bắt đầu từ tháng liền kề sau toMonth (toMonth + 1 tháng).
+ * 2. Hạn đóng kỳ mới theo Khoản 3 Điều 36 Luật BHXH 2024:
+ *    - Đóng hằng tháng (1 tháng): Ngày cuối cùng của tháng bắt đầu kỳ mới.
+ *    - Đóng 3 tháng: Ngày cuối cùng của tháng thứ 3 trong kỳ mới.
+ *    - Đóng 6 tháng: Ngày cuối cùng của tháng thứ 4 trong kỳ mới.
+ *    - Đóng 12 tháng: Ngày cuối cùng của tháng thứ 7 trong kỳ mới.
+ * 3. BHYT: Ngày cuối cùng của toMonth (đảm bảo thẻ không gián đoạn quá 3 tháng).
+ * 
+ * @param toMonthStr Tháng kết thúc kỳ đóng hiện tại (MM/YYYY hoặc YYYY-MM)
+ * @param methodOrMonths Phương thức đóng ('1', '3', '6', '12', 'pre_24', 'post_custom' hoặc số tháng)
+ * @param type Loại hình 'BHXH' hoặc 'BHYT'
  */
 export const calculateNextPaymentFromToMonth = (
   toMonthStr?: string | null,
-  fallbackMonths = 1
+  methodOrMonths: number | string = 1,
+  type: 'BHXH' | 'BHYT' | string = 'BHXH'
 ): string => {
   if (toMonthStr && typeof toMonthStr === 'string' && toMonthStr.trim()) {
     const { month, year } = parseMonthAndYear(toMonthStr);
     if (month && year) {
-      // 1-indexed month passed to Date constructor creates the subsequent month (0-indexed)
-      const nextDate = new Date(year, month, 15);
-      return getLocalYYYYMMDD(nextDate);
+      if (type === 'BHYT') {
+        // BHYT: Hạn đóng để nối hạn thẻ liên tục không quá 3 tháng, hạn chót là cuối tháng toMonth
+        return getLastDayOfMonthISO(year, month);
+      }
+
+      // BHXH Tự Nguyện: Kỳ tiếp theo bắt đầu từ tháng liền kề sau toMonth
+      const nextStartPeriod = addMonthsToPeriod(toMonthStr, 1);
+      const legalDeadline = calculateBHXH2024LegalDeadline(nextStartPeriod, methodOrMonths);
+      if (legalDeadline) {
+        return legalDeadline.deadlineDate;
+      }
     }
   }
+
   const fallback = new Date();
-  fallback.setMonth(fallback.getMonth() + fallbackMonths);
-  return getLocalYYYYMMDD(fallback);
+  const mOffset = typeof methodOrMonths === 'number' ? methodOrMonths : (parseInt(String(methodOrMonths), 10) || 1);
+  fallback.setMonth(fallback.getMonth() + mOffset);
+  return getLastDayOfMonthISO(fallback.getFullYear(), fallback.getMonth() + 1);
 };
 
 /**

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
-import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord } from '../../utils/helpers';
+import { formatMoney, formatDateVN, formatMonthVN, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord, calculateNextPaymentFromToMonth } from '../../utils/helpers';
 import { recordService, auditService, customerService } from '../../services';
 import {
   Users,
@@ -132,7 +132,11 @@ const DispatchOperations: React.FC = () => {
       let daysRemaining = 999;
       let slaStatus: CustomerItem['slaStatus'] = 'safe';
 
-      const nextPay = r.next_payment || (r as any).nextPayment;
+      const toM = r.to_month || (r as any).toMonth;
+      const fromM = r.from_month || (r as any).fromMonth;
+      const nextPay = (toM || fromM)
+        ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
+        : (r.next_payment || (r as any).nextPayment);
       if (nextPay) {
         const nextDate = new Date(nextPay);
         nextDate.setHours(0, 0, 0, 0);
@@ -926,7 +930,10 @@ const DispatchOperations: React.FC = () => {
 
                       {/* Next Payment Date */}
                       <td className="py-3.5 px-3 text-center">
-                        <span className="font-bold text-slate-900 text-xs">
+                        <span 
+                          className="font-bold text-slate-900 text-xs cursor-help border-b border-dotted border-slate-400"
+                          title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
+                        >
                           {c.nextPayment ? formatDateVN(c.nextPayment) : '---'}
                         </span>
                       </td>

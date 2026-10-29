@@ -36,6 +36,8 @@ export {
   calculateMonthsBetween,
   calculateNextRenewalMonth,
   calculateNextPaymentFromToMonth,
+  getLastDayOfMonthISO,
+  calculateBHXH2024LegalDeadline,
   isValidVNDate,
   isValidVNMonth,
   toUIDate,

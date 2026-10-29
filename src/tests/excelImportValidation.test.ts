@@ -44,9 +44,9 @@ describe('Excel Import & Standardization Suite', () => {
     expect(parseMonthSafe('9/2026')).toBe('09/2026');
     expect(parseMonthSafe('2026-09')).toBe('09/2026');
 
-    // Nếu kỳ đóng đến hết tháng 09/2026 -> Hạn đóng tiếp phải là ngày 15 của tháng 10/2026
+    // Nếu kỳ đóng đến hết tháng 09/2026 -> Hạn đóng tiếp theo Luật BHXH 2024 là ngày cuối tháng 10/2026 (31/10/2026)
     const nextPay = calculateNextPaymentFromToMonth('09/2026', 1);
-    expect(nextPay).toBe('2026-10-15');
+    expect(nextPay).toBe('2026-10-31');
   });
 
   it('4. Phân tích trọn vẹn dữ liệu từ dòng Excel giống mẫu thực tế của người dùng (Image 4)', () => {
@@ -115,7 +115,7 @@ describe('Excel Import & Standardization Suite', () => {
     expect(rec.staff_id || (rec as any).staffId).toBe('stf-trang'); // Tự động khớp nhân viên 'Nguyễn Thị Trang'
     expect(rec.is_submitted_bhxh ?? (rec as any).isSubmittedBHXH).toBe(true);
     expect(rec.submission_batch || (rec as any).submissionBatch).toBe('Đợt 2');
-    expect(rec.next_payment || (rec as any).nextPayment).toBe('2026-10-15'); // Tính chính xác hạn nộp tiếp, không hardcode 1 năm
+    expect(rec.next_payment || (rec as any).nextPayment).toBe('2026-10-31'); // Tính chính xác hạn nộp tiếp theo Luật BHXH 2024
     expect(rec.commission).toBeGreaterThan(0); // Đã tính hoa hồng
 
     // Kiểm tra hồ sơ danh bạ khách hàng
@@ -123,7 +123,7 @@ describe('Excel Import & Standardization Suite', () => {
     const profile = result.customerProfiles[0]!;
     expect(profile.customer_key).toBe('CUST_CCCD_014075009471');
     expect(profile.name).toBe('Lò Văn Thơm');
-    expect(profile.next_payment).toBe('2026-10-15');
+    expect(profile.next_payment).toBe('2026-10-31');
   });
 
   it('5. Sinh Customer Key chính xác theo phân cấp ưu tiên', () => {
