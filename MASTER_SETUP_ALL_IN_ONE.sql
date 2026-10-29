@@ -1,4 +1,4 @@
-﻿-- ======================================================================
+-- ======================================================================
 -- NỀN TẢNG QUẢN LÝ THU & DỊCH VỤ CÔNG BHXH / BHYT SÔNG MÃ
 -- MASTER SETUP SCRIPT (ALL-IN-ONE MASTER SCHEMA - 100% SNAKE_CASE EDITION)
 -- ======================================================================
@@ -1225,6 +1225,7 @@ REVOKE UPDATE, DELETE ON public.auditlogs FROM PUBLIC, authenticated, anon;
 -- 3.1. RLS BẢNG STAFF (Quản lý nhân sự)
 -- ---------------------------------------------------------------------
 -- Nhân viên chỉ xem được chính mình; Quản lý/Admin xem được toàn bộ nhân sự
+DROP POLICY IF EXISTS "staff_read_authenticated" ON public.staff;
 CREATE POLICY "staff_read_authenticated" ON public.staff
   FOR SELECT TO authenticated
   USING (
@@ -1235,11 +1236,13 @@ CREATE POLICY "staff_read_authenticated" ON public.staff
   );
 
 -- Chỉ Admin mới được tạo mới nhân sự
+DROP POLICY IF EXISTS "staff_insert_admin_only" ON public.staff;
 CREATE POLICY "staff_insert_admin_only" ON public.staff
   FOR INSERT TO authenticated
   WITH CHECK (public.is_admin());
 
 -- Chỉ Admin được cập nhật nhân sự, hoặc nhân viên tự sửa thông tin cơ bản của chính mình
+DROP POLICY IF EXISTS "staff_update_policy" ON public.staff;
 CREATE POLICY "staff_update_policy" ON public.staff
   FOR UPDATE TO authenticated
   USING (
@@ -1254,6 +1257,7 @@ CREATE POLICY "staff_update_policy" ON public.staff
   );
 
 -- Chỉ Admin mới được xóa nhân sự
+DROP POLICY IF EXISTS "staff_delete_admin_only" ON public.staff;
 CREATE POLICY "staff_delete_admin_only" ON public.staff
   FOR DELETE TO authenticated
   USING (public.is_admin());
@@ -1261,19 +1265,23 @@ CREATE POLICY "staff_delete_admin_only" ON public.staff
 -- ---------------------------------------------------------------------
 -- 3.2. RLS BẢNG SETTINGS & POLICIES (Cấu hình & Chính sách)
 -- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "settings_read_all" ON public.settings;
 CREATE POLICY "settings_read_all" ON public.settings
   FOR SELECT TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "settings_write_admin_only" ON public.settings;
 CREATE POLICY "settings_write_admin_only" ON public.settings
   FOR ALL TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
+DROP POLICY IF EXISTS "policies_read_all" ON public.policies;
 CREATE POLICY "policies_read_all" ON public.policies
   FOR SELECT TO anon, authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "policies_write_admin_only" ON public.policies;
 CREATE POLICY "policies_write_admin_only" ON public.policies
   FOR ALL TO authenticated
   USING (public.is_admin() OR public.is_manager_or_admin())
@@ -1283,11 +1291,13 @@ CREATE POLICY "policies_write_admin_only" ON public.policies
 -- 3.3. RLS BẢNG AUDITLOGS (Nhật ký hệ thống bất biến)
 -- ---------------------------------------------------------------------
 -- Chỉ Quản trị viên hoặc Quản lý mới có quyền đọc nhật ký kiểm toán
+DROP POLICY IF EXISTS "auditlogs_read_manager_admin" ON public.auditlogs;
 CREATE POLICY "auditlogs_read_manager_admin" ON public.auditlogs
   FOR SELECT TO authenticated
   USING (public.is_manager_or_admin());
 
 -- Cho phép hệ thống và nhân sự chèn log
+DROP POLICY IF EXISTS "auditlogs_insert_authenticated" ON public.auditlogs;
 CREATE POLICY "auditlogs_insert_authenticated" ON public.auditlogs
   FOR INSERT TO authenticated
   WITH CHECK (true);
@@ -1295,6 +1305,7 @@ CREATE POLICY "auditlogs_insert_authenticated" ON public.auditlogs
 -- ---------------------------------------------------------------------
 -- 3.4. RLS BẢNG RECORDS (Hồ sơ giao dịch BHXH / BHYT)
 -- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "records_select_authenticated" ON public.records;
 CREATE POLICY "records_select_authenticated" ON public.records
   FOR SELECT TO authenticated
   USING (
@@ -1303,6 +1314,7 @@ CREATE POLICY "records_select_authenticated" ON public.records
     OR records.staff_id = public.current_staff_id()
   );
 
+DROP POLICY IF EXISTS "records_insert_authenticated" ON public.records;
 CREATE POLICY "records_insert_authenticated" ON public.records
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -1311,6 +1323,7 @@ CREATE POLICY "records_insert_authenticated" ON public.records
     OR records.staff_id = public.current_staff_id()
   );
 
+DROP POLICY IF EXISTS "records_update_authenticated" ON public.records;
 CREATE POLICY "records_update_authenticated" ON public.records
   FOR UPDATE TO authenticated
   USING (
@@ -1325,6 +1338,7 @@ CREATE POLICY "records_update_authenticated" ON public.records
   );
 
 -- Xóa hồ sơ: Chỉ Admin hoặc chính cán bộ thu sở hữu khi hồ sơ chưa thu tiền
+DROP POLICY IF EXISTS "records_delete_authenticated" ON public.records;
 CREATE POLICY "records_delete_authenticated" ON public.records
   FOR DELETE TO authenticated
   USING (
@@ -1339,30 +1353,105 @@ CREATE POLICY "records_delete_authenticated" ON public.records
   );
 
 -- ---------------------------------------------------------------------
--- 3.5. RLS BẢNG CUSTOMERS & CUSTOMER_PARTICIPATIONS
+-- 3.5. RLS BẢNG CUSTOMERS & CUSTOMER_PARTICIPATIONS (SIẾT CHẶT QUYỀN SỞ HỮU)
 -- ---------------------------------------------------------------------
-CREATE POLICY "customers_manage_authenticated" ON public.customers
-  FOR ALL TO authenticated
-  USING (true)
-  WITH CHECK (true);
-
-CREATE POLICY "customer_participations_read" ON public.customer_participations
+DROP POLICY IF EXISTS "customers_manage_authenticated" ON public.customers;
+DROP POLICY IF EXISTS "customers_select_policy" ON public.customers;
+CREATE POLICY "customers_select_policy" ON public.customers
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    public.is_manager_or_admin()
+    OR staff_id IS NULL
+    OR staff_id = public.current_staff_id()
+    OR staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+  );
 
-CREATE POLICY "customer_participations_manage" ON public.customer_participations
-  FOR ALL TO authenticated
-  USING (public.is_active_staff())
+DROP POLICY IF EXISTS "customers_insert_policy" ON public.customers;
+CREATE POLICY "customers_insert_policy" ON public.customers
+  FOR INSERT TO authenticated
   WITH CHECK (public.is_active_staff());
+
+DROP POLICY IF EXISTS "customers_update_policy" ON public.customers;
+CREATE POLICY "customers_update_policy" ON public.customers
+  FOR UPDATE TO authenticated
+  USING (
+    public.is_manager_or_admin()
+    OR staff_id IS NULL
+    OR staff_id = public.current_staff_id()
+    OR staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+  )
+  WITH CHECK (
+    public.is_manager_or_admin()
+    OR staff_id IS NULL
+    OR staff_id = public.current_staff_id()
+    OR staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+  );
+
+DROP POLICY IF EXISTS "customers_delete_policy" ON public.customers;
+CREATE POLICY "customers_delete_policy" ON public.customers
+  FOR DELETE TO authenticated
+  USING (public.is_manager_or_admin());
+
+DROP POLICY IF EXISTS "customer_participations_read" ON public.customer_participations;
+DROP POLICY IF EXISTS "customer_participations_manage" ON public.customer_participations;
+DROP POLICY IF EXISTS "customer_participations_select_policy" ON public.customer_participations;
+CREATE POLICY "customer_participations_select_policy" ON public.customer_participations
+  FOR SELECT TO authenticated
+  USING (
+    public.is_manager_or_admin()
+    OR EXISTS (
+      SELECT 1 FROM public.customers c
+      WHERE c.id = customer_participations.customer_id
+        AND (
+          c.staff_id IS NULL 
+          OR c.staff_id = public.current_staff_id()
+          OR c.staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+        )
+    )
+  );
+
+DROP POLICY IF EXISTS "customer_participations_write_policy" ON public.customer_participations;
+CREATE POLICY "customer_participations_write_policy" ON public.customer_participations
+  FOR ALL TO authenticated
+  USING (
+    public.is_active_staff() AND (
+      public.is_manager_or_admin()
+      OR EXISTS (
+        SELECT 1 FROM public.customers c
+        WHERE c.id = customer_participations.customer_id
+          AND (
+            c.staff_id IS NULL 
+            OR c.staff_id = public.current_staff_id()
+            OR c.staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+          )
+      )
+    )
+  )
+  WITH CHECK (
+    public.is_active_staff() AND (
+      public.is_manager_or_admin()
+      OR EXISTS (
+        SELECT 1 FROM public.customers c
+        WHERE c.id = customer_participations.customer_id
+          AND (
+            c.staff_id IS NULL 
+            OR c.staff_id = public.current_staff_id()
+            OR c.staff_id = (SELECT s.id FROM public.staff s WHERE s.auth_user_id = auth.uid())
+          )
+      )
+    )
+  );
 
 -- ---------------------------------------------------------------------
 -- 3.6. RLS BẢNG SUBMISSION_BATCHES & FINANCIAL_SETTLEMENTS
 -- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "submission_batches_manage" ON public.submission_batches;
 CREATE POLICY "submission_batches_manage" ON public.submission_batches
   FOR ALL TO authenticated
   USING (public.is_admin_or_manager() OR created_by = public.current_staff_id())
   WITH CHECK (public.is_admin_or_manager() OR created_by = public.current_staff_id());
 
+DROP POLICY IF EXISTS "financial_settlements_manage" ON public.financial_settlements;
 CREATE POLICY "financial_settlements_manage" ON public.financial_settlements
   FOR ALL TO authenticated
   USING (public.is_admin_or_manager())
@@ -1371,6 +1460,7 @@ CREATE POLICY "financial_settlements_manage" ON public.financial_settlements
 -- ---------------------------------------------------------------------
 -- 3.7. RLS BẢNG PUBLIC_RPC_CALL_LOG
 -- ---------------------------------------------------------------------
+DROP POLICY IF EXISTS "public_rpc_call_log_service_role" ON public.public_rpc_call_log;
 CREATE POLICY "public_rpc_call_log_service_role" ON public.public_rpc_call_log
   FOR ALL TO service_role
   USING (true)
@@ -1383,7 +1473,9 @@ CREATE POLICY "public_rpc_call_log_service_role" ON public.public_rpc_call_log
 GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
 GRANT SELECT ON public.settings, public.policies TO anon, authenticated, service_role;
 GRANT SELECT ON public.crm_customers, public.v_customer_transactions, public.v_records_unified TO authenticated, service_role;
-GRANT SELECT ON public.v_records_unified TO anon;
+REVOKE ALL ON public.v_records_unified FROM anon;
+REVOKE ALL ON public.crm_customers FROM anon;
+REVOKE ALL ON public.v_customer_transactions FROM anon;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.records, public.staff, public.customers, public.customer_participations TO authenticated;
 GRANT ALL ON public.submission_batches, public.financial_settlements TO authenticated, service_role;
 GRANT SELECT, INSERT ON public.auditlogs TO authenticated;
@@ -1526,6 +1618,72 @@ IMMUTABLE
 AS $$
     SELECT val;
 $$;
+
+-- 2.2b. Tính toán thời hạn nộp BHXH tự nguyện và BHYT theo Luật BHXH 2024 (Khoản 3 Điều 36)
+DROP FUNCTION IF EXISTS public.calculate_bhxh_2024_next_payment(TEXT, INT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.calculate_bhxh_2024_next_payment(
+  p_to_month TEXT,
+  p_months INT DEFAULT 1,
+  p_type TEXT DEFAULT 'BHXH'
+) RETURNS DATE AS $$
+DECLARE
+  v_parts TEXT[];
+  v_m INT;
+  v_y INT;
+  v_base_date DATE;
+  v_offset INT;
+  v_next_period_start DATE;
+  v_target_month DATE;
+BEGIN
+  IF p_to_month IS NULL OR TRIM(p_to_month) = '' THEN
+    RETURN NULL;
+  END IF;
+
+  -- Phân tích định dạng MM/YYYY hoặc YYYY-MM
+  IF p_to_month LIKE '%/%' THEN
+    v_parts := string_to_array(p_to_month, '/');
+    v_m := v_parts[1]::INT;
+    v_y := v_parts[2]::INT;
+  ELSIF p_to_month LIKE '%-%' THEN
+    v_parts := string_to_array(p_to_month, '-');
+    v_y := v_parts[1]::INT;
+    v_m := v_parts[2]::INT;
+  ELSE
+    RETURN NULL;
+  END IF;
+
+  IF v_m < 1 OR v_m > 12 OR v_y < 1900 OR v_y > 2100 THEN
+    RETURN NULL;
+  END IF;
+
+  v_base_date := make_date(v_y, v_m, 1);
+
+  -- Đối với BHYT: Hạn chót là ngày cuối cùng của tháng kết thúc thẻ
+  IF UPPER(COALESCE(p_type, '')) = 'BHYT' THEN
+    RETURN (v_base_date + INTERVAL '1 month - 1 day')::DATE;
+  END IF;
+
+  -- Đối với BHXH Tự Nguyện: Kỳ tiếp theo bắt đầu từ tháng liền kề sau to_month
+  v_next_period_start := (v_base_date + INTERVAL '1 month')::DATE;
+
+  IF COALESCE(p_months, 1) >= 12 THEN
+    v_offset := 6; -- Trong vòng 7 tháng đầu kỳ (offset 6 tháng)
+  ELSIF COALESCE(p_months, 1) >= 6 THEN
+    v_offset := 3; -- Trong vòng 4 tháng đầu kỳ (offset 3 tháng)
+  ELSIF COALESCE(p_months, 1) >= 3 THEN
+    v_offset := 2; -- Trong vòng 3 tháng đó (offset 2 tháng)
+  ELSE
+    v_offset := 0; -- Trong tháng đó (offset 0 tháng)
+  END IF;
+
+  v_target_month := (v_next_period_start + (v_offset || ' month')::INTERVAL)::DATE;
+  RETURN (v_target_month + INTERVAL '1 month - 1 day')::DATE;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+GRANT EXECUTE ON FUNCTION public.calculate_bhxh_2024_next_payment(TEXT, INT, TEXT) TO authenticated, service_role;
 
 -- 2.3. Tra cứu tỷ lệ hoa hồng theo ngày hiệu lực của hồ sơ
 DROP FUNCTION IF EXISTS public.get_commission_rates_for_date(DATE) CASCADE;
@@ -2921,6 +3079,15 @@ BEGIN
     v_from_month_date := public.parse_month_str_to_date(v_from_month);
     v_to_month_date := public.parse_month_str_to_date(v_to_month);
 
+    -- Tự động tính toán hạn nộp tiếp theo theo Khoản 3 Điều 36 Luật BHXH 2024 nếu chưa có
+    IF v_next_payment IS NULL AND v_to_month IS NOT NULL THEN
+      v_next_payment := public.calculate_bhxh_2024_next_payment(
+        v_to_month,
+        COALESCE(NULLIF(v_record->>'months', '')::int, 1),
+        COALESCE(NULLIF(TRIM(v_record->>'type'), ''), 'BHXH')
+      );
+    END IF;
+
     v_cust_key := public.generate_customer_key(
       v_record->>'type',
       v_record->>'bhxh',
@@ -4013,10 +4180,16 @@ $$;
 -- 4. CẤP QUYỀN THỰC THI (EXECUTE GRANTS)
 -- ======================================================================
 
-GRANT EXECUTE ON FUNCTION public.public_register_customer(JSONB) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.check_customer_exists(TEXT) TO anon, authenticated, service_role;
-GRANT EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) TO anon, authenticated, service_role;
+-- Thu hồi quyền anon trên các RPC công khai (truy cập công khai bắt buộc đi qua Edge Function bảo vệ)
+REVOKE EXECUTE ON FUNCTION public.public_register_customer(JSONB) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.check_customer_exists(TEXT) FROM anon;
+REVOKE EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) FROM anon;
+
+GRANT EXECUTE ON FUNCTION public.public_register_customer(JSONB) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.public_lookup_process(TEXT, TEXT) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.check_customer_exists(TEXT) TO service_role, authenticated;
+GRANT EXECUTE ON FUNCTION public.public_get_renewal_info(TEXT, TEXT) TO service_role, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_override_record(BIGINT, JSONB, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.confirm_record_payment(BIGINT, TEXT) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_current_staff_profile() TO authenticated, service_role;
@@ -4382,7 +4555,7 @@ BEFORE UPDATE ON public.records
 FOR EACH ROW
 EXECUTE FUNCTION public.check_submitted_batch_lock();
 
--- 3.4. Trigger tự động chuẩn hóa ngày tháng kỳ đóng (from_month_date & to_month_date)
+-- 3.4. Trigger tự động chuẩn hóa ngày tháng kỳ đóng & tính hạn nộp tiếp theo (Luật BHXH 2024)
 CREATE OR REPLACE FUNCTION public.parse_record_dates_trigger()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -4394,6 +4567,15 @@ BEGIN
 
   IF NEW.to_month IS NOT NULL AND NEW.to_month != '' THEN
     NEW.to_month_date := COALESCE(NEW.to_month_date, public.parse_month_str_to_date(NEW.to_month));
+  END IF;
+
+  -- Tự động tính hạn nộp tiếp theo theo Khoản 3 Điều 36 Luật BHXH 2024 nếu chưa có
+  IF NEW.next_payment IS NULL AND NEW.to_month IS NOT NULL AND TRIM(NEW.to_month) != '' THEN
+    NEW.next_payment := public.calculate_bhxh_2024_next_payment(
+      NEW.to_month,
+      COALESCE(NEW.months, 1),
+      COALESCE(NEW.type, 'BHXH')
+    );
   END IF;
 
   NEW.updated_at := NOW();
@@ -5637,6 +5819,7 @@ DROP POLICY IF EXISTS "customers_update_policy" ON public.customers;
 DROP POLICY IF EXISTS "customers_delete_policy" ON public.customers;
 
 -- Nhân viên chỉ đọc khách hàng do mình phụ trách hoặc khách hàng chưa gán; Admin/Quản lý đọc toàn bộ
+DROP POLICY IF EXISTS "customers_select_policy" ON public.customers;
 CREATE POLICY "customers_select_policy" ON public.customers
   FOR SELECT TO authenticated
   USING (
@@ -5646,6 +5829,7 @@ CREATE POLICY "customers_select_policy" ON public.customers
   );
 
 -- Nhân viên đang hoạt động được phép tạo khách hàng
+DROP POLICY IF EXISTS "customers_insert_policy" ON public.customers;
 CREATE POLICY "customers_insert_policy" ON public.customers
   FOR INSERT TO authenticated
   WITH CHECK (
@@ -5653,6 +5837,7 @@ CREATE POLICY "customers_insert_policy" ON public.customers
   );
 
 -- Nhân viên chỉ sửa khách hàng do mình phụ trách; Admin/Quản lý sửa toàn bộ
+DROP POLICY IF EXISTS "customers_update_policy" ON public.customers;
 CREATE POLICY "customers_update_policy" ON public.customers
   FOR UPDATE TO authenticated
   USING (
@@ -5665,6 +5850,7 @@ CREATE POLICY "customers_update_policy" ON public.customers
   );
 
 -- Chỉ Admin và Quản lý mới được phép xóa khách hàng
+DROP POLICY IF EXISTS "customers_delete_policy" ON public.customers;
 CREATE POLICY "customers_delete_policy" ON public.customers
   FOR DELETE TO authenticated
   USING (
@@ -7203,6 +7389,15 @@ BEGIN
     v_from_month_date := public.parse_month_str_to_date(v_from_month);
     v_to_month_date := public.parse_month_str_to_date(v_to_month);
 
+    -- Tự động tính toán hạn nộp tiếp theo theo Khoản 3 Điều 36 Luật BHXH 2024 nếu chưa có
+    IF v_next_payment IS NULL AND v_to_month IS NOT NULL THEN
+      v_next_payment := public.calculate_bhxh_2024_next_payment(
+        v_to_month,
+        COALESCE(NULLIF(v_record->>'months', '')::int, 1),
+        COALESCE(NULLIF(TRIM(v_record->>'type'), ''), 'BHXH')
+      );
+    END IF;
+
     v_cust_key := public.generate_customer_key(
       v_record->>'type',
       v_record->>'bhxh',
@@ -7449,6 +7644,7 @@ CREATE POLICY "customer_participations_select_policy" ON public.customer_partici
   );
 
 -- Chính sách GHI (INSERT, UPDATE, DELETE): Chỉ Quản lý/Admin hoặc Cán bộ phụ trách đang hoạt động
+DROP POLICY IF EXISTS "customer_participations_write_policy" ON public.customer_participations;
 CREATE POLICY "customer_participations_write_policy" ON public.customer_participations
   FOR ALL TO authenticated
   USING (
@@ -7976,6 +8172,108 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_commission_rates_for_date(DATE) TO authenticated, service_role, anon;
+
+
+-- ======================================================================
+-- MIGRATION: 20261029000001_update_bhxh_2024_deadlines.sql
+-- ======================================================================
+-- BẢN VÁ: CẬP NHẬT HẠN ĐÓNG TIẾP THEO KHOẢN 3 ĐIỀU 36 LUẬT BHXH 2024
+-- ======================================================================
+-- Quy định thời hạn đóng BHXH Tự nguyện (có hiệu lực từ 01/07/2025):
+-- 1. Đóng hằng tháng: Ngày cuối cùng của tháng đó.
+-- 2. Đóng 3 tháng một lần: Ngày cuối cùng của 3 tháng đó.
+-- 3. Đóng 6 tháng một lần: Ngày cuối cùng của 4 tháng đầu kỳ.
+-- 4. Đóng 12 tháng một lần: Ngày cuối cùng của 7 tháng đầu kỳ.
+-- BHYT: Hạn đóng tiếp là ngày cuối cùng của tháng hết hạn thẻ (to_month).
+
+DROP FUNCTION IF EXISTS public.calculate_bhxh_2024_next_payment(TEXT, INT, TEXT) CASCADE;
+CREATE OR REPLACE FUNCTION public.calculate_bhxh_2024_next_payment(
+  p_to_month TEXT,
+  p_months INT DEFAULT 1,
+  p_type TEXT DEFAULT 'BHXH'
+) RETURNS DATE AS $$
+DECLARE
+  v_parts TEXT[];
+  v_m INT;
+  v_y INT;
+  v_base_date DATE;
+  v_offset INT;
+  v_next_period_start DATE;
+  v_target_month DATE;
+BEGIN
+  IF p_to_month IS NULL OR TRIM(p_to_month) = '' THEN
+    RETURN NULL;
+  END IF;
+
+  -- Phân tích định dạng MM/YYYY hoặc YYYY-MM
+  IF p_to_month LIKE '%/%' THEN
+    v_parts := string_to_array(p_to_month, '/');
+    v_m := v_parts[1]::INT;
+    v_y := v_parts[2]::INT;
+  ELSIF p_to_month LIKE '%-%' THEN
+    v_parts := string_to_array(p_to_month, '-');
+    v_y := v_parts[1]::INT;
+    v_m := v_parts[2]::INT;
+  ELSE
+    RETURN NULL;
+  END IF;
+
+  IF v_m < 1 OR v_m > 12 OR v_y < 1900 OR v_y > 2100 THEN
+    RETURN NULL;
+  END IF;
+
+  v_base_date := make_date(v_y, v_m, 1);
+
+  -- Đối với BHYT: Hạn chót là ngày cuối cùng của tháng kết thúc thẻ
+  IF UPPER(COALESCE(p_type, '')) = 'BHYT' THEN
+    RETURN (v_base_date + INTERVAL '1 month - 1 day')::DATE;
+  END IF;
+
+  -- Đối với BHXH Tự Nguyện: Kỳ tiếp theo bắt đầu từ tháng liền kề sau to_month
+  v_next_period_start := (v_base_date + INTERVAL '1 month')::DATE;
+
+  IF COALESCE(p_months, 1) >= 12 THEN
+    v_offset := 6; -- Trong vòng 7 tháng đầu kỳ (offset 6 tháng)
+  ELSIF COALESCE(p_months, 1) >= 6 THEN
+    v_offset := 3; -- Trong vòng 4 tháng đầu kỳ (offset 3 tháng)
+  ELSIF COALESCE(p_months, 1) >= 3 THEN
+    v_offset := 2; -- Trong vòng 3 tháng đó (offset 2 tháng)
+  ELSE
+    v_offset := 0; -- Trong tháng đó (offset 0 tháng)
+  END IF;
+
+  v_target_month := (v_next_period_start + (v_offset || ' month')::INTERVAL)::DATE;
+  RETURN (v_target_month + INTERVAL '1 month - 1 day')::DATE;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NULL;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
+
+-- Cho phép authenticated và service_role thực thi
+GRANT EXECUTE ON FUNCTION public.calculate_bhxh_2024_next_payment(TEXT, INT, TEXT) TO authenticated, service_role;
+
+-- Cập nhật hồi tố dữ liệu lịch sử trên bảng records
+UPDATE public.records
+SET next_payment = public.calculate_bhxh_2024_next_payment(to_month, COALESCE(months, 1), type)
+WHERE to_month IS NOT NULL AND TRIM(to_month) != '';
+
+-- Đồng bộ lại trường next_payment trên bảng customers
+UPDATE public.customers c
+SET 
+  next_payment = sub.latest_next_payment,
+  next_payment_bhxh = sub.latest_next_payment_bhxh,
+  next_payment_bhyt = sub.latest_next_payment_bhyt
+FROM (
+  SELECT 
+    customer_id,
+    MAX(next_payment) as latest_next_payment,
+    MAX(CASE WHEN type = 'BHXH' THEN next_payment ELSE NULL END) as latest_next_payment_bhxh,
+    MAX(CASE WHEN type = 'BHYT' THEN next_payment ELSE NULL END) as latest_next_payment_bhyt
+  FROM public.records
+  WHERE payment_status != 'Đã hủy' AND customer_id IS NOT NULL
+  GROUP BY customer_id
+) sub
+WHERE c.id = sub.customer_id;
 
 
 -- ======================================================================
