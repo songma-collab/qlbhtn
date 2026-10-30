@@ -13,6 +13,7 @@ export interface RenewalRecordItem {
   urgency: RenewalUrgency;
   urgencyLabel: string;
   urgencyColor: string; // Tailwind color class or hex
+  deadlineDate?: string; // YYYY-MM-DD
 }
 
 export interface RenewalClassification {
@@ -68,6 +69,7 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
     const nextPayStr = record.next_payment || record.nextPayment || ((toM || fromM)
       ? calculateNextPaymentFromToMonth(toM || fromM, record.months || record.method, record.type)
       : null);
+    if (!nextPayStr) return;
     const nextPayDate = new Date(nextPayStr);
     if (isNaN(nextPayDate.getTime())) return;
     nextPayDate.setHours(0, 0, 0, 0);
@@ -103,7 +105,8 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
         diffDays,
         urgency,
         urgencyLabel,
-        urgencyColor
+        urgencyColor,
+        deadlineDate: nextPayStr
       });
     }
   });

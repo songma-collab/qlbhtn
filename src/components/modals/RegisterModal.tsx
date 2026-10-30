@@ -29,7 +29,7 @@ import {
   formatMonthToISO,
   formatMonthToVN
 } from '../../utils/dateFormatter';
-import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths, getEffectiveCommissionConfig } from '../../utils/calculations';
+import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths, getEffectiveCommissionConfig, getCommissionBreakdownForRecord } from '../../utils/calculations';
 import { X, Check, Clock, ShieldCheck } from 'lucide-react';
 import { recordService, customerService } from '../../services';
 import { callPublicPortal } from '../../utils/publicPortal';
@@ -594,6 +594,13 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
         }
       };
 
+      const bhxhCommBreakdown = getCommissionBreakdownForRecord(recordData, policies, settings);
+      recordData.commission = bhxhCommBreakdown.totalCommission;
+      recordData.appliedRates = {
+        ...recordData.appliedRates,
+        commissionRate: bhxhCommBreakdown.effectiveRatePct
+      };
+
       if (recordData.toMonth) {
         recordData.nextPayment = calculateNextPaymentFromToMonth(
           recordData.toMonth,
@@ -690,6 +697,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
             bhytRate: CONSTANTS.BHYT_RATE
           }
         };
+
+        const bhytCommBreakdown = getCommissionBreakdownForRecord(recordData, policies, settings);
+        recordData.commission = bhytCommBreakdown.totalCommission;
+        recordData.appliedRates = {
+          ...recordData.appliedRates,
+          commissionRate: bhytCommBreakdown.effectiveRatePct
+        };
+
         recordToUpdate = recordData;
       } else {
         // Create separate records for each member
@@ -749,6 +764,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
               memberRatePct: bd ? bd.ratePct : 100
             }
           };
+
+          const memberCommBreakdown = getCommissionBreakdownForRecord(memberRecord, policies, settings);
+          memberRecord.commission = memberCommBreakdown.totalCommission;
+          memberRecord.appliedRates = {
+            ...memberRecord.appliedRates,
+            commissionRate: memberCommBreakdown.effectiveRatePct
+          };
+
           newRecordsToAdd.push(memberRecord);
         });
       }

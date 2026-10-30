@@ -96,27 +96,33 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
         const { error: recErr } = await recordService.updateRecordStatusAndNotes(targetRecord.id, newStatus, updatedNotes);
         if (recErr) throw recErr;
       } else {
-        // Cập nhật tất cả bản ghi tương ứng trong CSDL records nếu có customerKey hoặc CCCD/BHXH
+        // Cập nhật an toàn không để PostgREST crash do khoảng trắng trong .or()
+        const updatePayload = { status: newStatus, updated_at: new Date().toISOString() };
+        if (metaCccd) {
+          await supabase.from('records').update(updatePayload).eq('cccd', metaCccd);
+        }
+        if (metaBhxh) {
+          await supabase.from('records').update(updatePayload).eq('bhxh', metaBhxh);
+        }
         const filterKey = metaKey || (strId.includes('-') ? '' : strId);
-        if (filterKey || metaCccd || metaBhxh) {
-          const orConditions: string[] = [];
-          if (filterKey) orConditions.push(`customer_key.eq.${filterKey}`);
-          if (metaCccd) orConditions.push(`cccd.eq.${metaCccd}`);
-          if (metaBhxh) orConditions.push(`bhxh.eq.${metaBhxh}`);
-          if (orConditions.length > 0) {
-            await supabase
-              .from('records')
-              .update({ status: newStatus, updated_at: new Date().toISOString() })
-              .or(orConditions.join(','));
-          }
+        if (filterKey && !metaCccd && !metaBhxh) {
+          await supabase.from('records').update(updatePayload).eq('customer_key', filterKey);
         }
       }
 
       // 3. Đồng bộ trạng thái vào bảng danh bạ trung tâm (customers master)
-      const customerLookupKey = metaKey || (strId.includes('-') ? strId : (metaCccd || metaBhxh || strId));
+      const targetCustId = (customerMeta?.id && String(customerMeta.id).includes('-')) 
+        ? String(customerMeta.id) 
+        : (strId.includes('-') ? strId : undefined);
+      const customerLookupKey = targetCustId || metaKey || metaCccd || metaBhxh || strId;
       if (customerLookupKey) {
         try {
-          await customerService.updateCustomerStatus(customerLookupKey, newStatus);
+          await customerService.updateCustomerStatus(customerLookupKey, newStatus, {
+            id: targetCustId,
+            customer_key: metaKey || undefined,
+            cccd: metaCccd || undefined,
+            bhxh: metaBhxh || undefined
+          });
         } catch (syncErr) {
           console.warn('[useCustomersState] Failed to sync status to customer master:', syncErr);
         }

@@ -178,21 +178,53 @@ export const customerService = {
   /**
    * Cập nhật trạng thái khách hàng trong bảng customers (hỗ trợ customer_key, UUID id, CCCD, BHXH)
    */
-  async updateCustomerStatus(customerKeyOrId: string, status: string): Promise<{ success: boolean; error: Error | null }> {
+  async updateCustomerStatus(
+    customerKeyOrId: string, 
+    status: string,
+    metadata?: { id?: string | undefined; cccd?: string | undefined; bhxh?: string | undefined; customer_key?: string | undefined }
+  ): Promise<{ success: boolean; error: Error | null }> {
     try {
       const trimmed = (customerKeyOrId || '').trim();
-      if (!trimmed) return { success: false, error: new Error('Mã khách hàng không hợp lệ') };
-
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
-      let query = supabase.from('customers').update({ status, updated_at: new Date().toISOString() });
-      if (isUuid) {
-        query = query.eq('id', trimmed);
-      } else {
-        query = query.or(`customer_key.eq.${trimmed},cccd.eq.${trimmed},bhxh.eq.${trimmed}`);
+      if (!trimmed && !metadata?.id && !metadata?.customer_key && !metadata?.cccd && !metadata?.bhxh) {
+        return { success: false, error: new Error('Mã khách hàng không hợp lệ') };
       }
 
-      const { error } = await query;
-      if (error) throw error;
+      // 1. Ưu tiên cập nhật bằng UUID (ID chính trong bảng customers)
+      const targetUuid = (metadata?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(metadata.id))
+        ? metadata.id
+        : (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed) ? trimmed : null);
+
+      if (targetUuid) {
+        const { error: uuidErr } = await supabase
+          .from('customers')
+          .update({ status, updated_at: new Date().toISOString() })
+          .eq('id', targetUuid);
+        if (!uuidErr) return { success: true, error: null };
+      }
+
+      // 2. Thử cập nhật theo customer_key trực tiếp (không dùng .or() chứa chuỗi có khoảng trắng/unicode)
+      const keyToMatch = metadata?.customer_key || (!/^\d+$/.test(trimmed) && trimmed !== targetUuid ? trimmed : null);
+      if (keyToMatch) {
+        const { data: keyData, error: keyErr } = await supabase
+          .from('customers')
+          .update({ status, updated_at: new Date().toISOString() })
+          .eq('customer_key', keyToMatch)
+          .select('id');
+        if (!keyErr && keyData && keyData.length > 0) {
+          return { success: true, error: null };
+        }
+      }
+
+      // 3. Thử cập nhật theo số định danh (CCCD hoặc BHXH dạng số thuần túy, an toàn tuyệt đối với PostgREST)
+      const cleanNum = (metadata?.cccd || metadata?.bhxh || trimmed).replace(/\D/g, '');
+      if (cleanNum) {
+        const { error: numErr } = await supabase
+          .from('customers')
+          .update({ status, updated_at: new Date().toISOString() })
+          .or(`cccd.eq.${cleanNum},bhxh.eq.${cleanNum}`);
+        if (!numErr) return { success: true, error: null };
+      }
+
       return { success: true, error: null };
     } catch (err: any) {
       console.error('[CustomerService] Lỗi updateCustomerStatus:', err);
@@ -432,23 +464,29 @@ export const customerService = {
       }
 
       // 2. Cập nhật trực tiếp bảng customers
+      const isTargetUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetIdOrKey);
       let query = supabase.from('customers').update(payload);
-      if (targetIdOrKey.includes('-') && targetIdOrKey.length >= 30) {
+      if (isTargetUuid) {
         query = query.eq('id', targetIdOrKey);
+      } else if (/^\d+$/.test(targetIdOrKey)) {
+        query = query.or(`cccd.eq.${targetIdOrKey},bhxh.eq.${targetIdOrKey}`);
       } else {
-        query = query.or(`customer_key.eq.${targetIdOrKey},id.eq.${targetIdOrKey},cccd.eq.${targetIdOrKey},bhxh.eq.${targetIdOrKey}`);
+        query = query.eq('customer_key', targetIdOrKey);
       }
 
       const { error } = await query;
       if (!error) {
         // Đồng bộ thêm vào bảng quan hệ customer_participations nếu có
         try {
-          const { data: custRec } = await supabase
-            .from('customers')
-            .select('id, customer_key, cccd, bhxh')
-            .or(`customer_key.eq.${targetIdOrKey},id.eq.${targetIdOrKey},cccd.eq.${targetIdOrKey},bhxh.eq.${targetIdOrKey}`)
-            .limit(1)
-            .maybeSingle();
+          let custQuery = supabase.from('customers').select('id, customer_key, cccd, bhxh');
+          if (isTargetUuid) {
+            custQuery = custQuery.eq('id', targetIdOrKey);
+          } else if (/^\d+$/.test(targetIdOrKey)) {
+            custQuery = custQuery.or(`cccd.eq.${targetIdOrKey},bhxh.eq.${targetIdOrKey}`);
+          } else {
+            custQuery = custQuery.eq('customer_key', targetIdOrKey);
+          }
+          const { data: custRec } = await custQuery.limit(1).maybeSingle();
 
           if (custRec?.id && Array.isArray(data.prior_periods)) {
             await supabase.from('customer_participations').delete().eq('customer_id', custRec.id);
@@ -565,6 +603,7 @@ export const customerService = {
 
       let updatedCount = 0;
 
+      // 1. Cập nhật theo UUID (ưu tiên hàng đầu, độ tin cậy tuyệt đối)
       if (uuids.length > 0) {
         const { data: uuidData, error: uuidErr } = await supabase
           .from('customers')
@@ -579,6 +618,7 @@ export const customerService = {
         }
       }
 
+      // 2. Cập nhật theo customer_key trước
       if (nonUuids.length > 0) {
         const { data, error } = await supabase
           .from('customers')
@@ -592,18 +632,31 @@ export const customerService = {
         if (!error && data && data.length > 0) {
           updatedCount += data.length;
         } else {
-          for (const cKey of nonUuids) {
-            const { data: singleData, error: singleErr } = await supabase
+          // Fallback an toàn: Thử khớp theo CCCD / BHXH dạng số thuần túy (tránh unquoted .or())
+          const numbersList = nonUuids.filter(k => /^\d+$/.test(k));
+          if (numbersList.length > 0) {
+            const { data: cccdData, error: cccdErr } = await supabase
               .from('customers')
               .update({
                 staff_id: staffId || null,
                 updated_at: new Date().toISOString()
               })
-              .or(`customer_key.eq.${cKey},cccd.eq.${cKey},bhxh.eq.${cKey},phone.eq.${cKey}`)
+              .in('cccd', numbersList)
               .select('id');
-
-            if (!singleErr && singleData) {
-              updatedCount += singleData.length;
+            if (!cccdErr && cccdData && cccdData.length > 0) {
+              updatedCount += cccdData.length;
+            } else {
+              const { data: bhxhData, error: bhxhErr } = await supabase
+                .from('customers')
+                .update({
+                  staff_id: staffId || null,
+                  updated_at: new Date().toISOString()
+                })
+                .in('bhxh', numbersList)
+                .select('id');
+              if (!bhxhErr && bhxhData) {
+                updatedCount += bhxhData.length;
+              }
             }
           }
         }

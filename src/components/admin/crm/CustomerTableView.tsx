@@ -69,7 +69,13 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               <th className="p-4 w-12 text-center">
                 <input 
                   type="checkbox" 
-                  checked={safeCustomers.length > 0 && safeCustomers.every(c => c?.id && safeSelectedIds.some(sid => String(sid) === String(c.id)))}
+                  checked={
+                    safeCustomers.length > 0 && 
+                    safeCustomers.every(c => {
+                      const cid = c?.id || c?.customer_key || (c as any)?.customerKey || c?.cccd || c?.bhxh;
+                      return cid && safeSelectedIds.some(sid => String(sid) === String(cid) || (c?.id && String(sid) === String(c.id)));
+                    })
+                  }
                   onChange={onSelectAll}
                   className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
                 />
@@ -97,6 +103,9 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
 
               const assignedStaff = safeStaffList.find(s => s && s.id === (r.staff_id || r.staffId));
 
+              const rowId = r.id || r.customer_key || (r as any).customerKey || r.cccd || r.bhxh;
+              const isRowSelected = rowId ? safeSelectedIds.some(sid => String(sid) === String(rowId) || (r.id && String(sid) === String(r.id))) : false;
+
               const fromM = r.from_month || r.fromMonth || '';
               const toM = r.to_month || r.toMonth || '';
               const fromMStr = fromM ? formatMonthVN(fromM) : '';
@@ -104,23 +113,23 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
               const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
 
               let nextPay = (toM || fromM)
-                ? calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1, r.type)
+                ? calculateNextPaymentFromToMonth(toM || fromM, r.months || (r as any).method || 1, r.type)
                 : (r.next_payment || r.nextPayment || null);
               const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
               return (
                 <tr 
-                  key={r.id || `row-${index}`} 
+                  key={rowId || `row-${index}`} 
                   className={`hover:bg-slate-50/80 transition border-b border-slate-100 ${
-                    r.id && safeSelectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : ''
+                    isRowSelected ? 'bg-blue-50/40' : ''
                   }`}
                 >
                   <td className="p-4 text-center">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? safeSelectedIds.some(sid => String(sid) === String(r.id)) : false}
-                      onChange={() => r.id && onSelectRow(r.id)}
-                      disabled={!r.id}
+                      checked={isRowSelected}
+                      onChange={() => rowId && onSelectRow(rowId)}
+                      disabled={!rowId}
                       className="w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
                     />
                   </td>
@@ -337,6 +346,9 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const isRowRevealed = r.id ? revealedRowIds.has(r.id) : false;
             const isFullyRevealed = !isPIIMasked || isRowRevealed;
 
+            const rowId = r.id || r.customer_key || (r as any).customerKey || r.cccd || r.bhxh;
+            const isRowSelected = rowId ? safeSelectedIds.some(sid => String(sid) === String(rowId) || (r.id && String(sid) === String(r.id))) : false;
+
             const fromM = r.from_month || r.fromMonth || '';
             const toM = r.to_month || r.toMonth || '';
             const fromMStr = fromM ? formatMonthVN(fromM) : '';
@@ -344,7 +356,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
             const periodStr = (fromMStr && toMStr) ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
 
             let nextPay = (toM || fromM)
-              ? calculateNextPaymentFromToMonth(toM || fromM, Number(r.months) || 1, r.type)
+              ? calculateNextPaymentFromToMonth(toM || fromM, r.months || (r as any).method || 1, r.type)
               : (r.next_payment || r.nextPayment || null);
             const payStatus = r.payment_status || r.paymentStatus || 'Chờ thu tiền';
 
@@ -352,16 +364,17 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
 
             return (
               <div 
-                key={r.id || `mob-${index}`} 
-                className={`p-4 ${r.id && safeSelectedIds.some(sid => String(sid) === String(r.id)) ? 'bg-blue-50/40' : 'bg-white'}`}
+                key={rowId || `mob-${index}`} 
+                className={`p-4 ${isRowSelected ? 'bg-blue-50/40' : 'bg-white'}`}
               >
                 <div className="flex justify-between items-start mb-2.5">
                   <div className="flex items-start gap-2.5">
                     <input 
                       type="checkbox" 
-                      checked={r.id ? safeSelectedIds.some(sid => String(sid) === String(r.id)) : false}
-                      onChange={() => r.id && onSelectRow(r.id)}
-                      className="mt-1 w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] cursor-pointer"
+                      checked={isRowSelected}
+                      onChange={() => rowId && onSelectRow(rowId)}
+                      disabled={!rowId}
+                      className="mt-1 w-4 h-4 text-[#004182] rounded border-slate-300 focus:ring-[#004182] disabled:opacity-50 cursor-pointer"
                     />
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">{r.name}</h4>

@@ -347,7 +347,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                     
                     const toM = r.to_month || r.toMonth;
                     const fromM = r.from_month || r.fromMonth;
-                    const rawNext = r.next_payment || r.nextPayment || ((toM || fromM)
+                    const rawNext = item.deadlineDate || r.next_payment || r.nextPayment || ((toM || fromM)
                       ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
                       : null);
                     const nextPayStr = formatDateVN(rawNext) || 'Chưa xác định';

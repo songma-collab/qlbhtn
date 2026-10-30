@@ -435,7 +435,15 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         ...(paginatedCustomers || []),
         ...(filteredRecords || [])
       ];
-      const recordToDelete = allCustomers.find(r => r && String(r.id) === String(deletingId));
+      const recordToDelete = allCustomers.find(r => 
+        r && (
+          String(r.id) === String(deletingId) ||
+          String(r.customer_key) === String(deletingId) ||
+          String((r as any).customerKey) === String(deletingId) ||
+          String(r.cccd) === String(deletingId) ||
+          String(r.bhxh) === String(deletingId)
+        )
+      );
       if (recordToDelete) {
         const customerKey = (recordToDelete.customer_key || recordToDelete.customerKey || recordToDelete.cccd || recordToDelete.bhxh || recordToDelete.phone || '').trim();
         let success = false;
@@ -471,12 +479,21 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         ...(paginatedCustomers || []),
         ...(filteredRecords || [])
       ];
-      const recordsToDelete = allCustomers.filter(r => 
-        r && r.id && selectedIds.some(sid => String(sid) === String(r.id))
-      );
+      const recordsToDelete = allCustomers.filter(r => {
+        if (!r) return false;
+        const rid = r.id || r.customer_key || (r as any).customerKey || r.cccd || r.bhxh;
+        return selectedIds.some(sid => 
+          (r.id && String(sid) === String(r.id)) ||
+          (rid && String(sid) === String(rid)) ||
+          (r.customer_key && String(sid) === String(r.customer_key)) ||
+          ((r as any).customerKey && String(sid) === String((r as any).customerKey)) ||
+          (r.cccd && String(sid) === String(r.cccd)) ||
+          (r.bhxh && String(sid) === String(r.bhxh))
+        );
+      });
       // Lọc các bản ghi duy nhất theo ID/Key
       const uniqueRecordsToDelete = Array.from(
-        new Map(recordsToDelete.map(r => [String(r.id), r])).values()
+        new Map(recordsToDelete.map(r => [String(r.id || r.customer_key || (r as any).customerKey || r.cccd || r.bhxh), r])).values()
       );
 
       let successCount = 0;
@@ -547,9 +564,18 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         ...(paginatedCustomers || []),
         ...(filteredRecords || [])
       ];
-      const selectedRecords = allCustomers.filter(r => 
-        r && r.id && selectedIds.some(sid => String(sid) === String(r.id))
-      );
+      const selectedRecords = allCustomers.filter(r => {
+        if (!r) return false;
+        const rid = r.id || r.customer_key || (r as any).customerKey || r.cccd || r.bhxh;
+        return selectedIds.some(sid => 
+          (r.id && String(sid) === String(r.id)) ||
+          (rid && String(sid) === String(rid)) ||
+          (r.customer_key && String(sid) === String(r.customer_key)) ||
+          ((r as any).customerKey && String(sid) === String((r as any).customerKey)) ||
+          (r.cccd && String(sid) === String(r.cccd)) ||
+          (r.bhxh && String(sid) === String(r.bhxh))
+        );
+      });
       
       const targetCustomerKeys = Array.from(
         new Set(
@@ -822,7 +848,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
   const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.checked) {
-      setSelectedIds(paginatedCustomers.map(c => c.id).filter(Boolean));
+      const allRowIds = paginatedCustomers
+        .map(c => c.id || c.customer_key || (c as any).customerKey || c.cccd || c.bhxh)
+        .filter(Boolean);
+      setSelectedIds(allRowIds);
     } else {
       setSelectedIds([]);
     }
