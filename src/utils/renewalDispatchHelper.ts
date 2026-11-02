@@ -196,7 +196,8 @@ Trân trọng cảm ơn Anh/Chị!`;
  */
 export const exportRenewalListToExcel = async (
   items: RenewalRecordItem[],
-  filterTitle: string = 'Toàn bộ danh sách cần đôn đốc'
+  filterTitle: string = 'Toàn bộ danh sách cần đôn đốc',
+  staffList?: any[]
 ) => {
   const XLSX = (await import('xlsx-js-style')).default || (await import('xlsx-js-style'));
 
@@ -225,7 +226,8 @@ export const exportRenewalListToExcel = async (
     'Tình trạng hạn',
     'Mức độ',
     'Dự kiến thu (VNĐ)',
-    'Nhân viên quản lý'
+    'Nhân viên quản lý',
+    'Ghi chú'
   ];
 
   const dataRows = items.map((item, index) => {
@@ -254,6 +256,14 @@ export const exportRenewalListToExcel = async (
     const amt = Number(r.amount !== undefined ? r.amount : (r.latest_amount !== undefined ? r.latest_amount : 0)) || 0;
     const amountStr = amt > 0 ? amt.toLocaleString('vi-VN') + ' đ' : '0 đ';
 
+    const staffId = r.staff_id || r.staffId;
+    const matchedStaff = staffList?.find((s: any) => 
+      s.id === staffId || s.username === staffId || s.staffCode === staffId || s.code === staffId
+    );
+    const resolvedStaffName = r.staffName || r.staff || matchedStaff?.name || (staffId ? staffId : '');
+
+    const noteText = r.notes || r.note || r.contactNote || '';
+
     return [
       index + 1,
       r.name || r.fullName || '',
@@ -266,7 +276,8 @@ export const exportRenewalListToExcel = async (
       item.urgencyLabel,
       urgencyMap[item.urgency],
       amountStr,
-      r.staffName || r.staff || ''
+      resolvedStaffName,
+      noteText
     ];
   });
 
@@ -286,17 +297,18 @@ export const exportRenewalListToExcel = async (
     { wch: 22 }, // Tình trạng hạn
     { wch: 20 }, // Mức độ
     { wch: 18 }, // Dự kiến thu
-    { wch: 20 }  // Nhân viên
+    { wch: 22 }, // Nhân viên quản lý
+    { wch: 28 }  // Ghi chú
   ];
 
   // Merge headers
   ws['!merges'] = [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
     { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
-    { s: { r: 0, c: 4 }, e: { r: 0, c: 8 } },
-    { s: { r: 1, c: 4 }, e: { r: 1, c: 8 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 11 } },
-    { s: { r: 4, c: 0 }, e: { r: 4, c: 11 } }
+    { s: { r: 0, c: 4 }, e: { r: 0, c: 9 } },
+    { s: { r: 1, c: 4 }, e: { r: 1, c: 9 } },
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 12 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 12 } }
   ];
 
   // Áp dụng style

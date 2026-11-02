@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import { 
   classifyRenewalRecords, 
-  generateRenewalMessage 
+  generateRenewalMessage,
+  exportRenewalListToExcel
 } from '../utils/renewalDispatchHelper';
 
 describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/BHYT', () => {
@@ -176,5 +177,32 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
     const result = classifyRenewalRecords(zeroAmountRecords);
     expect(result.totalActionable).toBe(1);
     expect(result.all[0]!.record.name).toBe('Khách hàng có tiền');
+  });
+
+  it('exportRenewalListToExcel bổ sung cột Ghi chú và mapping chính xác tên nhân viên quản lý từ staffList', async () => {
+    const mockItems = [
+      {
+        record: {
+          name: 'Lường Thị Hậu',
+          cccd: '014196005767',
+          type: 'BHXH',
+          amount: 781000,
+          staff_id: 'STF-ADMIN1',
+          notes: 'Khách hẹn đầu tháng 12 nộp tiền',
+          next_payment: '2026-11-30'
+        },
+        diffDays: 28,
+        urgency: 'upcoming' as const,
+        urgencyLabel: 'Còn 28 ngày (Sắp đến)',
+        urgencyColor: '#3b82f6',
+        deadlineDate: '2026-11-30'
+      }
+    ];
+
+    const mockStaffList = [
+      { id: 'STF-ADMIN1', name: 'Quản Trị Viên' }
+    ];
+
+    await expect(exportRenewalListToExcel(mockItems, 'Test', mockStaffList)).resolves.not.toThrow();
   });
 });

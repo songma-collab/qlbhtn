@@ -60,6 +60,14 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
     return staff.find((s: any) => s.id === staffId || s.username === staffId || s.staffCode === staffId) || currentUser;
   };
 
+  // Lấy tên cán bộ phụ trách hiển thị chuẩn xác
+  const getStaffNameForRecord = (record: any) => {
+    const staffId = record?.staffId || record?.staff_id;
+    if (!staffId) return record?.staffName || record?.staff || 'Chưa phân công';
+    const s = staff?.find((st: any) => st.id === staffId || st.username === staffId || st.staffCode === staffId || st.code === staffId);
+    return s?.name || record?.staffName || record?.staff || staffId;
+  };
+
   // Mở popup soạn tin nhắn đôn đốc
   const handleOpenMessageModal = (record: any) => {
     const staffMember = getStaffForRecord(record);
@@ -181,7 +189,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
       warning: 'Hồ sơ cận hạn (8 - 15 ngày)',
       upcoming: 'Hồ sơ sắp đến hạn (16 - 30 ngày)'
     };
-    exportRenewalListToExcel(displayedItems, titles[activeUrgency]);
+    exportRenewalListToExcel(displayedItems, titles[activeUrgency], staff);
   };
 
   if (!isOpen) return null;
@@ -368,6 +376,11 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                               </a>
                             )}
                           </div>
+                          {r.notes && (
+                            <div className="text-[11px] text-gray-500 italic mt-0.5 max-w-[220px] truncate" title={r.notes}>
+                              Ghi chú: {r.notes}
+                            </div>
+                          )}
                         </td>
 
                         <td className="px-3 py-3">
@@ -409,7 +422,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
 
                         <td className="px-3 py-3">
                           <div className="font-medium text-gray-700 text-xs">
-                            {r.staffName || r.staff || 'Chưa phân công'}
+                            {getStaffNameForRecord(r)}
                           </div>
                         </td>
 
