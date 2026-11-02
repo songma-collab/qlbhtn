@@ -173,6 +173,7 @@ describe('Kiểm thử Toàn diện Quy định Thời hạn Đóng BHXH Tự Ng
         type: 'BHXH',
         to_month: '2026-09',
         months: 3,
+        amount: 1155000,
         payment_status: 'Đã thu tiền',
         next_payment: mockDateStr
       };

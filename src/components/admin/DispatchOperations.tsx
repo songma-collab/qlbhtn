@@ -124,11 +124,16 @@ const DispatchOperations: React.FC = () => {
     today.setHours(0, 0, 0, 0);
 
     const uniqueCustomers = groupRecordsByCustomer(records);
-    // LOẠI TRỪ khách hàng 'Đã dừng đóng' khỏi đôn đốc & SLA alerts
-    const activeRenewalCustomers = filterRenewalDispatchCustomers(uniqueCustomers);
+    // LOẠI TRỪ khách hàng 'Đã dừng đóng' và khách hàng có số tiền <= 0 khỏi đôn đốc & SLA alerts
+    const activeRenewalCustomers = filterRenewalDispatchCustomers(uniqueCustomers, { requirePositiveAmount: true });
     const list: CustomerItem[] = [];
 
     activeRenewalCustomers.forEach(r => {
+      // YÊU CẦU NGHIỆP VỤ: Chỉ điều phối & đôn đốc các hồ sơ có số tiền thu > 0
+      const rawAmt = r.amount !== undefined ? r.amount : (r as any).latest_amount;
+      const customerAmount = Number(rawAmt) || 0;
+      if (customerAmount <= 0) return;
+
       let daysRemaining = 999;
       let slaStatus: CustomerItem['slaStatus'] = 'safe';
 
@@ -165,7 +170,7 @@ const DispatchOperations: React.FC = () => {
         address: r.address || '',
         type: (r.type as 'BHXH' | 'BHYT') || 'BHXH',
         actionType: r.action_type || (r as any).actionType,
-        amount: Number(r.amount) || 0,
+        amount: customerAmount,
         months: Number(r.months) || 12,
         method: r.method || (r.months ? `Đóng ${r.months} tháng` : ''),
         fromMonth: r.from_month || (r as any).fromMonth || '',

@@ -42,6 +42,13 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
     if (!nextPay) return false;
     if (payStatus === 'Đã hủy') return false;
     if (r.status === 'Đã dừng đóng') return false;
+
+    // YÊU CẦU NGHIỆP VỤ: Chỉ hiển thị và thông báo những hồ sơ có số tiền > 0
+    // Loại trừ các hồ sơ gốc danh bạ / hồ sơ có số tiền = 0 hoặc không có số tiền thu phí thực tế
+    const rawAmt = r.amount !== undefined ? r.amount : (r.latest_amount !== undefined ? r.latest_amount : r.latestAmount);
+    const amt = Number(rawAmt);
+    if (isNaN(amt) || amt <= 0) return false;
+
     return true;
   });
 
@@ -64,6 +71,11 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   const classifiedList: RenewalRecordItem[] = [];
 
   latestByPerson.forEach(record => {
+    // Phòng vệ: Bắt buộc hồ sơ phải có số tiền > 0
+    const rawAmt = record.amount !== undefined ? record.amount : (record.latest_amount !== undefined ? record.latest_amount : record.latestAmount);
+    const amt = Number(rawAmt);
+    if (isNaN(amt) || amt <= 0) return;
+
     const toM = record.to_month || record.toMonth;
     const fromM = record.from_month || record.fromMonth;
     const nextPayStr = record.next_payment || record.nextPayment || ((toM || fromM)
@@ -212,6 +224,7 @@ export const exportRenewalListToExcel = async (
     'Ngày đến hạn',
     'Tình trạng hạn',
     'Mức độ',
+    'Dự kiến thu (VNĐ)',
     'Nhân viên quản lý'
   ];
 
@@ -238,6 +251,9 @@ export const exportRenewalListToExcel = async (
       upcoming: 'SẮP ĐẾN (16-30 ngày)'
     };
 
+    const amt = Number(r.amount !== undefined ? r.amount : (r.latest_amount !== undefined ? r.latest_amount : 0)) || 0;
+    const amountStr = amt > 0 ? amt.toLocaleString('vi-VN') + ' đ' : '0 đ';
+
     return [
       index + 1,
       r.name || r.fullName || '',
@@ -249,6 +265,7 @@ export const exportRenewalListToExcel = async (
       nextPayStr,
       item.urgencyLabel,
       urgencyMap[item.urgency],
+      amountStr,
       r.staffName || r.staff || ''
     ];
   });
@@ -268,6 +285,7 @@ export const exportRenewalListToExcel = async (
     { wch: 14 }, // Ngày đến hạn
     { wch: 22 }, // Tình trạng hạn
     { wch: 20 }, // Mức độ
+    { wch: 18 }, // Dự kiến thu
     { wch: 20 }  // Nhân viên
   ];
 
@@ -277,8 +295,8 @@ export const exportRenewalListToExcel = async (
     { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
     { s: { r: 0, c: 4 }, e: { r: 0, c: 8 } },
     { s: { r: 1, c: 4 }, e: { r: 1, c: 8 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 10 } },
-    { s: { r: 4, c: 0 }, e: { r: 4, c: 10 } }
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 11 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 11 } }
   ];
 
   // Áp dụng style
@@ -335,6 +353,7 @@ export const exportRenewalListToExcel = async (
         let align: any = 'left';
         if (c === 0 || c === 6 || c === 7) align = 'center';
         if (c === 2 || c === 3 || c === 4) align = 'center';
+        if (c === 10) align = 'right';
 
         let fontColor = '333333';
         if (isOverdue && (c === 8 || c === 9)) fontColor = 'DC2626';

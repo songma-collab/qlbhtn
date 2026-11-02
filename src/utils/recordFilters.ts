@@ -167,9 +167,14 @@ export function matchQuickPill(
   }
 
   if (quickPill === 'UPCOMING_RENEWAL') {
-    // Đến hạn đôn đốc: nextPayment trong 0-30 ngày tới, BẮT BUỘC loại trừ 'Đã dừng đóng'
+    // Đến hạn đôn đốc: nextPayment trong 0-30 ngày tới, BẮT BUỘC loại trừ 'Đã dừng đóng' và số tiền <= 0
     if (record.status === 'Đã dừng đóng') return false;
     if (!record.nextPayment) return false;
+    const rawAmt = record.amount !== undefined ? record.amount : (record as any).latest_amount;
+    if (rawAmt !== undefined) {
+      const amt = Number(rawAmt);
+      if (isNaN(amt) || amt <= 0) return false;
+    }
 
     const todayStr = referenceDateStr || getLocalYYYYMMDD();
     const todayTs = new Date(todayStr).getTime();

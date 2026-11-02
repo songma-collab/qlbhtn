@@ -50,6 +50,20 @@ describe('Kiểm thử Quản lý Trạng thái Khách hàng & Loại trừ Đô
       expect(isCustomerEligibleForRenewalAlert({ status: 'Đã dừng đóng' })).toBe(false);
       expect(isCustomerEligibleForRenewalAlert({ status: 'Đang tham gia' })).toBe(true);
       expect(isCustomerEligibleForRenewalAlert({})).toBe(true);
+      expect(isCustomerEligibleForRenewalAlert({ status: 'Đang tham gia', amount: 0 })).toBe(false);
+      expect(isCustomerEligibleForRenewalAlert({ status: 'Đang tham gia', amount: 1500000 })).toBe(true);
+    });
+
+    it('filterRenewalDispatchCustomers loại trừ các hồ sơ có số tiền <= 0 khỏi đôn đốc điều phối', () => {
+      const mixedList = [
+        { id: 10, name: 'Khách A', amount: 0, status: 'Đang tham gia' },
+        { id: 11, name: 'Khách B', amount: -50000, status: 'Đang tham gia' },
+        { id: 12, name: 'Khách C', amount: 319000, status: 'Đang tham gia' }
+      ];
+
+      const filtered = filterRenewalDispatchCustomers(mixedList);
+      expect(filtered.length).toBe(1);
+      expect(filtered[0]!.id).toBe(12);
     });
   });
 

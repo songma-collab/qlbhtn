@@ -19,6 +19,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       citizenId: '012345678901',
       bhxhCode: '7912345678',
       phone: '0912345678',
+      amount: 1500000,
       nextPayment: getFutureDate(-10), // Quá hạn 10 ngày
       paymentStatus: 'Đã thu tiền'
     },
@@ -29,6 +30,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       citizenId: '012345678902',
       bhytCode: 'GD4010123456789',
       phone: '0912345679',
+      amount: 972000,
       nextPayment: getFutureDate(3), // Khẩn cấp 3 ngày (≤7 ngày)
       paymentStatus: 'Đã thu tiền'
     },
@@ -39,6 +41,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       citizenId: '012345678903',
       bhytCode: 'GD4010123456790',
       phone: '0912345680',
+      amount: 972000,
       nextPayment: getFutureDate(12), // Cận hạn (8-15 ngày)
       paymentStatus: 'Đã thu tiền'
     },
@@ -49,6 +52,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       citizenId: '012345678904',
       bhxhCode: '7912345679',
       phone: '0912345681',
+      amount: 1500000,
       nextPayment: getFutureDate(25), // Sắp đến hạn (16-30 ngày)
       paymentStatus: 'Đã thu tiền'
     },
@@ -58,6 +62,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       type: 'BHXH',
       citizenId: '012345678905',
       bhxhCode: '7912345680',
+      amount: 1500000,
       nextPayment: getFutureDate(90), // > 30 ngày (không cần đôn đốc)
       paymentStatus: 'Đã thu tiền'
     },
@@ -67,6 +72,7 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       type: 'BHYT',
       citizenId: '012345678906',
       bhytCode: 'GD4010123456791',
+      amount: 972000,
       nextPayment: getFutureDate(2),
       paymentStatus: 'Đã hủy' // Bị hủy bỏ -> Phải loại trừ
     },
@@ -76,8 +82,19 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
       type: 'BHXH',
       citizenId: '012345678907',
       bhxhCode: '7912345681',
+      amount: 1500000,
       nextPayment: getFutureDate(2),
       status: 'Đã dừng đóng' // Dừng đóng -> Phải loại trừ
+    },
+    {
+      id: 'rec-8',
+      name: 'Lò Văn Không Tiền',
+      type: 'BHXH',
+      citizenId: '012345678908',
+      bhxhCode: '7912345682',
+      amount: 0, // Số tiền = 0 (hồ sơ gốc danh bạ) -> Phải loại trừ
+      nextPayment: getFutureDate(3),
+      paymentStatus: 'Đã thu tiền'
     }
   ];
 
@@ -126,5 +143,38 @@ describe('Kiểm thử Phân loại Nhắc Hạn & Đôn Đốc Gia Hạn BHXH/B
     expect(msg).toContain('lương hưu');
     expect(msg).toContain('Trần Văn Bình');
     expect(msg).toContain('0977.654.321');
+  });
+
+  it('loại trừ 100% hồ sơ có số tiền <= 0 (hồ sơ gốc danh bạ) khỏi danh sách đôn đốc & thông báo', () => {
+    const zeroAmountRecords = [
+      {
+        id: 'zero-1',
+        name: 'Khách hàng 0 đồng',
+        type: 'BHXH',
+        amount: 0,
+        nextPayment: getFutureDate(3),
+        paymentStatus: 'Đã thu tiền'
+      },
+      {
+        id: 'negative-1',
+        name: 'Khách hàng âm tiền',
+        type: 'BHXH',
+        amount: -100000,
+        nextPayment: getFutureDate(3),
+        paymentStatus: 'Đã thu tiền'
+      },
+      {
+        id: 'positive-1',
+        name: 'Khách hàng có tiền',
+        type: 'BHXH',
+        amount: 319000,
+        nextPayment: getFutureDate(3),
+        paymentStatus: 'Đã thu tiền'
+      }
+    ];
+
+    const result = classifyRenewalRecords(zeroAmountRecords);
+    expect(result.totalActionable).toBe(1);
+    expect(result.all[0]!.record.name).toBe('Khách hàng có tiền');
   });
 });

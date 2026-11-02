@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { toUIMonth, toUIDate, calculateNextRenewalMonth } from '../../utils/dateStandardHelper';
-import { prepareRenewalRecord, formatDateVN, calculateNextPaymentFromToMonth } from '../../utils/helpers';
+import { prepareRenewalRecord, formatDateVN, calculateNextPaymentFromToMonth, formatMoney } from '../../utils/helpers';
 import { formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
 import { 
   classifyRenewalRecords, 
@@ -377,6 +377,11 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                             {isBHYT ? 'BHYT Hộ gia đình' : 'BHXH Tự nguyện'}
                           </span>
                           <div className="font-mono text-xs text-gray-600">{code || '---'}</div>
+                          {Number(r.amount !== undefined ? r.amount : (r.latest_amount || 0)) > 0 && (
+                            <div className="font-extrabold text-emerald-700 text-xs mt-1">
+                              {formatMoney(r.amount !== undefined ? r.amount : r.latest_amount)}
+                            </div>
+                          )}
                         </td>
 
                         <td className="px-3 py-3">

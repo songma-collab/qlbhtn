@@ -43,12 +43,23 @@ export function isCustomerActive(recordOrStatus: RecordType | string | null | un
  * KHÁCH HÀNG "ĐÃ DỪNG ĐÓNG" BỊ LOẠI TRỪ 100%
  */
 export function isCustomerEligibleForRenewalAlert(
-  recordOrCustomer: { status?: string | undefined; paymentStatus?: string | undefined; isAdjustment?: boolean | undefined } | null | undefined
+  recordOrCustomer: { 
+    status?: string | undefined; 
+    paymentStatus?: string | undefined; 
+    isAdjustment?: boolean | undefined;
+    amount?: number | string | undefined;
+    latest_amount?: number | string | undefined;
+  } | null | undefined
 ): boolean {
   if (!recordOrCustomer) return false;
   if (recordOrCustomer.status === 'Đã dừng đóng') return false;
   if (recordOrCustomer.paymentStatus === 'Đã hủy') return false;
   if (recordOrCustomer.isAdjustment) return false;
+  const rawAmt = recordOrCustomer.amount !== undefined ? recordOrCustomer.amount : (recordOrCustomer as any).latest_amount;
+  if (rawAmt !== undefined) {
+    const amt = Number(rawAmt);
+    if (isNaN(amt) || amt <= 0) return false;
+  }
   return true;
 }
 
@@ -79,12 +90,19 @@ export function countActiveAndStoppedParticipants<T extends { status?: string }>
 
 /**
  * Lọc danh sách khách hàng phục vụ đôn đốc thu & cảnh báo hạn nộp
- * TUÂN THỦ NGHIỆP VỤ: Khách hàng có trạng thái "Đã dừng đóng" BẮT BUỘC bị loại trừ
- * khỏi danh sách đôn đốc tái tục, cảnh báo SLA và các chỉ số thống kê đôn đốc.
+ * TUÂN THỦ NGHIỆP VỤ: 
+ * - Khách hàng có trạng thái "Đã dừng đóng" BẮT BUỘC bị loại trừ.
+ * - Khách hàng có số tiền thu phí <= 0 hoặc không có số tiền thu (hồ sơ gốc danh bạ) BẮT BUỘC bị loại trừ.
  */
-export function filterRenewalDispatchCustomers<T extends { status?: string | undefined; paymentStatus?: string | undefined; isAdjustment?: boolean | undefined }>(
+export function filterRenewalDispatchCustomers<T extends { 
+  status?: string | undefined; 
+  paymentStatus?: string | undefined; 
+  isAdjustment?: boolean | undefined;
+  amount?: number | string | undefined;
+  latest_amount?: number | string | undefined;
+}>(
   customers: T[],
-  options?: { includeSuspended?: boolean | undefined }
+  options?: { includeSuspended?: boolean | undefined; requirePositiveAmount?: boolean | undefined }
 ): T[] {
   if (!Array.isArray(customers)) return [];
 
@@ -95,6 +113,15 @@ export function filterRenewalDispatchCustomers<T extends { status?: string | und
 
     // Loại trừ khách hàng đã dừng đóng trừ khi có tùy chọn hiển thị rõ ràng
     if (!options?.includeSuspended && item.status === 'Đã dừng đóng') {
+      return false;
+    }
+
+    // Loại trừ hồ sơ có số tiền <= 0 (Hồ sơ gốc danh bạ hoặc chưa có số tiền thu phí)
+    const rawAmt = item.amount !== undefined ? item.amount : (item as any).latest_amount;
+    if (rawAmt !== undefined) {
+      const amt = Number(rawAmt);
+      if (isNaN(amt) || amt <= 0) return false;
+    } else if (options?.requirePositiveAmount) {
       return false;
     }
 
