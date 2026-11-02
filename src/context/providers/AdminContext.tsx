@@ -13,7 +13,8 @@ import {
   storeUserOverrides,
   hasPrintSettingsFields,
   extractPrintConfig,
-  storePrintConfig
+  storePrintConfig,
+  storeReminderMessageTemplates
 } from '../../utils/settingsHelper';
 import { sanitizeRolePermissions, sanitizeUserOverrides } from '../../utils/permissions';
 import { Policy } from '../AppContext';
@@ -378,6 +379,25 @@ export const AdminProvider: React.FC<{ children: ReactNode; policies?: Policy[] 
           });
         } catch (printErr) {
           console.warn('[AdminContext] Lưu policy report_print_settings:', printErr);
+        }
+      }
+
+      // Xử lý lưu Reminder Message Templates vào bảng policies và localStorage nếu có
+      if (updatedFields.reminderMessageTemplates || (updatedFields as any).reminder_message_templates) {
+        const templates = updatedFields.reminderMessageTemplates || (updatedFields as any).reminder_message_templates;
+        storeReminderMessageTemplates(templates);
+
+        try {
+          await policyService.upsertPolicy('reminder_message_templates', {
+            name: 'Cấu hình Mẫu Tin Nhắn Đôn Đốc',
+            value: templates,
+            effective_date: '2026-01-01',
+            description: 'Mẫu tin nhắn nhắc hạn Zalo/SMS cho Trung Tâm Quản Lý & Nhắc Hạn Hồ Sơ và Trung Tâm Điều Phối & Đôn Đốc Thu Phí',
+            notes: 'Mẫu tin nhắn đôn đốc tùy chỉnh người dùng thiết lập',
+            is_active: true
+          });
+        } catch (templateErr) {
+          console.warn('[AdminContext] Lưu policy reminder_message_templates:', templateErr);
         }
       }
 

@@ -4,6 +4,8 @@
  */
 
 import { calculateNextPaymentFromToMonth } from './dateUtils';
+import { ReminderMessageTemplates } from '../context/types';
+import { DEFAULT_REMINDER_MESSAGE_TEMPLATES, getStoredReminderMessageTemplates, renderReminderMessageTemplate } from './settingsHelper';
 
 export type RenewalUrgency = 'overdue' | 'urgent' | 'warning' | 'upcoming';
 
@@ -144,17 +146,22 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
 /**
  * Sinh mẫu tin nhắn Zalo/SMS chuẩn nghiệp vụ an sinh xã hội
  */
-export const generateRenewalMessage = (record: any, staffMember?: any): string => {
-  const isBHYT = record.type === 'BHYT';
-  const name = record.name || record.fullName || 'Quý khách';
+export const generateRenewalMessage = (
+  record: any, 
+  staffMember?: any,
+  customTemplates?: ReminderMessageTemplates,
+  agencyNameInput?: string
+): string => {
+  const isBHYT = record.type === 'BHYT' || record.insurance_type === 'BHYT';
+  const name = record.name || record.fullName || record.customer_name || record.customerName || 'Quý khách';
   const code = isBHYT 
-    ? (record.bhytCode || record.code || 'Chưa cập nhật') 
-    : (record.bhxhCode || record.code || 'Chưa cập nhật');
+    ? (record.bhytCode || record.code || record.bhyt || record.insurance_code || 'Chưa cập nhật') 
+    : (record.bhxhCode || record.code || record.bhxh || record.insurance_code || 'Chưa cập nhật');
   
   let formattedDate = 'sắp tới';
   const toM = record.to_month || record.toMonth;
   const fromM = record.from_month || record.fromMonth;
-  const rawNext = record.next_payment || record.nextPayment || ((toM || fromM)
+  const rawNext = record.next_payment || record.nextPayment || record.expiry_date || record.deadlineDate || ((toM || fromM)
     ? calculateNextPaymentFromToMonth(toM || fromM, record.months || record.method, record.type)
     : null);
   if (rawNext) {
@@ -164,31 +171,27 @@ export const generateRenewalMessage = (record: any, staffMember?: any): string =
     }
   }
 
-  const staffName = staffMember?.name || 'Bộ phận Quản lý Khách hàng';
-  const staffPhone = staffMember?.phone || '0987.654.321';
-  const agencyName = 'Điểm thu BHXH, BHYT Sông Mã';
+  const staffName = staffMember?.name || staffMember?.full_name || staffMember?.fullName || 'Bộ phận Quản lý Khách hàng';
+  const staffPhone = staffMember?.phone || staffMember?.phoneNumber || '0987.654.321';
+  const agencyName = agencyNameInput || 'Điểm thu BHXH, BHYT Sông Mã';
+  const amt = Number(record.amount !== undefined ? record.amount : (record.total_amount !== undefined ? record.total_amount : (record.latest_amount || 0))) || 0;
+  const amountStr = amt > 0 ? amt.toLocaleString('vi-VN') + ' đ' : '0 đ';
 
-  if (isBHYT) {
-    return `Kính gửi Anh/Chị ${name},
-${agencyName} xin thông báo: Thẻ BHYT hộ gia đình của Anh/Chị (Mã thẻ: ${code}) sẽ đến hạn gia hạn vào ngày ${formattedDate}.
+  const tpls = customTemplates || getStoredReminderMessageTemplates();
+  const templateStr = (isBHYT
+    ? (tpls?.renewalReminderBHYT || tpls?.renewal_bhyt || DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHYT)
+    : (tpls?.renewalReminderBHXH || tpls?.renewal_bhxh || DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHXH)) || '';
 
-⚠️ LƯU Ý QUAN TRỌNG: Theo Luật BHYT, để đảm bảo quyền lợi tham gia "5 NĂM LIÊN TỤC" (được quỹ BHYT chi trả 100% chi phí khám chữa bệnh vượt mức quy định), Anh/Chị vui lòng gia hạn trước hoặc trong vòng 3 tháng kể từ ngày hết hạn.
-
-Để hoàn tất thủ tục gia hạn và nhận thẻ điện tử VssID nhanh chóng, Anh/Chị vui lòng liên hệ:
-Cán bộ phụ trách: ${staffName}
-Số điện thoại/Zalo: ${staffPhone}
-Trân trọng cảm ơn Anh/Chị đã đồng hành!`;
-  } else {
-    return `Kính gửi Anh/Chị ${name},
-${agencyName} xin thông báo: Hợp đồng BHXH tự nguyện của Anh/Chị (Mã số BHXH: ${code}) sẽ đến hạn đóng kỳ tiếp theo vào ngày ${formattedDate}.
-
-📌 QUYỀN LỢI NGHỈ HƯU: Việc đóng đúng kỳ hạn giúp quá trình tích lũy năm đóng của Anh/Chị được bảo lưu liên tục, tối ưu tỷ lệ hưởng lương hưu hàng tháng và các chế độ trợ cấp thai sản, tử tuất theo Luật BHXH số 41/2024/QH15.
-
-Anh/Chị vui lòng liên hệ cán bộ hỗ trợ để thực hiện nộp tiền và nhận biên lai điện tử:
-Cán bộ phụ trách: ${staffName}
-Số điện thoại/Zalo: ${staffPhone}
-Trân trọng cảm ơn Anh/Chị!`;
-  }
+  return renderReminderMessageTemplate(templateStr, {
+    ten_khach_hang: name,
+    ma_so: code,
+    ngay_het_han: formattedDate,
+    so_tien: amountStr,
+    ten_can_bo: staffName,
+    sdt_can_bo: staffPhone,
+    ten_dai_ly: agencyName,
+    loai_hinh: isBHYT ? 'BHYT' : 'BHXH'
+  });
 };
 
 /**

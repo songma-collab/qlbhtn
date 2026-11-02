@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { 
   Settings, Plus, FileText, Trash2, Edit2, CheckCircle, Percent, 
-  DollarSign, Activity, TrendingUp, X, Database, RefreshCw, QrCode, History, Printer 
+  DollarSign, Activity, TrendingUp, X, Database, RefreshCw, QrCode, History, Printer, MessageSquare 
 } from 'lucide-react';
 import { formatMoney, formatDateVN } from '../../utils/helpers';
 import { checkPolicyMutationPermission } from '../../utils/security';
@@ -10,6 +10,7 @@ import ConfirmModal from '../modals/ConfirmModal';
 import VietQRAgencySettings from './VietQRAgencySettings';
 import ReportPrintSettings from './ReportPrintSettings';
 import { PolicyTimelineVisualizer } from './PolicyTimelineVisualizer';
+import ReminderMessageSettings from './ReminderMessageSettings';
 
 type PolicyTabType = 
   | 'base_salary' 
@@ -19,6 +20,7 @@ type PolicyTabType =
   | 'cpi_index'
   | 'vietqr_settings'
   | 'print_settings'
+  | 'message_templates'
   | 'timeline';
 
 const SystemSettings = () => {
@@ -69,7 +71,8 @@ const SystemSettings = () => {
     { id: 'investment_rate', name: 'Lãi suất đầu tư quỹ', icon: Percent },
     { id: 'cpi_index', name: 'Hệ số trượt giá (JSON BHXH)', icon: TrendingUp },
     { id: 'vietqr_settings', name: 'Cài Đặt VietQR Đại Lý', icon: QrCode },
-    { id: 'print_settings', name: 'Cài đặt Thông số In ấn & Báo cáo', icon: Printer }
+    { id: 'print_settings', name: 'Cài đặt Thông số In ấn & Báo cáo', icon: Printer },
+    { id: 'message_templates', name: 'Cài đặt Mẫu Tin Nhắn Đôn Đốc', icon: MessageSquare }
   ] as const;
 
   // Helper to format values in the list / current display
@@ -453,6 +456,8 @@ const SystemSettings = () => {
               ? (settings?.accountNumber || settings?.bank_account ? 1 : 0)
               : tab.id === 'print_settings'
               ? 'A4'
+              : tab.id === 'message_templates'
+              ? 'Mẫu'
               : (policies ? policies.filter(p => p.parameter_type === tab.id).length : 0);
             return (
               <button
@@ -493,6 +498,8 @@ const SystemSettings = () => {
             <VietQRAgencySettings />
           ) : activeTab === 'print_settings' ? (
             <ReportPrintSettings />
+          ) : activeTab === 'message_templates' ? (
+            <ReminderMessageSettings />
           ) : (
             <>
               <div className="bg-slate-50 p-6 rounded-2xl border border-gray-100 flex flex-col sm:flex-row justify-between sm:items-center gap-4">

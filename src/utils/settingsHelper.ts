@@ -1,4 +1,5 @@
-import { SettingsType, Policy } from '../context/types';
+import { SettingsType, Policy, ReminderMessageTemplates } from '../context/types';
+export type { ReminderMessageTemplates };
 import { VietQRConfig, DEFAULT_VIETQR_CONFIG } from './vietqr';
 import { RolePermissionsMap, SanitizedRolePermissionsMap, DEFAULT_ROLE_PERMISSIONS, sanitizeRolePermissions, UserOverridesMap, sanitizeUserOverrides } from './permissions';
 
@@ -359,6 +360,253 @@ export const hasPrintSettingsFields = (fields: Partial<SettingsType>): boolean =
   );
 };
 
+export const DEFAULT_REMINDER_MESSAGE_TEMPLATES: Required<ReminderMessageTemplates> = {
+  // 1. Mẫu tin nhắn Trung Tâm Quản Lý & Nhắc Hạn Hồ Sơ
+  renewalReminderBHXH: `Kính gửi Anh/Chị {ten_khach_hang},
+{ten_dai_ly} xin thông báo: Hợp đồng BHXH tự nguyện của Anh/Chị (Mã số BHXH: {ma_so}) sẽ đến hạn đóng kỳ tiếp theo vào ngày {ngay_het_han}.
+
+📌 QUYỀN LỢI NGHỈ HƯU: Việc đóng đúng kỳ hạn giúp quá trình tích lũy năm đóng của Anh/Chị được bảo lưu liên tục, tối ưu tỷ lệ hưởng lương hưu hàng tháng và các chế độ trợ cấp thai sản, tử tuất theo Luật BHXH số 41/2024/QH15.
+
+Anh/Chị vui lòng liên hệ cán bộ hỗ trợ để thực hiện nộp tiền và nhận biên lai điện tử:
+Cán bộ phụ trách: {ten_can_bo}
+Số điện thoại/Zalo: {sdt_can_bo}
+Trân trọng cảm ơn Anh/Chị!`,
+
+  renewal_bhxh: `Kính gửi Anh/Chị {ten_khach_hang},
+{ten_dai_ly} xin thông báo: Hợp đồng BHXH tự nguyện của Anh/Chị (Mã số BHXH: {ma_so}) sẽ đến hạn đóng kỳ tiếp theo vào ngày {ngay_het_han}.
+
+📌 QUYỀN LỢI NGHỈ HƯU: Việc đóng đúng kỳ hạn giúp quá trình tích lũy năm đóng của Anh/Chị được bảo lưu liên tục, tối ưu tỷ lệ hưởng lương hưu hàng tháng và các chế độ trợ cấp thai sản, tử tuất theo Luật BHXH số 41/2024/QH15.
+
+Anh/Chị vui lòng liên hệ cán bộ hỗ trợ để thực hiện nộp tiền và nhận biên lai điện tử:
+Cán bộ phụ trách: {ten_can_bo}
+Số điện thoại/Zalo: {sdt_can_bo}
+Trân trọng cảm ơn Anh/Chị!`,
+
+  renewalReminderBHYT: `Kính gửi Anh/Chị {ten_khach_hang},
+{ten_dai_ly} xin thông báo: Thẻ BHYT hộ gia đình của Anh/Chị (Mã thẻ: {ma_so}) sẽ đến hạn gia hạn vào ngày {ngay_het_han}.
+
+⚠️ LƯU Ý QUAN TRỌNG: Theo Luật BHYT, để đảm bảo quyền lợi tham gia "5 NĂM LIÊN TỤC" (được quỹ BHYT chi trả 100% chi phí khám chữa bệnh vượt mức quy định), Anh/Chị vui lòng gia hạn trước hoặc trong vòng 3 tháng kể từ ngày hết hạn.
+
+Để hoàn tất thủ tục gia hạn và nhận thẻ điện tử VssID nhanh chóng, Anh/Chị vui lòng liên hệ:
+Cán bộ phụ trách: {ten_can_bo}
+Số điện thoại/Zalo: {sdt_can_bo}
+Trân trọng cảm ơn Anh/Chị đã đồng hành!`,
+
+  renewal_bhyt: `Kính gửi Anh/Chị {ten_khach_hang},
+{ten_dai_ly} xin thông báo: Thẻ BHYT hộ gia đình của Anh/Chị (Mã thẻ: {ma_so}) sẽ đến hạn gia hạn vào ngày {ngay_het_han}.
+
+⚠️ LƯU Ý QUAN TRỌNG: Theo Luật BHYT, để đảm bảo quyền lợi tham gia "5 NĂM LIÊN TỤC" (được quỹ BHYT chi trả 100% chi phí khám chữa bệnh vượt mức quy định), Anh/Chị vui lòng gia hạn trước hoặc trong vòng 3 tháng kể từ ngày hết hạn.
+
+Để hoàn tất thủ tục gia hạn và nhận thẻ điện tử VssID nhanh chóng, Anh/Chị vui lòng liên hệ:
+Cán bộ phụ trách: {ten_can_bo}
+Số điện thoại/Zalo: {sdt_can_bo}
+Trân trọng cảm ơn Anh/Chị đã đồng hành!`,
+
+  // 2. Kịch bản đôn đốc thu phí Trung Tâm Điều Phối & Đôn Đốc
+  dispatchUrgentBHXH: `Kính gửi Anh/Chị {ten_khach_hang},
+Đại lý BHXH xin thông báo: Số BHXH tự nguyện (Mã: {ma_so}) của Anh/Chị đến kỳ đóng tiếp vào ngày {ngay_het_han} với số tiền {so_tien}.
+Kính mời Anh/Chị liên hệ đại lý để hoàn tất nộp phí, tích lũy liên tục thời gian hưởng Lương hưu theo Nghị định 158/2025. Trân trọng!`,
+
+  dispatch_urgent_bhxh: `Kính gửi Anh/Chị {ten_khach_hang},
+Đại lý BHXH xin thông báo: Số BHXH tự nguyện (Mã: {ma_so}) của Anh/Chị đến kỳ đóng tiếp vào ngày {ngay_het_han} với số tiền {so_tien}.
+Kính mời Anh/Chị liên hệ đại lý để hoàn tất nộp phí, tích lũy liên tục thời gian hưởng Lương hưu theo Nghị định 158/2025. Trân trọng!`,
+
+  dispatchUrgentBHYT: `Kính gửi Anh/Chị {ten_khach_hang},
+Đại lý thu BHXH-BHYT xin thông báo: Thẻ BHYT (Mã: {ma_so}) của Anh/Chị sẽ hết hạn vào ngày {ngay_het_han}.
+Để đảm bảo quyền lợi khám chữa bệnh và QUYỀN LỢI 5 NĂM LIÊN TỤC không bị gián đoạn, xin vui lòng đóng phí gia hạn (ước tính: {so_tien}).
+Cán bộ đại lý sẽ hỗ trợ thu phí tại nhà hoặc qua chuyển khoản. Hotline: {sdt_can_bo}. Trân trọng!`,
+
+  dispatch_urgent_bhyt: `Kính gửi Anh/Chị {ten_khach_hang},
+Đại lý thu BHXH-BHYT xin thông báo: Thẻ BHYT (Mã: {ma_so}) của Anh/Chị sẽ hết hạn vào ngày {ngay_het_han}.
+Để đảm bảo quyền lợi khám chữa bệnh và QUYỀN LỢI 5 NĂM LIÊN TỤC không bị gián đoạn, xin vui lòng đóng phí gia hạn (ước tính: {so_tien}).
+Cán bộ đại lý sẽ hỗ trợ thu phí tại nhà hoặc qua chuyển khoản. Hotline: {sdt_can_bo}. Trân trọng!`,
+
+  dispatchStandard: `Chào Anh/Chị {ten_khach_hang}, em là cán bộ đại lý thu BHXH - BHYT. Em xin phép gửi lịch nhắc kỳ đóng {loai_hinh} sắp tới hạn vào ngày {ngay_het_han} (Số tiền: {so_tien}). Anh/Chị cho em xin lịch hẹn thuận tiện nhất để qua hỗ trợ gia hạn hoặc hướng dẫn nộp online nhé ạ! Em cảm ơn Anh/Chị!`,
+
+  dispatch_standard: `Chào Anh/Chị {ten_khach_hang}, em là cán bộ đại lý thu BHXH - BHYT. Em xin phép gửi lịch nhắc kỳ đóng {loai_hinh} sắp tới hạn vào ngày {ngay_het_han} (Số tiền: {so_tien}). Anh/Chị cho em xin lịch hẹn thuận tiện nhất để qua hỗ trợ gia hạn hoặc hướng dẫn nộp online nhé ạ! Em cảm ơn Anh/Chị!`,
+
+  dispatch_periodic: `Chào Anh/Chị {ten_khach_hang}, em là cán bộ đại lý thu BHXH - BHYT. Em xin phép gửi lịch nhắc kỳ đóng {loai_hinh} sắp tới hạn vào ngày {ngay_het_han} (Số tiền: {so_tien}). Anh/Chị cho em xin lịch hẹn thuận tiện nhất để qua hỗ trợ gia hạn hoặc hướng dẫn nộp online nhé ạ! Em cảm ơn Anh/Chị!`,
+
+  dispatchReceipt: `Xác nhận: Đại lý thu BHXH đã nhận được thông tin đăng ký gia hạn {loai_hinh} của khách hàng {ten_khach_hang} (Mã: {ma_so}). Hồ sơ đang được đồng bộ lên hệ thống BHXH Việt Nam. Cảm ơn Quý khách đã tin tưởng đồng hành!`,
+
+  dispatch_receipt: `Xác nhận: Đại lý thu BHXH đã nhận được thông tin đăng ký gia hạn {loai_hinh} của khách hàng {ten_khach_hang} (Mã: {ma_so}). Hồ sơ đang được đồng bộ lên hệ thống BHXH Việt Nam. Cảm ơn Quý khách đã tin tưởng đồng hành!`,
+
+  dispatch_confirmed: `Xác nhận: Đại lý thu BHXH đã nhận được thông tin đăng ký gia hạn {loai_hinh} của khách hàng {ten_khach_hang} (Mã: {ma_so}). Hồ sơ đang được đồng bộ lên hệ thống BHXH Việt Nam. Cảm ơn Quý khách đã tin tưởng đồng hành!`
+};
+
+/**
+ * Đồng bộ hóa các thuộc tính camelCase và snake_case của mẫu tin nhắn
+ */
+export const normalizeReminderMessageTemplates = (
+  raw?: Partial<ReminderMessageTemplates> | null
+): ReminderMessageTemplates => {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_REMINDER_MESSAGE_TEMPLATES };
+
+  const renewal_bhxh = raw.renewal_bhxh ?? raw.renewalReminderBHXH ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHXH;
+  const renewal_bhyt = raw.renewal_bhyt ?? raw.renewalReminderBHYT ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHYT;
+  const dispatch_urgent_bhxh = raw.dispatch_urgent_bhxh ?? raw.dispatchUrgentBHXH ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHXH;
+  const dispatch_urgent_bhyt = raw.dispatch_urgent_bhyt ?? raw.dispatchUrgentBHYT ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHYT;
+  const dispatch_periodic = raw.dispatch_periodic ?? raw.dispatch_standard ?? raw.dispatchStandard ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchStandard;
+  const dispatch_confirmed = raw.dispatch_confirmed ?? raw.dispatch_receipt ?? raw.dispatchReceipt ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchReceipt;
+
+  return {
+    ...DEFAULT_REMINDER_MESSAGE_TEMPLATES,
+    ...raw,
+    renewalReminderBHXH: renewal_bhxh,
+    renewal_bhxh,
+    renewalReminderBHYT: renewal_bhyt,
+    renewal_bhyt,
+    dispatchUrgentBHXH: dispatch_urgent_bhxh,
+    dispatch_urgent_bhxh,
+    dispatchUrgentBHYT: dispatch_urgent_bhyt,
+    dispatch_urgent_bhyt,
+    dispatchStandard: dispatch_periodic,
+    dispatch_standard: dispatch_periodic,
+    dispatch_periodic,
+    dispatchReceipt: dispatch_confirmed,
+    dispatch_receipt: dispatch_confirmed,
+    dispatch_confirmed
+  };
+};
+
+/**
+ * Lấy cấu hình mẫu tin nhắn đôn đốc từ localStorage (offline-first & persistent)
+ */
+export const getStoredReminderMessageTemplates = (): ReminderMessageTemplates => {
+  try {
+    const storage = getStorage();
+    if (storage) {
+      const item = storage.getItem('vss_reminder_message_templates');
+      if (item) {
+        const parsed = JSON.parse(item);
+        if (parsed && typeof parsed === 'object') {
+          return normalizeReminderMessageTemplates(parsed);
+        }
+      }
+    }
+  } catch (e) {
+    // Không gián đoạn nếu môi trường chặn localStorage
+  }
+  return { ...DEFAULT_REMINDER_MESSAGE_TEMPLATES };
+};
+
+/**
+ * Lưu cấu hình mẫu tin nhắn đôn đốc vào localStorage
+ */
+export const storeReminderMessageTemplates = (templates: Partial<ReminderMessageTemplates>): void => {
+  try {
+    const storage = getStorage();
+    if (storage) {
+      const current = getStoredReminderMessageTemplates();
+      const incoming: Partial<ReminderMessageTemplates> = { ...templates };
+      if (templates.renewal_bhxh && !templates.renewalReminderBHXH) {
+        incoming.renewalReminderBHXH = templates.renewal_bhxh;
+      } else if (templates.renewalReminderBHXH && !templates.renewal_bhxh) {
+        incoming.renewal_bhxh = templates.renewalReminderBHXH;
+      }
+
+      if (templates.renewal_bhyt && !templates.renewalReminderBHYT) {
+        incoming.renewalReminderBHYT = templates.renewal_bhyt;
+      } else if (templates.renewalReminderBHYT && !templates.renewal_bhyt) {
+        incoming.renewal_bhyt = templates.renewalReminderBHYT;
+      }
+
+      if (templates.dispatch_urgent_bhxh && !templates.dispatchUrgentBHXH) {
+        incoming.dispatchUrgentBHXH = templates.dispatch_urgent_bhxh;
+      } else if (templates.dispatchUrgentBHXH && !templates.dispatch_urgent_bhxh) {
+        incoming.dispatch_urgent_bhxh = templates.dispatchUrgentBHXH;
+      }
+
+      if (templates.dispatch_urgent_bhyt && !templates.dispatchUrgentBHYT) {
+        incoming.dispatchUrgentBHYT = templates.dispatch_urgent_bhyt;
+      } else if (templates.dispatchUrgentBHYT && !templates.dispatch_urgent_bhyt) {
+        incoming.dispatch_urgent_bhyt = templates.dispatchUrgentBHYT;
+      }
+
+      const periodicVal = templates.dispatch_periodic || templates.dispatch_standard || templates.dispatchStandard;
+      if (periodicVal) {
+        incoming.dispatchStandard = periodicVal;
+        incoming.dispatch_standard = periodicVal;
+        incoming.dispatch_periodic = periodicVal;
+      }
+
+      const receiptVal = templates.dispatch_confirmed || templates.dispatch_receipt || templates.dispatchReceipt;
+      if (receiptVal) {
+        incoming.dispatchReceipt = receiptVal;
+        incoming.dispatch_receipt = receiptVal;
+        incoming.dispatch_confirmed = receiptVal;
+      }
+
+      const updated = { ...DEFAULT_REMINDER_MESSAGE_TEMPLATES, ...current, ...incoming };
+      storage.setItem('vss_reminder_message_templates', JSON.stringify(updated));
+    }
+  } catch (e) {
+    console.warn('[settingsHelper] Không thể lưu cache reminderMessageTemplates vào localStorage:', e);
+  }
+};
+
+/**
+ * Trích xuất cấu hình mẫu tin nhắn từ bảng policies hoặc settings
+ */
+export const extractReminderMessageTemplates = (
+  dbSettingsOrPolicies?: Partial<SettingsType> | Policy[] | null,
+  maybePolicies?: Policy[] | null
+): ReminderMessageTemplates => {
+  let dbSettings: Partial<SettingsType> | null = null;
+  let policies: Policy[] | null = null;
+
+  if (Array.isArray(dbSettingsOrPolicies)) {
+    policies = dbSettingsOrPolicies;
+    dbSettings = null;
+  } else {
+    dbSettings = dbSettingsOrPolicies || null;
+    policies = maybePolicies || null;
+  }
+
+  if (policies && Array.isArray(policies)) {
+    const found = policies.find(p => p.parameter_type === 'reminder_message_templates' && p.is_active !== false);
+    if (found && found.value) {
+      try {
+        const val = typeof found.value === 'string' ? JSON.parse(found.value) : found.value;
+        if (val && typeof val === 'object') {
+          return normalizeReminderMessageTemplates(val);
+        }
+      } catch (e) {
+        console.warn('[settingsHelper] Lỗi parse policy reminder_message_templates:', e);
+      }
+    }
+  }
+
+  const settingTpls = dbSettings?.reminder_message_templates || dbSettings?.reminderMessageTemplates;
+  if (settingTpls && typeof settingTpls === 'object' && Object.keys(settingTpls).length > 0) {
+    return normalizeReminderMessageTemplates(settingTpls);
+  }
+
+  return getStoredReminderMessageTemplates();
+};
+
+/**
+ * Thay thế linh hoạt các tham số trong mẫu tin nhắn (case-insensitive)
+ */
+export const renderReminderMessageTemplate = (
+  template: string,
+  variables: Record<string, string | number | undefined | null>
+): string => {
+  if (!template) return '';
+  const lowerVars: Record<string, string> = {};
+  for (const [key, val] of Object.entries(variables)) {
+    lowerVars[key.toLowerCase()] = val != null ? String(val) : '';
+  }
+
+  return template.replace(/\{([a-zA-Z0-9_]+)\}/g, (match, key) => {
+    const lk = key.toLowerCase();
+    if (lowerVars[lk] !== undefined) {
+      return lowerVars[lk];
+    }
+    return match;
+  });
+};
+
 /**
  * Hợp nhất an toàn cấu hình hệ thống từ DB, cấu hình VietQR, và cấu hình thông số in ấn
  */
@@ -410,6 +658,11 @@ export const mergeSettingsWithVietQR = (
   const effectivePrint = extractPrintConfigFromPolicies(
     policies,
     extractPrintConfig(dbSettings || {}, getStoredPrintConfig())
+  );
+
+  const effectiveMessageTemplates = extractReminderMessageTemplates(
+    dbSettings,
+    policies
   );
 
   // Xác định tên đại lý ưu tiên theo nguồn tùy chỉnh rõ ràng
@@ -493,6 +746,9 @@ export const mergeSettingsWithVietQR = (
     managerTitle: effectiveManagerTitle,
     creatorTitle: effectiveCreatorTitle,
     controllerTitle: effectiveControllerTitle,
+    // Cấu hình mẫu tin nhắn đôn đốc & kịch bản thu phí
+    reminder_message_templates: effectiveMessageTemplates,
+    reminderMessageTemplates: effectiveMessageTemplates,
     // Alias tương thích
     agency_name: effectiveAgencyName,
     agency_code: effectiveVietQR.agencyCode,

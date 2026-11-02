@@ -34,6 +34,11 @@ import { VietQRModal } from '../modals/VietQRModal';
 import { buildZaloReminderMessage } from '../../utils/vietqr';
 import { CustomerStatusBadge } from '../common/CustomerStatusBadge';
 import { filterRenewalDispatchCustomers } from '../../utils/customerStatus';
+import { 
+  DEFAULT_REMINDER_MESSAGE_TEMPLATES, 
+  getStoredReminderMessageTemplates, 
+  renderReminderMessageTemplate 
+} from '../../utils/settingsHelper';
 
 interface CustomerItem {
   id: number | string;
@@ -62,7 +67,7 @@ interface CustomerItem {
 }
 
 const DispatchOperations: React.FC = () => {
-  const { staff, records, currentUser, showToast, refreshData, addAuditLog } = useAppContext();
+  const { staff, records, currentUser, showToast, refreshData, addAuditLog, settings } = useAppContext() as any;
 
   // Filters
   const [searchTxt, setSearchTxt] = useState('');
@@ -259,7 +264,7 @@ const DispatchOperations: React.FC = () => {
   const staffWorkload = useMemo(() => {
     if (!isAdminOrManager) return [];
 
-    return staff.map(s => {
+    return (staff || []).map((s: any) => {
       const sCustomers = allCustomers.filter(c => c.staffId === s.id);
       const sOverdue = sCustomers.filter(c => c.slaStatus === 'overdue').length;
       const sUrgent = sCustomers.filter(c => c.slaStatus === 'urgent').length;
@@ -278,7 +283,7 @@ const DispatchOperations: React.FC = () => {
         safe: sSafe,
         rate
       };
-    }).filter(s => s.total > 0 || staffFilter === s.id);
+    }).filter((s: any) => s.total > 0 || staffFilter === s.id);
   }, [staff, allCustomers, isAdminOrManager, staffFilter]);
 
   // Pagination Slice
@@ -319,7 +324,7 @@ const DispatchOperations: React.FC = () => {
 
     setIsProcessing(true);
     try {
-      const targetStaff = staff.find(s => s.id === targetStaffId);
+      const targetStaff = (staff || []).find((s: any) => s.id === targetStaffId);
       const staffName = targetStaff?.name || targetStaffId;
 
       // Update qua recordService
@@ -438,7 +443,7 @@ const DispatchOperations: React.FC = () => {
       const wb = XLSX.utils.book_new();
 
       const exportRows = filteredCustomers.map((c, idx) => {
-        const staffName = staff.find(s => s.id === c.staffId)?.name || c.staffId || 'Chưa phân công';
+        const staffName = (staff || []).find((s: any) => s.id === c.staffId)?.name || c.staffId || 'Chưa phân công';
         let slaText = 'An toàn';
         if (c.slaStatus === 'overdue') slaText = `Quá hạn ${Math.abs(c.daysRemaining)} ngày`;
         else if (c.slaStatus === 'urgent') slaText = `Khẩn cấp (còn ${c.daysRemaining} ngày)`;
@@ -533,16 +538,32 @@ const DispatchOperations: React.FC = () => {
     const nextDate = c.nextPayment ? formatDateVN(c.nextPayment) : 'sắp tới';
     const amountStr = formatMoney(c.amount);
 
+    const tpls = settings?.reminder_message_templates || settings?.reminderMessageTemplates || getStoredReminderMessageTemplates();
+    const staffMember = staff.find((s: any) => s.id === c.staffId) || currentUser;
+    const staffName = staffMember?.name || currentUser?.name || 'Cán bộ đại lý';
+    const staffPhone = staffMember?.phone || currentUser?.phone || '0988.xxx.xxx';
+    const agencyName = settings?.agencyName || 'Đại lý thu BHXH, BHYT Sông Mã';
+
+    const templateVars = {
+      ten_khach_hang: c.name,
+      ma_so: c.bhxh || c.cccd || 'Chưa cập nhật',
+      loai_hinh: c.type || 'BHXH',
+      ngay_het_han: nextDate,
+      so_tien: amountStr,
+      ten_can_bo: staffName,
+      sdt_can_bo: staffPhone,
+      ten_dai_ly: agencyName
+    };
+
     if (scriptType === 'urgent') {
-      if (c.type === 'BHYT') {
-        return `Kính gửi Anh/Chị ${c.name},\nĐại lý thu BHXH-BHYT xin thông báo: Thẻ BHYT (Mã: ${c.bhxh || c.cccd}) của Anh/Chị sẽ hết hạn vào ngày ${nextDate}.\nĐể đảm bảo quyền lợi khám chữa bệnh và QUYỀN LỢI 5 NĂM LIÊN TỤC không bị gián đoạn, xin vui lòng đóng phí gia hạn (ước tính: ${amountStr}).\nCán bộ đại lý sẽ hỗ trợ thu phí tại nhà hoặc qua chuyển khoản. Hotline: 0988.xxx.xxx. Trân trọng!`;
-      } else {
-        return `Kính gửi Anh/Chị ${c.name},\nĐại lý BHXH xin thông báo: Sổ BHXH tự nguyện (Mã: ${c.bhxh || c.cccd}) của Anh/Chị đến kỳ đóng tiếp vào ngày ${nextDate} với số tiền ${amountStr}.\nKính mời Anh/Chị liên hệ đại lý để hoàn tất nộp phí, tích lũy liên tục thời gian hưởng Lương hưu theo Nghị định 159/2025. Trân trọng!`;
-      }
+      const templateStr = c.type === 'BHYT'
+        ? (tpls?.dispatchUrgentBHYT || DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHYT)
+        : (tpls?.dispatchUrgentBHXH || DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHXH);
+      return renderReminderMessageTemplate(templateStr, templateVars);
     } else if (scriptType === 'standard') {
-      return `Chào Anh/Chị ${c.name}, em là cán bộ đại lý thu BHXH - BHYT. Em xin phép gửi lịch nhắc kỳ đóng ${c.type} sắp tới hạn vào ngày ${nextDate} (Số tiền: ${amountStr}). Anh/Chị cho em xin lịch hẹn thuận tiện nhất để qua hỗ trợ gia hạn hoặc hướng dẫn nộp online nhé ạ! Em cảm ơn Anh/Chị!`;
+      const templateStr = tpls?.dispatchStandard || DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchStandard;
+      return renderReminderMessageTemplate(templateStr, templateVars);
     } else if (scriptType === 'vietqr') {
-      const staffMember = staff.find(s => s.id === c.staffId);
       const reminder = buildZaloReminderMessage({
         customerName: c.name,
         cccd: c.cccd,
@@ -553,14 +574,15 @@ const DispatchOperations: React.FC = () => {
         dueDate: c.nextPayment,
         daysRemaining: c.daysRemaining,
         slaStatus: c.slaStatus,
-        staffName: staffMember?.name || currentUser?.name,
-        staffPhone: staffMember?.phone || currentUser?.phone
+        staffName,
+        staffPhone
       });
       return reminder.message;
     } else {
-      return `Xác nhận: Đại lý thu BHXH đã nhận được thông tin đăng ký gia hạn ${c.type} của khách hàng ${c.name} (Mã: ${c.bhxh || c.cccd}). Hồ sơ đang được đồng bộ lên hệ thống BHXH Việt Nam. Cảm ơn Quý khách đã tin tưởng đồng hành!`;
+      const templateStr = tpls?.dispatchReceipt || DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchReceipt;
+      return renderReminderMessageTemplate(templateStr, templateVars);
     }
-  }, [selectedCustomerForScript, scriptType, staff, currentUser]);
+  }, [selectedCustomerForScript, scriptType, staff, currentUser, settings]);
 
   const handleCopyScript = () => {
     navigator.clipboard.writeText(messageScript);
@@ -758,7 +780,7 @@ const DispatchOperations: React.FC = () => {
                 className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-800 focus:border-[#004182] focus:ring-1 focus:ring-[#004182] outline-none cursor-pointer"
               >
                 <option value="all">Tất cả cán bộ</option>
-                {staff.map(s => (
+                {(staff || []).map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.staff_code || (s as any).staffCode || s.role})</option>
                 ))}
               </select>
@@ -780,7 +802,7 @@ const DispatchOperations: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {staffWorkload.map(s => (
+            {staffWorkload.map((s: any) => (
               <div 
                 key={s.id}
                 onClick={() => setStaffFilter(staffFilter === s.id ? 'all' : s.id)}
@@ -871,7 +893,7 @@ const DispatchOperations: React.FC = () => {
                 </tr>
               ) : (
                 paginatedList.map(c => {
-                  const staffObj = staff.find(s => s.id === c.staffId);
+                  const staffObj = (staff || []).find((s: any) => s.id === c.staffId);
                   const isSelected = selectedIds.some(sid => String(sid) === String(c.id));
 
                   return (
@@ -1002,7 +1024,7 @@ const DispatchOperations: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => {
-                              const fullRecord = records.find(r => r.id === Number(c.id)) || c;
+                              const fullRecord = (records || []).find((r: any) => r.id === Number(c.id)) || c;
                               setVietQrRecord(fullRecord);
                             }}
                             className="p-1.5 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white rounded-lg transition shadow-sm"
@@ -1181,7 +1203,7 @@ const DispatchOperations: React.FC = () => {
                 className="w-full p-3 text-xs bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 font-bold text-slate-800"
               >
                 <option value="">-- Chọn cán bộ tiếp nhận --</option>
-                {staff.map(s => (
+                {(staff || []).map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name} ({s.staff_code || (s as any).staffCode || s.role})</option>
                 ))}
               </select>
@@ -1290,7 +1312,7 @@ const DispatchOperations: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    const fullRecord = records.find(r => r.id === Number(selectedCustomerForScript.id)) || selectedCustomerForScript;
+                    const fullRecord = (records || []).find((r: any) => r.id === Number(selectedCustomerForScript.id)) || selectedCustomerForScript;
                     setVietQrRecord(fullRecord);
                   }}
                   className="px-3.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-bold rounded-xl transition flex items-center gap-1.5"

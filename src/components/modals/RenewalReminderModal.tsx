@@ -40,7 +40,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
   initialFilter = 'all',
   onRenewCustomer
 }) => {
-  const { records, staff, currentUser, setGlobalRegisterModal, showToast } = useAppContext() as any;
+  const { records, staff, currentUser, setGlobalRegisterModal, showToast, settings } = useAppContext() as any;
   const [activeUrgency, setActiveUrgency] = useState<RenewalUrgency | 'all'>(initialFilter);
   const [searchTerm, setSearchTerm] = useState('');
   const [typeFilter, setTypeFilter] = useState<'all' | 'BHXH' | 'BHYT'>('all');
@@ -71,7 +71,12 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
   // Mở popup soạn tin nhắn đôn đốc
   const handleOpenMessageModal = (record: any) => {
     const staffMember = getStaffForRecord(record);
-    const msg = generateRenewalMessage(record, staffMember);
+    const msg = generateRenewalMessage(
+      record, 
+      staffMember, 
+      settings?.reminder_message_templates || settings?.reminderMessageTemplates,
+      settings?.agencyName
+    );
     setSelectedRecordForMessage(record);
     setCustomMessage(msg);
     setCopiedSuccess(false);

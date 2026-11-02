@@ -263,7 +263,33 @@ export type SettingsType = {
   managerTitle?: string | undefined;
   creatorTitle?: string | undefined;
   controllerTitle?: string | undefined;
+  // Cấu hình mẫu tin nhắn đôn đốc & kịch bản thu phí
+  reminder_message_templates?: ReminderMessageTemplates | undefined;
+  reminderMessageTemplates?: ReminderMessageTemplates | undefined;
 };
+
+/**
+ * Cấu hình mẫu tin nhắn đôn đốc gia hạn & kịch bản thu phí
+ */
+export interface ReminderMessageTemplates {
+  // 1. Mẫu tin nhắn Trung Tâm Quản Lý & Nhắc Hạn Hồ Sơ
+  renewalReminderBHXH?: string | undefined;
+  renewalReminderBHYT?: string | undefined;
+  renewal_bhxh?: string | undefined;
+  renewal_bhyt?: string | undefined;
+
+  // 2. Kịch bản đôn đốc thu phí Trung Tâm Điều Phối & Đôn Đốc
+  dispatchUrgentBHXH?: string | undefined;
+  dispatchUrgentBHYT?: string | undefined;
+  dispatchStandard?: string | undefined;
+  dispatchReceipt?: string | undefined;
+  dispatch_urgent_bhxh?: string | undefined;
+  dispatch_urgent_bhyt?: string | undefined;
+  dispatch_periodic?: string | undefined;
+  dispatch_standard?: string | undefined;
+  dispatch_receipt?: string | undefined;
+  dispatch_confirmed?: string | undefined;
+}
 
 export interface UserPermissionOverride {
   staff_id?: string | undefined;
