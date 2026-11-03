@@ -32,7 +32,12 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   const normalizedList = (results || []).map((raw: any) => {
     const type = String(raw.type || 'BHXH').toUpperCase();
     const months = Math.max(1, Number(raw.months) || 1);
-    const income = Number(raw.income ?? raw.wage) || 0;
+    let income = Number(raw.income ?? raw.wage) || 0;
+    if (income <= 0 && (raw.original_record_id || (raw as any).originalRecordId)) {
+      const origId = raw.original_record_id || (raw as any).originalRecordId;
+      const orig = (results || []).find((x: any) => x.id === origId);
+      if (orig) income = Number(orig.income ?? orig.wage) || 0;
+    }
     const amount = Number(raw.amount) || 0;
     
     let fromM = raw.fromMonth || raw.from_month || (raw as any).frommonth || '';
@@ -124,7 +129,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
       method: methodLabel,
       actionType,
       action_type: actionType,
-      is_adjustment: Boolean(raw.is_adjustment || (raw as any).isAdjustment || paymentStatus === 'Đã thoái thu' || actionType === 'Thoái thu hoàn trả'),
+      is_adjustment: Boolean(raw.is_adjustment || (raw as any).isAdjustment || actionType === 'Thoái thu hoàn trả' || (Number(raw.amount) || 0) < 0),
       decision_number: raw.decision_number || (raw as any).decision_no || (raw as any).decisionNo || '',
       notes,
       date: dateStr
@@ -144,9 +149,9 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
     const isClawback = Boolean(
       r.is_adjustment || 
       (r as any).isAdjustment || 
-      r.paymentStatus === 'Đã thoái thu' || 
       r.actionType === 'Thoái thu hoàn trả' ||
-      r.action_type === 'Thoái thu hoàn trả'
+      r.action_type === 'Thoái thu hoàn trả' ||
+      (Number(r.amount) || 0) < 0
     );
     const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
     const amt = Number(rawAmt);
@@ -165,15 +170,15 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
       const isClawback = Boolean(
         r.is_adjustment || 
         (r as any).isAdjustment || 
-        r.paymentStatus === 'Đã thoái thu' || 
         r.actionType === 'Thoái thu hoàn trả' ||
-        r.action_type === 'Thoái thu hoàn trả'
+        r.action_type === 'Thoái thu hoàn trả' ||
+        amt < 0
       );
-      if (r.paymentStatus === 'Đã thu tiền') {
-        return sum + Math.max(0, amt);
-      }
       if (isClawback) {
         return sum - Math.abs(amt);
+      }
+      if (r.paymentStatus === 'Đã thu tiền' || r.paymentStatus === 'Đã thoái thu') {
+        return sum + Math.max(0, amt);
       }
       return sum;
     }, 0);
@@ -187,12 +192,12 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
     const isClawback = Boolean(
       r.is_adjustment || 
       (r as any).isAdjustment || 
-      r.paymentStatus === 'Đã thoái thu' || 
       r.actionType === 'Thoái thu hoàn trả' ||
-      r.action_type === 'Thoái thu hoàn trả'
+      r.action_type === 'Thoái thu hoàn trả' ||
+      (Number(r.amount) || 0) < 0
     );
-    // Bút toán thoái thu là giảm trừ hoàn tiền, không cộng dồn tháng tham gia
-    if (isClawback) continue;
+    // Bút toán thoái thu hoặc hồ sơ gốc đã bị thoái thu toàn bộ thì không tính vào số tháng đã đóng
+    if (isClawback || r.paymentStatus === 'Đã thoái thu') continue;
 
     let m = Number(r.months) || 0;
     if (m <= 0 && r.fromMonth && r.toMonth) {
@@ -273,7 +278,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
             )}
           </div>
 
-          {bhxhRecords.length > 0 && (
+          {bhxhRecords.length > 0 && totalBhxhMonths > 0 && (
             <div className={`p-4 sm:p-5 rounded-xl border mb-6 shadow-xs ${isOver10Years ? 'bg-amber-50/90 border-amber-300' : 'bg-emerald-50/80 border-emerald-200'}`}>
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
@@ -326,9 +331,9 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
               const isClawback = Boolean(
                 r.is_adjustment || 
                 (r as any).isAdjustment || 
-                r.paymentStatus === 'Đã thoái thu' || 
                 r.actionType === 'Thoái thu hoàn trả' ||
-                r.action_type === 'Thoái thu hoàn trả'
+                r.action_type === 'Thoái thu hoàn trả' ||
+                (Number(r.amount) || 0) < 0
               );
               const incVal = r.income || r.wage;
               const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;
@@ -457,9 +462,9 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                     const isClawback = Boolean(
                       r.is_adjustment || 
                       (r as any).isAdjustment || 
-                      r.paymentStatus === 'Đã thoái thu' || 
                       r.actionType === 'Thoái thu hoàn trả' ||
-                      r.action_type === 'Thoái thu hoàn trả'
+                      r.action_type === 'Thoái thu hoàn trả' ||
+                      (Number(r.amount) || 0) < 0
                     );
                     const incVal = r.income || r.wage;
                     const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;

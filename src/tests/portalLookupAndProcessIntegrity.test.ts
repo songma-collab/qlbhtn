@@ -363,6 +363,7 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
         from_month: '2026-01',
         to_month: '2026-06',
         months: 6,
+        income: 2500000,
         amount: 5808000,
         nn_support_amount: 792000,
         payment_status: 'Đã thu tiền',
@@ -373,6 +374,7 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
         name: 'Ngô Thị Thảo',
         cccd: '014182000354',
         type: 'BHXH',
+        original_record_id: 62,
         from_month: '2026-07',
         to_month: '2026-12',
         months: 6,
@@ -400,6 +402,9 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
     expect(html).toContain('Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu &amp; phát sinh thoái trả)');
     expect(html).toMatch(/3.*phát sinh/);
 
+    // Bút toán thoái trả kế thừa mức thu nhập đóng của hồ sơ gốc (2.500.000 đ) thay vì mặc định 1.500.000 đ
+    expect(html).toContain('2.500.000');
+
     // Bảng 2 có dòng bút toán thoái trả với số tháng âm, số tiền âm, và badge Đã thoái thu
     expect(html).toContain('Bút toán thoái trả');
     expect(html).toContain('-6 th');
@@ -410,5 +415,61 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
 
     // Tổng số tháng tích lũy vẫn là 12 tháng (3 bắt buộc + 9 tự nguyện), không bị clawback tính thêm tháng
     expect(html).toMatch(/12.*tháng/);
+  });
+
+  it('9. Thoái thu toàn bộ 100%: Phân biệt chuẩn xác giữa hồ sơ gốc và bút toán thoái trả, dòng tiền triệt tiêu về 0, số tháng tích lũy về 0', () => {
+    // Trường hợp một hợp đồng 1 tháng (01/2026) số tiền 1.000.000 đ bị thoái thu toàn bộ:
+    // 1. Hồ sơ gốc: chuyển sang 'Đã thoái thu', amount = +1.000.000 đ
+    // 2. Bút toán thoái thu: is_adjustment = true, amount = -1.000.000 đ, payment_status = 'Đã thoái thu'
+    const mockFullRefundRecords = [
+      {
+        id: 201,
+        name: 'Trần Văn Toàn',
+        cccd: '014199000111',
+        type: 'BHXH',
+        from_month: '2026-01',
+        to_month: '2026-01',
+        months: 1,
+        amount: 1000000,
+        payment_status: 'Đã thoái thu',
+        date: '2026-01-10'
+      },
+      {
+        id: 202,
+        name: 'Trần Văn Toàn',
+        cccd: '014199000111',
+        type: 'BHXH',
+        original_record_id: 201,
+        from_month: '2026-01',
+        to_month: '2026-01',
+        months: 1,
+        amount: -1000000,
+        is_adjustment: true,
+        action_type: 'Thoái thu hoàn trả',
+        payment_status: 'Đã thoái thu',
+        date: '2026-01-15'
+      }
+    ];
+
+    const html = renderToString(
+      React.createElement(SearchResultModal, {
+        isOpen: true,
+        onClose: () => {},
+        results: mockFullRefundRecords,
+        searchCode: '014199000111'
+      })
+    );
+
+    // 1. Dòng tiền thực tế triệt tiêu hoàn toàn: 1.000.000 - 1.000.000 = 0 đ (KHÔNG bị âm -2.000.000)
+    expect(html).toContain('0 đ');
+    expect(html).not.toContain('-2.000.000');
+
+    // 2. Không được tính tháng tích lũy (0 tháng)
+    expect(html).not.toContain('Tổng thời gian BHXH tự nguyện đã tích lũy');
+
+    // 3. Cả 2 dòng đều hiển thị rõ ràng: hồ sơ gốc (1.000.000) và bút toán thoái trả (-1.000.000)
+    expect(html).toContain('1.000.000');
+    expect(html).toContain('-1.000.000');
+    expect(html).toContain('Thoái trả');
   });
 });

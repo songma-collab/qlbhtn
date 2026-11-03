@@ -124,6 +124,10 @@ export const EditClawbackModal: React.FC<EditClawbackModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (fromMonth && toMonth && fromMonth > toMonth) {
+      showToast('Kỳ đóng không hợp lệ: Tháng bắt đầu không thể sau tháng kết thúc.', 'error');
+      return;
+    }
     if (!reason.trim()) {
       showToast('Vui lòng nhập lý do thoái thu hoàn trả.', 'error');
       return;
@@ -132,10 +136,14 @@ export const EditClawbackModal: React.FC<EditClawbackModalProps> = ({
     setIsSubmitting(true);
     try {
       const clawCommission = clawbackBreakdown?.clawbackCommission ?? Math.abs(Number(record.commission) || 0);
+      const clawNNSupport = clawbackBreakdown?.clawbackNNSupport ?? Math.abs(Number(record.nn_support_amount) || 0);
+      const clawDPSupport = clawbackBreakdown?.clawbackDPSupport ?? Math.abs(Number(record.dp_support_amount) || 0);
 
       const updatedFields: Partial<RecordType> = {
         amount: -Math.abs(refundAmount),
         commission: -Math.abs(clawCommission),
+        nn_support_amount: -Math.abs(clawNNSupport),
+        dp_support_amount: -Math.abs(clawDPSupport),
         decision_number: decisionNumber.trim() || undefined,
         decision_date: decisionDate || undefined,
         date: effectiveDate,

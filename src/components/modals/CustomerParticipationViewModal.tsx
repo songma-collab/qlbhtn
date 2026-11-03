@@ -58,8 +58,9 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
         const isClawback = Boolean(
           r.is_adjustment || 
           (r as any).isAdjustment || 
-          (r.payment_status || (r as any).paymentStatus) === 'Đã thoái thu' || 
-          actionType === 'Thoái thu hoàn trả'
+          actionType === 'Thoái thu hoàn trả' ||
+          (r as any).actionType === 'Thoái thu hoàn trả' ||
+          Number(r.amount) < 0
         );
         // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu & bút toán thoái trả)
         const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
@@ -270,10 +271,10 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                 {agencyMonths} <span className="text-xs font-semibold text-emerald-700">tháng</span>
               </div>
               <div className="text-[11px] text-emerald-600 mt-0.5">
-                Tự động từ {agencyRecords.filter(r => !r.is_adjustment && (r as any).paymentStatus !== 'Đã thoái thu' && r.action_type !== 'Thoái thu hoàn trả').length} phiếu thu
-                {agencyRecords.some(r => r.is_adjustment || (r as any).paymentStatus === 'Đã thoái thu' || r.action_type === 'Thoái thu hoàn trả') && (
+                Tự động từ {agencyRecords.filter(r => !r.is_adjustment && !(r as any).isAdjustment && r.action_type !== 'Thoái thu hoàn trả' && (r as any).actionType !== 'Thoái thu hoàn trả' && Number(r.amount) >= 0).length} phiếu thu
+                {agencyRecords.some(r => r.is_adjustment || (r as any).isAdjustment || r.action_type === 'Thoái thu hoàn trả' || (r as any).actionType === 'Thoái thu hoàn trả' || Number(r.amount) < 0) && (
                   <span className="text-purple-700 font-medium ml-1">
-                    ({agencyRecords.filter(r => r.is_adjustment || (r as any).paymentStatus === 'Đã thoái thu' || r.action_type === 'Thoái thu hoàn trả').length} thoái trả)
+                    ({agencyRecords.filter(r => r.is_adjustment || (r as any).isAdjustment || r.action_type === 'Thoái thu hoàn trả' || (r as any).actionType === 'Thoái thu hoàn trả' || Number(r.amount) < 0).length} thoái trả)
                   </span>
                 )}
               </div>
@@ -436,11 +437,13 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                     const isClawback = Boolean(
                       r.is_adjustment || 
                       (r as any).isAdjustment || 
-                      (r.payment_status || (r as any).paymentStatus) === 'Đã thoái thu' || 
-                      (r.action_type || (r as any).actionType) === 'Thoái thu hoàn trả'
+                      (r.action_type || (r as any).actionType) === 'Thoái thu hoàn trả' ||
+                      Number(r.amount) < 0
                     );
-                    const basePrem = r.base_premium ?? (r as any).basePremium;
-                    const sal = r.wage || r.income || (basePrem ? Math.round(Number(basePrem) / 0.22) : 1500000);
+                    const origId = r.original_record_id || (r as any).originalRecordId;
+                    const origRec = origId ? records.find(x => x.id === origId) : null;
+                    const basePrem = r.base_premium ?? (r as any).basePremium ?? origRec?.base_premium ?? (origRec as any)?.basePremium;
+                    const sal = r.wage || r.income || origRec?.wage || origRec?.income || (basePrem ? Math.round(Number(basePrem) / 0.22) : ((customer as any)?.wage || (customer as any)?.income_level || 1500000));
                     const fMonth = r.from_month || (r as any).fromMonth;
                     const tMonth = r.to_month || (r as any).toMonth;
                     const nnSup = r.nn_support_amount ?? (r as any).nnSupportAmount;

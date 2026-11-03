@@ -49,9 +49,10 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
   const matchingRecords = records.filter(r => {
     if (!r || r.type !== 'BHXH') return false;
     if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
+    if ((r.payment_status || (r as any).paymentStatus) === 'Đã thoái thu') return false;
     if (r.is_adjustment || (r as any).isAdjustment) return false;
     const actionType = r.action_type || (r as any).actionType;
-    if (actionType === 'Nhập từ Excel') return false;
+    if (actionType === 'Nhập từ Excel' || actionType === 'Thoái thu hoàn trả' || (r as any).actionType === 'Thoái thu hoàn trả') return false;
     // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu) chỉ hiển thị/tính toán những giao dịch có số tiền > 0
     const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
     if (rawAmt !== undefined) {

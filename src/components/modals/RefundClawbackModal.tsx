@@ -197,6 +197,11 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
       return;
     }
 
+    if (fromMonth && toMonth && fromMonth > toMonth) {
+      showToast('Kỳ đóng không hợp lệ: Tháng bắt đầu không thể sau tháng kết thúc.', 'error');
+      return;
+    }
+
     if (!reason.trim()) {
       showToast('Vui lòng nhập lý do thoái thu hoàn trả.', 'error');
       return;
