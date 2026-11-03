@@ -178,7 +178,7 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(periods[1]!.salary).toBe('6.000.000');
     });
 
-    it('bỏ qua bản ghi "Nhập từ Excel" và bản ghi không phát sinh tiền (amount <= 0)', () => {
+    it('bỏ qua bản ghi "Nhập từ Excel" và bản ghi không phát sinh tiền (amount <= 0, "---", hoặc âm)', () => {
       const records: RecordType[] = [
         {
           id: 20,
@@ -206,6 +206,22 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
           type: 'BHXH',
           months: 1,
           amount: 0,
+          paymentStatus: 'Đã thu tiền'
+        } as any,
+        {
+          id: 23,
+          cccd: '001200000002',
+          type: 'BHXH',
+          months: 1,
+          amount: '---',
+          paymentStatus: 'Đã thu tiền'
+        } as any,
+        {
+          id: 24,
+          cccd: '001200000002',
+          type: 'BHXH',
+          months: 1,
+          amount: -50000,
           paymentStatus: 'Đã thu tiền'
         } as any
       ];

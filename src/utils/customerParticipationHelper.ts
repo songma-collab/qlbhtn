@@ -52,7 +52,15 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
     if (r.is_adjustment || (r as any).isAdjustment) return false;
     const actionType = r.action_type || (r as any).actionType;
     if (actionType === 'Nhập từ Excel') return false;
-    if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) return false;
+    // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu) chỉ hiển thị/tính toán những giao dịch có số tiền > 0
+    const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
+    if (rawAmt !== undefined && rawAmt !== null) {
+      const amt = Number(rawAmt);
+      if (isNaN(amt) || amt <= 0) return false;
+    } else {
+      const incomeVal = Number(r.wage || r.income || 0);
+      if (isNaN(incomeVal) || incomeVal <= 0) return false;
+    }
     return doesRecordMatchCustomer(r, customer);
   });
 

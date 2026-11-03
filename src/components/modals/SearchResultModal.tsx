@@ -132,12 +132,19 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   // 2. Sắp xếp theo hợp đồng mới nhất (compareRecordsByContractLatest)
   const sortedResults = [...normalizedList].sort(compareRecordsByContractLatest);
 
-  // 3. Lọc bỏ các bản ghi đã hủy nếu có các bản ghi hợp lệ khác
-  const displayResults = sortedResults.filter(r => r.paymentStatus !== 'Đã hủy');
-  const activeResults = displayResults.length > 0 ? displayResults : sortedResults;
-
   // Lấy bản ghi đầu mối thông tin khách hàng (ưu tiên bản ghi có tên đầy đủ)
-  const primaryCustomer = activeResults.find(r => r.name && r.name !== 'Khách hàng') || activeResults[0] || (results[0] as any);
+  const primaryCustomer = sortedResults.find(r => r.name && r.name !== 'Khách hàng') || sortedResults[0] || (results[0] as any);
+
+  // 3. YÊU CẦU NGHIỆP VỤ: Mục Kết Quả Tra Cứu Quá Trình chỉ hiển thị những giao dịch có số tiền > 0
+  // Loại bỏ các bản ghi đã hủy và các bản ghi không có số tiền thu thực tế (amount <= 0 hoặc import danh bạ)
+  const paidResults = sortedResults.filter(r => {
+    if (r.paymentStatus === 'Đã hủy') return false;
+    const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
+    const amt = Number(rawAmt);
+    return !isNaN(amt) && amt > 0;
+  });
+
+  const activeResults = paidResults;
 
   // Thống kê tổng số tiền đã đóng tích lũy
   const totalAmountPaid = activeResults
@@ -145,7 +152,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
     .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
 
   // 4. Thống kê quá trình tham gia BHXH tự nguyện và hạn mức hỗ trợ NSNN 10 năm (từ 01/2018)
-  const bhxhRecords = activeResults.filter(r => r.type === 'BHXH' && r.paymentStatus !== 'Đã hủy');
+  const bhxhRecords = activeResults.filter(r => r.type === 'BHXH');
   let totalBhxhMonths = 0;
   let supportedBhxhMonths = 0;
 
@@ -273,7 +280,12 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
           
           {/* Mobile Card View */}
           <div className="md:hidden space-y-4">
-            {activeResults.map((r, idx) => {
+            {activeResults.length === 0 ? (
+              <div className="bg-white p-6 rounded-xl text-center text-gray-400 italic border border-gray-200">
+                Chưa có giao dịch đóng phí nào phát sinh số tiền &gt; 0 tại đại lý.
+              </div>
+            ) : (
+              activeResults.map((r, idx) => {
               const incVal = r.income || r.wage;
               const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;
               const todayStr = getLocalYYYYMMDD();
@@ -353,7 +365,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
               );
-            })}
+            }))}
           </div>
 
           {/* Desktop Table View */}
@@ -373,7 +385,14 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {activeResults.map((r, idx) => {
+                  {activeResults.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="p-8 text-center text-gray-400 italic">
+                        Chưa có giao dịch đóng phí nào phát sinh số tiền &gt; 0 tại đại lý.
+                      </td>
+                    </tr>
+                  ) : (
+                    activeResults.map((r, idx) => {
                     const incVal = r.income || r.wage;
                     const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;
                     const todayStr = getLocalYYYYMMDD();
@@ -461,7 +480,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                         </td>
                       </tr>
                     );
-                  })}
+                  }))}
                 </tbody>
               </table>
             </div>

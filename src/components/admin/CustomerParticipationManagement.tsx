@@ -57,7 +57,11 @@ export const CustomerParticipationManagement: React.FC = () => {
       if (r.paymentStatus === 'Đã hủy' || r.status === 'Đã hủy' || r.isAdjustment) continue;
       const actionType = r.action_type || (r as any).actionType;
       if (actionType === 'Nhập từ Excel') continue;
-      if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) continue;
+      const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
+      if (rawAmt !== undefined && rawAmt !== null) {
+        const amt = Number(rawAmt);
+        if (isNaN(amt) || amt <= 0) continue;
+      }
 
       const m = Number(r.months) || 0;
       if (m <= 0) continue;

@@ -55,7 +55,10 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
         if (r.is_adjustment || (r as any).isAdjustment) return false;
         const actionType = r.action_type || (r as any).actionType;
         if (actionType === 'Nhập từ Excel') return false;
-        if (r.amount !== undefined && r.amount !== null && Number(r.amount) <= 0) return false;
+        // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu) chỉ hiển thị những giao dịch có số tiền > 0
+        const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
+        const amt = Number(rawAmt);
+        if (isNaN(amt) || amt <= 0) return false;
         return doesRecordMatchCustomer(r, customer);
       })
       .sort((a, b) => {
