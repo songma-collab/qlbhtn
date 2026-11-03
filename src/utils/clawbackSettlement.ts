@@ -1,5 +1,5 @@
 import type { RecordType, Policy } from '../context/types';
-import { isDateLocked } from './helpers';
+import { isDateLocked, parseMonthISO } from './helpers';
 import { getCommissionRateForRecord } from './calculations';
 
 export interface RefundRatioBreakdown {
@@ -115,6 +115,52 @@ export function getRefundHistoryForRecord(originalRecordId: number, allRecords: 
     remainingRefundable,
     refundEntries
   };
+}
+
+/**
+ * 2b. Tự động tính toán số tiền giảm trừ thoái thu theo số tháng được chọn từ hồ sơ gốc
+ */
+export function calculateAutoRefundAmount(
+  originalRecord: RecordType,
+  refundMonths: number,
+  remainingRefundable?: number,
+  currentClawbackMonths?: number
+): number {
+  const origAmount = Math.abs(Number(originalRecord.amount) || 0);
+  if (origAmount <= 0 || refundMonths <= 0) return 0;
+
+  let origMonths = Number(originalRecord.months) || 0;
+  if (currentClawbackMonths && currentClawbackMonths > 0) {
+    origMonths += currentClawbackMonths;
+  }
+
+  const fMonth = originalRecord.from_month || (originalRecord as any).fromMonth;
+  const tMonth = originalRecord.to_month || (originalRecord as any).toMonth;
+
+  if (fMonth && tMonth) {
+    const parsedF = parseMonthISO(fMonth);
+    const parsedT = parseMonthISO(tMonth);
+    if (parsedF && parsedT) {
+      const [y1, m1] = parsedF.split('-').map(Number);
+      const [y2, m2] = parsedT.split('-').map(Number);
+      if (y1 && m1 && y2 && m2) {
+        const span = (y2 - y1) * 12 + (m2 - m1) + 1;
+        if (span > 0) {
+          origMonths = Math.max(origMonths, span + (currentClawbackMonths || 0));
+        }
+      }
+    }
+  }
+
+  if (origMonths <= 0) origMonths = Math.max(1, refundMonths);
+
+  const perMonth = origAmount / origMonths;
+  const autoAmount = Math.round(perMonth * refundMonths);
+
+  if (remainingRefundable !== undefined && remainingRefundable > 0) {
+    return Math.min(autoAmount, remainingRefundable);
+  }
+  return Math.min(autoAmount, origAmount);
 }
 
 /**

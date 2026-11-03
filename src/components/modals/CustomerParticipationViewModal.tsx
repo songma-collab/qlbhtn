@@ -13,7 +13,8 @@ import {
   History,
   Info,
   CheckCircle2,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
@@ -45,20 +46,26 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
   const navigate = useNavigate();
   const { showToast } = useAppContext() as any;
 
-  // Lấy danh sách các bản ghi phát sinh tại đại lý
+  // Lấy danh sách các bản ghi phát sinh tại đại lý (bao gồm phiếu thu và bút toán thoái trả hoàn tiền)
   const agencyRecords = useMemo(() => {
     if (!customer || !records || !Array.isArray(records)) return [];
     return records
       .filter(r => {
         if (!r || r.type !== 'BHXH') return false;
         if ((r.payment_status || (r as any).paymentStatus) === 'Đã hủy' || (r as any).status === 'Đã hủy') return false;
-        if (r.is_adjustment || (r as any).isAdjustment) return false;
         const actionType = r.action_type || (r as any).actionType;
         if (actionType === 'Nhập từ Excel') return false;
-        // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu) chỉ hiển thị những giao dịch có số tiền > 0
+        const isClawback = Boolean(
+          r.is_adjustment || 
+          (r as any).isAdjustment || 
+          (r.payment_status || (r as any).paymentStatus) === 'Đã thoái thu' || 
+          actionType === 'Thoái thu hoàn trả'
+        );
+        // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu & bút toán thoái trả)
         const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
         const amt = Number(rawAmt);
-        if (isNaN(amt) || amt <= 0) return false;
+        if (isNaN(amt) || amt === 0) return false;
+        if (!isClawback && amt <= 0) return false;
         return doesRecordMatchCustomer(r, customer);
       })
       .sort((a, b) => {
@@ -263,7 +270,12 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                 {agencyMonths} <span className="text-xs font-semibold text-emerald-700">tháng</span>
               </div>
               <div className="text-[11px] text-emerald-600 mt-0.5">
-                Tự động từ {agencyRecords.length} phiếu thu
+                Tự động từ {agencyRecords.filter(r => !r.is_adjustment && (r as any).paymentStatus !== 'Đã thoái thu' && r.action_type !== 'Thoái thu hoàn trả').length} phiếu thu
+                {agencyRecords.some(r => r.is_adjustment || (r as any).paymentStatus === 'Đã thoái thu' || r.action_type === 'Thoái thu hoàn trả') && (
+                  <span className="text-purple-700 font-medium ml-1">
+                    ({agencyRecords.filter(r => r.is_adjustment || (r as any).paymentStatus === 'Đã thoái thu' || r.action_type === 'Thoái thu hoàn trả').length} thoái trả)
+                  </span>
+                )}
               </div>
             </div>
           </div>
@@ -401,8 +413,8 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
           <div className="space-y-2.5">
             <h3 className="text-sm font-black text-gray-900 flex items-center gap-2 uppercase tracking-wide">
               <span className="w-2.5 h-2.5 rounded-full bg-emerald-600"></span>
-              2. Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu)
-              <span className="text-xs font-bold text-emerald-700">({agencyRecords.length} phiếu thu)</span>
+              2. Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu &amp; phát sinh thoái trả)
+              <span className="text-xs font-bold text-emerald-700">({agencyRecords.length} phát sinh)</span>
             </h3>
 
             <div className="border border-gray-200 rounded-2xl overflow-hidden shadow-2xs">
@@ -421,37 +433,70 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                   {agencyRecords.map((r, idx) => {
+                    const isClawback = Boolean(
+                      r.is_adjustment || 
+                      (r as any).isAdjustment || 
+                      (r.payment_status || (r as any).paymentStatus) === 'Đã thoái thu' || 
+                      (r.action_type || (r as any).actionType) === 'Thoái thu hoàn trả'
+                    );
                     const basePrem = r.base_premium ?? (r as any).basePremium;
                     const sal = r.wage || r.income || (basePrem ? Math.round(Number(basePrem) / 0.22) : 1500000);
                     const fMonth = r.from_month || (r as any).fromMonth;
                     const tMonth = r.to_month || (r as any).toMonth;
                     const nnSup = r.nn_support_amount ?? (r as any).nnSupportAmount;
+                    const decNo = r.decision_number || (r as any).decision_no || (r as any).decisionNo;
                     return (
-                      <tr key={r.id || idx} className="hover:bg-emerald-50/30 transition">
+                      <tr 
+                        key={r.id || idx} 
+                        className={isClawback ? "bg-purple-50/20 hover:bg-purple-50/40 transition" : "hover:bg-emerald-50/30 transition"}
+                      >
                         <td className="p-3 text-center text-gray-400 font-bold">{idx + 1}</td>
                         <td className="p-3 font-medium text-gray-700">
-                          {formatDateVN(r.date) || '-'}
+                          <div>{formatDateVN(r.date) || '-'}</div>
+                          {isClawback && (
+                            <div className="text-[10px] font-bold text-purple-700 mt-0.5">
+                              Bút toán thoái trả
+                            </div>
+                          )}
                         </td>
-                        <td className="p-3 text-center font-mono font-bold text-emerald-700 whitespace-nowrap">
+                        <td className={`p-3 text-center font-mono font-bold whitespace-nowrap ${isClawback ? 'text-purple-700' : 'text-emerald-700'}`}>
                           {formatAgencyPeriod(r)}
                         </td>
-                        <td className="p-3 text-center font-black text-gray-900">
-                          {r.months || 1} th
+                        <td className={`p-3 text-center font-black ${isClawback ? 'text-rose-600' : 'text-gray-900'}`}>
+                          {isClawback ? `-${r.months || 1} th` : `${r.months || 1} th`}
                         </td>
                         <td className="p-3 text-right font-mono font-bold text-gray-800">
                           {new Intl.NumberFormat('vi-VN').format(sal)} đ
                         </td>
-                        <td className="p-3 text-right font-mono font-bold text-emerald-700">
-                          {r.amount ? new Intl.NumberFormat('vi-VN').format(r.amount) : 0} đ
+                        <td className={`p-3 text-right font-mono font-black ${isClawback ? 'text-rose-600' : 'text-emerald-700'}`}>
+                          {isClawback 
+                            ? `-${new Intl.NumberFormat('vi-VN').format(Math.abs(Number(r.amount) || 0))} đ`
+                            : `${r.amount ? new Intl.NumberFormat('vi-VN').format(r.amount) : 0} đ`}
                         </td>
-                        <td className="p-3 text-right font-mono text-gray-600">
-                          {nnSup ? `${new Intl.NumberFormat('vi-VN').format(nnSup)} đ` : '-'}
+                        <td className={`p-3 text-right font-mono ${isClawback ? 'text-rose-600 font-bold' : 'text-gray-600'}`}>
+                          {nnSup 
+                            ? `${isClawback ? '-' : ''}${new Intl.NumberFormat('vi-VN').format(Math.abs(Number(nnSup)))} đ` 
+                            : '-'}
                         </td>
                         <td className="p-3">
-                          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                            <CheckCircle2 size={12} />
-                            Đã thu tiền
-                          </span>
+                          {isClawback ? (
+                            <div>
+                              <span className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 bg-purple-50 border border-purple-200 px-2 py-0.5 rounded-md">
+                                <RotateCcw size={12} />
+                                Đã thoái thu
+                              </span>
+                              {decNo && (
+                                <div className="text-[10px] text-gray-500 font-mono mt-0.5" title={`Quyết định: ${decNo}`}>
+                                  QĐ: {decNo}
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                              <CheckCircle2 size={12} />
+                              Đã thu tiền
+                            </span>
+                          )}
                         </td>
                       </tr>
                     );
@@ -460,7 +505,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                   {agencyRecords.length === 0 && (
                     <tr>
                       <td colSpan={8} className="p-6 text-center text-gray-400 italic">
-                        Chưa phát sinh phiếu thu BHXH nào tại đại lý này.
+                        Chưa phát sinh phiếu thu hoặc thoái trả BHXH nào tại đại lý này.
                       </td>
                     </tr>
                   )}

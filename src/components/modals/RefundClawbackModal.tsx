@@ -6,7 +6,8 @@ import {
   calculateClawbackRatio,
   getRefundHistoryForRecord,
   validateRefundClawback,
-  buildClawbackRecordPayload
+  buildClawbackRecordPayload,
+  calculateAutoRefundAmount
 } from '../../utils/clawbackSettlement';
 import {
   X,
@@ -131,6 +132,33 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
     const total = (y2 - y1) * 12 + (m2 - m1) + 1;
     return Math.max(1, total);
   }, [fromMonth, toMonth, selectedRecord?.months]);
+
+  // Tự động tính lại số tiền thoái thu khi người dùng thay đổi Từ tháng hoặc Đến tháng
+  const handleFromMonthChange = (newFrom: string) => {
+    setFromMonth(newFrom);
+    if (selectedRecord && newFrom && toMonth) {
+      const [y1, m1] = newFrom.split('-').map(Number);
+      const [y2, m2] = toMonth.split('-').map(Number);
+      if (y1 && m1 && y2 && m2 && (y2 * 12 + m2 >= y1 * 12 + m1)) {
+        const months = (y2 - y1) * 12 + (m2 - m1) + 1;
+        const autoAmt = calculateAutoRefundAmount(selectedRecord, months, selectedHistory?.remainingRefundable);
+        if (autoAmt > 0) setRefundAmount(autoAmt);
+      }
+    }
+  };
+
+  const handleToMonthChange = (newTo: string) => {
+    setToMonth(newTo);
+    if (selectedRecord && fromMonth && newTo) {
+      const [y1, m1] = fromMonth.split('-').map(Number);
+      const [y2, m2] = newTo.split('-').map(Number);
+      if (y1 && m1 && y2 && m2 && (y2 * 12 + m2 >= y1 * 12 + m1)) {
+        const months = (y2 - y1) * 12 + (m2 - m1) + 1;
+        const autoAmt = calculateAutoRefundAmount(selectedRecord, months, selectedHistory?.remainingRefundable);
+        if (autoAmt > 0) setRefundAmount(autoAmt);
+      }
+    }
+  };
 
   // Select record handler
   const handleSelectRecord = (rec: RecordType) => {
@@ -452,7 +480,7 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
                     <input
                       type="month"
                       value={fromMonth}
-                      onChange={e => setFromMonth(e.target.value)}
+                      onChange={e => handleFromMonthChange(e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                   </div>
@@ -461,7 +489,7 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
                     <input
                       type="month"
                       value={toMonth}
-                      onChange={e => setToMonth(e.target.value)}
+                      onChange={e => handleToMonthChange(e.target.value)}
                       className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
                     />
                   </div>

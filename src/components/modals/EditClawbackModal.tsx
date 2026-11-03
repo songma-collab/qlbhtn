@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { RecordType } from '../../context/types';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, parseMonthISO, formatMonthVN } from '../../utils/helpers';
-import { calculateClawbackRatio } from '../../utils/clawbackSettlement';
+import { calculateClawbackRatio, calculateAutoRefundAmount } from '../../utils/clawbackSettlement';
 import {
   X,
   ShieldCheck,
@@ -90,6 +90,35 @@ export const EditClawbackModal: React.FC<EditClawbackModalProps> = ({
     const targetOrig = origRecord || record;
     return calculateClawbackRatio(targetOrig, refundAmount, policies, settings);
   }, [record, origRecord, refundAmount, policies, settings]);
+
+  // Tự động tính lại số tiền thoái thu khi người dùng thay đổi Từ tháng hoặc Đến tháng
+  const handleFromMonthChange = (newFrom: string) => {
+    setFromMonth(newFrom);
+    const targetOrig = origRecord || record;
+    if (targetOrig && newFrom && toMonth) {
+      const [y1, m1] = newFrom.split('-').map(Number);
+      const [y2, m2] = toMonth.split('-').map(Number);
+      if (y1 && m1 && y2 && m2 && (y2 * 12 + m2 >= y1 * 12 + m1)) {
+        const months = (y2 - y1) * 12 + (m2 - m1) + 1;
+        const autoAmt = calculateAutoRefundAmount(targetOrig, months, undefined, Number(record?.months) || 0);
+        if (autoAmt > 0) setRefundAmount(autoAmt);
+      }
+    }
+  };
+
+  const handleToMonthChange = (newTo: string) => {
+    setToMonth(newTo);
+    const targetOrig = origRecord || record;
+    if (targetOrig && fromMonth && newTo) {
+      const [y1, m1] = fromMonth.split('-').map(Number);
+      const [y2, m2] = newTo.split('-').map(Number);
+      if (y1 && m1 && y2 && m2 && (y2 * 12 + m2 >= y1 * 12 + m1)) {
+        const months = (y2 - y1) * 12 + (m2 - m1) + 1;
+        const autoAmt = calculateAutoRefundAmount(targetOrig, months, undefined, Number(record?.months) || 0);
+        if (autoAmt > 0) setRefundAmount(autoAmt);
+      }
+    }
+  };
 
   if (!isOpen || !record) return null;
 
@@ -237,7 +266,7 @@ export const EditClawbackModal: React.FC<EditClawbackModalProps> = ({
                 <input
                   type="month"
                   value={fromMonth}
-                  onChange={e => setFromMonth(e.target.value)}
+                  onChange={e => handleFromMonthChange(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
                 />
               </div>
@@ -246,7 +275,7 @@ export const EditClawbackModal: React.FC<EditClawbackModalProps> = ({
                 <input
                   type="month"
                   value={toMonth}
-                  onChange={e => setToMonth(e.target.value)}
+                  onChange={e => handleToMonthChange(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-amber-300 rounded-lg text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500 outline-none"
                 />
               </div>

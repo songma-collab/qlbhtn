@@ -124,6 +124,8 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
       method: methodLabel,
       actionType,
       action_type: actionType,
+      is_adjustment: Boolean(raw.is_adjustment || (raw as any).isAdjustment || paymentStatus === 'Đã thoái thu' || actionType === 'Thoái thu hoàn trả'),
+      decision_number: raw.decision_number || (raw as any).decision_no || (raw as any).decisionNo || '',
       notes,
       date: dateStr
     };
@@ -135,21 +137,46 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   // Lấy bản ghi đầu mối thông tin khách hàng (ưu tiên bản ghi có tên đầy đủ)
   const primaryCustomer = sortedResults.find(r => r.name && r.name !== 'Khách hàng') || sortedResults[0] || (results[0] as any);
 
-  // 3. YÊU CẦU NGHIỆP VỤ: Mục Kết Quả Tra Cứu Quá Trình chỉ hiển thị những giao dịch có số tiền > 0
-  // Loại bỏ các bản ghi đã hủy và các bản ghi không có số tiền thu thực tế (amount <= 0 hoặc import danh bạ)
+  // 3. YÊU CẦU NGHIỆP VỤ: Hiển thị giao dịch thu tiền thực tế (> 0) VÀ phát sinh thoái trả hoàn tiền (Clawback)
+  // Loại bỏ các bản ghi đã hủy và các bản ghi không phát sinh tiền thực tế (amount = 0 hoặc import danh bạ)
   const paidResults = sortedResults.filter(r => {
     if (r.paymentStatus === 'Đã hủy') return false;
+    const isClawback = Boolean(
+      r.is_adjustment || 
+      (r as any).isAdjustment || 
+      r.paymentStatus === 'Đã thoái thu' || 
+      r.actionType === 'Thoái thu hoàn trả' ||
+      r.action_type === 'Thoái thu hoàn trả'
+    );
     const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
     const amt = Number(rawAmt);
-    return !isNaN(amt) && amt > 0;
+    if (isNaN(amt) || amt === 0) return false;
+    // Bỏ qua bản ghi thường không có số tiền > 0
+    if (!isClawback && amt <= 0) return false;
+    return true;
   });
 
   const activeResults = paidResults;
 
-  // Thống kê tổng số tiền đã đóng tích lũy
+  // Thống kê tổng số tiền đã đóng tích lũy (Tổng thực thu trừ thoái thu hoàn trả)
   const totalAmountPaid = activeResults
-    .filter(r => r.paymentStatus === 'Đã thu tiền')
-    .reduce((sum, r) => sum + (Number(r.amount) || 0), 0);
+    .reduce((sum, r) => {
+      const amt = Number(r.amount) || 0;
+      const isClawback = Boolean(
+        r.is_adjustment || 
+        (r as any).isAdjustment || 
+        r.paymentStatus === 'Đã thoái thu' || 
+        r.actionType === 'Thoái thu hoàn trả' ||
+        r.action_type === 'Thoái thu hoàn trả'
+      );
+      if (r.paymentStatus === 'Đã thu tiền') {
+        return sum + Math.max(0, amt);
+      }
+      if (isClawback) {
+        return sum - Math.abs(amt);
+      }
+      return sum;
+    }, 0);
 
   // 4. Thống kê quá trình tham gia BHXH tự nguyện và hạn mức hỗ trợ NSNN 10 năm (từ 01/2018)
   const bhxhRecords = activeResults.filter(r => r.type === 'BHXH');
@@ -157,6 +184,16 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   let supportedBhxhMonths = 0;
 
   for (const r of bhxhRecords) {
+    const isClawback = Boolean(
+      r.is_adjustment || 
+      (r as any).isAdjustment || 
+      r.paymentStatus === 'Đã thoái thu' || 
+      r.actionType === 'Thoái thu hoàn trả' ||
+      r.action_type === 'Thoái thu hoàn trả'
+    );
+    // Bút toán thoái thu là giảm trừ hoàn tiền, không cộng dồn tháng tham gia
+    if (isClawback) continue;
+
     let m = Number(r.months) || 0;
     if (m <= 0 && r.fromMonth && r.toMonth) {
       const { month: m1, year: y1 } = parseMonthAndYear(r.fromMonth);
@@ -286,13 +323,20 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
               </div>
             ) : (
               activeResults.map((r, idx) => {
+              const isClawback = Boolean(
+                r.is_adjustment || 
+                (r as any).isAdjustment || 
+                r.paymentStatus === 'Đã thoái thu' || 
+                r.actionType === 'Thoái thu hoàn trả' ||
+                r.action_type === 'Thoái thu hoàn trả'
+              );
               const incVal = r.income || r.wage;
               const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;
               const todayStr = getLocalYYYYMMDD();
               const thirtyDaysLaterStr = getLocalYYYYMMDD(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
               
-              const isExpiring = isLatestOfThisType && r.nextPayment && r.nextPayment >= todayStr && r.nextPayment <= thirtyDaysLaterStr;
-              const isExpired = isLatestOfThisType && r.nextPayment && r.nextPayment < todayStr;
+              const isExpiring = !isClawback && isLatestOfThisType && r.nextPayment && r.nextPayment >= todayStr && r.nextPayment <= thirtyDaysLaterStr;
+              const isExpired = !isClawback && isLatestOfThisType && r.nextPayment && r.nextPayment < todayStr;
               
               let statusLabel = r.paymentStatus || 'Đã thu tiền';
               let statusClass = "text-emerald-700 bg-emerald-50 border border-emerald-200";
@@ -303,7 +347,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
               } else if (r.paymentStatus === 'Đã hủy') {
                 statusLabel = "Đã hủy";
                 statusClass = "text-red-700 bg-red-50 border border-red-300";
-              } else if (r.paymentStatus === 'Đã thoái thu') {
+              } else if (isClawback || r.paymentStatus === 'Đã thoái thu') {
                 statusLabel = "Đã thoái thu";
                 statusClass = "text-purple-700 bg-purple-50 border border-purple-300";
               } else {
@@ -323,44 +367,61 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
               }
 
               return (
-                <div key={idx} className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+                <div key={idx} className={`bg-white p-4 rounded-xl shadow-sm border ${isClawback ? 'border-purple-200 bg-purple-50/20' : 'border-gray-200'}`}>
                   <div className="flex justify-between items-center mb-3 pb-2 border-b border-gray-100">
-                    <span className={`font-bold ${r.type === 'BHXH' ? 'text-[#004182]' : 'text-[#0ea5e9]'}`}>
+                    <span className={`font-bold flex items-center gap-1.5 ${r.type === 'BHXH' ? 'text-[#004182]' : 'text-[#0ea5e9]'}`}>
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100">
                         {r.type}
                       </span>
+                      {isClawback && (
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200">
+                          Thoái trả
+                        </span>
+                      )}
                     </span>
                     <span className={`px-2 py-0.5 rounded text-xs font-bold ${statusClass}`}>{statusLabel}</span>
                   </div>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Thời gian tham gia:</span>
+                      <span className="text-gray-500">{isClawback ? 'Kỳ giảm trừ thoái trả:' : 'Thời gian tham gia:'}</span>
                       <span className="text-gray-800 font-semibold">{r.periodDisplay}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Số tháng:</span>
-                      <span className="text-gray-800 font-medium">{r.months} tháng</span>
+                      <span className="text-gray-800 font-medium">
+                        {isClawback ? (
+                          <strong className="text-rose-600 font-bold">-{r.months} tháng (Thoái trả)</strong>
+                        ) : (
+                          `${r.months} tháng`
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Mức thu nhập:</span>
                       <span className="text-gray-800 font-semibold">{incVal && incVal > 0 ? formatMoney(incVal) : (r.type === 'BHYT' ? 'Theo quy định' : '---')}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Tổng tiền thanh toán:</span>
-                      <span className="text-[#004182] font-black">{r.amount ? formatMoney(r.amount) : '---'}</span>
+                      <span className="text-gray-500">{isClawback ? 'Số tiền hoàn trả:' : 'Tổng tiền thanh toán:'}</span>
+                      <span className={`font-black ${isClawback ? 'text-rose-600 font-mono' : 'text-[#004182]'}`}>
+                        {isClawback 
+                          ? `-${formatMoney(Math.abs(Number(r.amount) || 0))}` 
+                          : (r.amount ? formatMoney(r.amount) : '---')}
+                      </span>
                     </div>
                     <div className="flex justify-between items-start">
                       <span className="text-gray-500">Phân kỳ &amp; Ghi chú:</span>
                       <div className="text-right">
-                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">
-                          {r.method}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
+                          isClawback ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}>
+                          {isClawback ? 'Thoái thu hoàn trả' : r.method}
                         </span>
                         {r.notes && <p className="text-xs text-gray-600 italic mt-1">{r.notes}</p>}
                       </div>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Hạn tiếp theo:</span>
-                      <span className="text-gray-800 font-semibold">{r.nextPayment ? formatDateVN(r.nextPayment) : '---'}</span>
+                      <span className="text-gray-800 font-semibold">{isClawback ? '-' : (r.nextPayment ? formatDateVN(r.nextPayment) : '---')}</span>
                     </div>
                   </div>
                 </div>
@@ -393,13 +454,20 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                     </tr>
                   ) : (
                     activeResults.map((r, idx) => {
+                    const isClawback = Boolean(
+                      r.is_adjustment || 
+                      (r as any).isAdjustment || 
+                      r.paymentStatus === 'Đã thoái thu' || 
+                      r.actionType === 'Thoái thu hoàn trả' ||
+                      r.action_type === 'Thoái thu hoàn trả'
+                    );
                     const incVal = r.income || r.wage;
                     const isLatestOfThisType = activeResults.findIndex(res => res.type === r.type && res.paymentStatus !== 'Đã hủy') === idx;
                     const todayStr = getLocalYYYYMMDD();
                     const thirtyDaysLaterStr = getLocalYYYYMMDD(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000));
                     
-                    const isExpiring = isLatestOfThisType && r.nextPayment && r.nextPayment >= todayStr && r.nextPayment <= thirtyDaysLaterStr;
-                    const isExpired = isLatestOfThisType && r.nextPayment && r.nextPayment < todayStr;
+                    const isExpiring = !isClawback && isLatestOfThisType && r.nextPayment && r.nextPayment >= todayStr && r.nextPayment <= thirtyDaysLaterStr;
+                    const isExpired = !isClawback && isLatestOfThisType && r.nextPayment && r.nextPayment < todayStr;
                     
                     let statusLabel = r.paymentStatus || 'Đã thu tiền';
                     let statusClass = "text-emerald-700 bg-emerald-50 border border-emerald-200";
@@ -410,7 +478,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                     } else if (r.paymentStatus === 'Đã hủy') {
                       statusLabel = "Đã hủy";
                       statusClass = "text-red-700 bg-red-50 border border-red-300";
-                    } else if (r.paymentStatus === 'Đã thoái thu') {
+                    } else if (isClawback || r.paymentStatus === 'Đã thoái thu') {
                       statusLabel = "Đã thoái thu";
                       statusClass = "text-purple-700 bg-purple-50 border border-purple-300";
                     } else {
@@ -431,31 +499,53 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                     }
 
                     return (
-                      <tr key={idx} className="hover:bg-blue-50/40 transition">
+                      <tr 
+                        key={idx} 
+                        className={isClawback ? "hover:bg-purple-50/40 bg-purple-50/15 transition" : "hover:bg-blue-50/40 transition"}
+                      >
                         <td className={`p-3 font-bold ${r.type === 'BHXH' ? 'text-[#004182]' : 'text-[#0ea5e9]'}`}>
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100">
-                            {r.type}
-                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100">
+                              {r.type}
+                            </span>
+                            {isClawback && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 whitespace-nowrap">
+                                Thoái trả
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="p-3 text-gray-800 font-semibold whitespace-nowrap">
                           {r.periodDisplay}
                         </td>
                         <td className="p-3 text-gray-700 font-medium whitespace-nowrap">
-                          {r.months} tháng
+                          {isClawback ? (
+                            <strong className="text-rose-600 font-bold">-{r.months} tháng</strong>
+                          ) : (
+                            `${r.months} tháng`
+                          )}
                         </td>
                         <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">
                           {incVal && incVal > 0 ? formatMoney(incVal) : (r.type === 'BHYT' ? 'Theo quy định' : '---')}
                         </td>
-                        <td className="p-3 font-black text-[#004182] whitespace-nowrap">
-                          {r.amount ? formatMoney(r.amount) : '---'}
+                        <td className={`p-3 font-black whitespace-nowrap ${isClawback ? 'text-rose-600 font-mono' : 'text-[#004182]'}`}>
+                          {isClawback 
+                            ? `-${formatMoney(Math.abs(Number(r.amount) || 0))}` 
+                            : (r.amount ? formatMoney(r.amount) : '---')}
                         </td>
                         <td className="p-3 text-xs text-gray-700 max-w-[240px]">
                           <div className="flex flex-col gap-1 items-start">
                             <div className="flex flex-wrap items-center gap-1.5">
-                              {r.method && (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
-                                  {r.method}
+                              {isClawback ? (
+                                <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-[11px] bg-purple-50 text-purple-700 border border-purple-200">
+                                  Thoái thu hoàn trả
                                 </span>
+                              ) : (
+                                r.method && (
+                                  <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
+                                    {r.method}
+                                  </span>
+                                )
                               )}
                               {r.actionType && (
                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
@@ -471,7 +561,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                           </div>
                         </td>
                         <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">
-                          {r.nextPayment ? formatDateVN(r.nextPayment) : '---'}
+                          {isClawback ? '-' : (r.nextPayment ? formatDateVN(r.nextPayment) : '---')}
                         </td>
                         <td className="p-3 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${statusClass}`}>

@@ -4,6 +4,8 @@ import { renderToString } from 'react-dom/server';
 import { supabase } from '../lib/supabase';
 import { callPublicPortal } from '../utils/publicPortal';
 import SearchResultModal from '../components/modals/SearchResultModal';
+import { CustomerParticipationViewModal } from '../components/modals/CustomerParticipationViewModal';
+import { calculateAutoRefundAmount } from '../utils/clawbackSettlement';
 import {
   formatMonthVN,
   formatDateVN,
@@ -11,6 +13,12 @@ import {
   calculateNextPaymentFromToMonth,
   getMethodLabelFromValue
 } from '../utils/helpers';
+
+vi.mock('react-router-dom', async () => {
+  return {
+    useNavigate: () => vi.fn()
+  };
+});
 
 vi.mock('../context/AppContext', async () => {
   const actual = await vi.importActual<any>('../context/AppContext');
@@ -204,5 +212,203 @@ describe('Kiểm thử Tra Cứu Quá Trình Công Khai & Chuẩn Hóa Hiển Th
     expect(html).toContain('0 đ');
     // Không hiển thị thẻ tích lũy BHXH khi chưa có giao dịch hợp lệ
     expect(html).not.toContain('Tổng thời gian BHXH tự nguyện đã tích lũy');
+  });
+
+  it('6. calculateAutoRefundAmount: Tự động tính số tiền thoái thu khi chọn từ tháng đến tháng', () => {
+    // Trường hợp 1: Hồ sơ gốc 12 tháng, 5.808.000 đ. Người dùng chọn từ 07/2026 đến 12/2026 (6 tháng)
+    const origRecord: any = {
+      id: 62,
+      name: 'Ngô Thị Thảo',
+      type: 'BHXH',
+      from_month: '2026-01',
+      to_month: '2026-12',
+      months: 12,
+      amount: 5808000
+    };
+
+    const autoAmt1 = calculateAutoRefundAmount(origRecord, 6);
+    // 5.808.000 / 12 * 6 = 2.904.000 đ
+    expect(autoAmt1).toBe(2904000);
+
+    // Trường hợp 2: Chỉnh sửa bút toán thoái thu (Edit mode)
+    // Hồ sơ gốc sau khi thoái thu đã bị trừ còn 6 tháng. Nhưng khi edit bút toán 6 tháng,
+    // tổng tháng gốc phục hồi = 6 + 6 = 12 tháng. Người dùng điều chỉnh lại chỉ thoái thu 3 tháng:
+    const modifiedOrigRecord: any = {
+      id: 62,
+      name: 'Ngô Thị Thảo',
+      type: 'BHXH',
+      from_month: '2026-01',
+      to_month: '2026-06',
+      months: 6,
+      amount: 5808000
+    };
+    const autoAmt2 = calculateAutoRefundAmount(modifiedOrigRecord, 3, undefined, 6);
+    // Tỷ lệ tháng gốc = 6 + 6 = 12 th. perMonth = 5.808.000 / 12 = 484.000 đ. 3 tháng = 1.452.000 đ
+    expect(autoAmt2).toBe(1452000);
+  });
+
+  it('7. SearchResultModal: Hiển thị bút toán thoái trả với số tiền âm, bù trừ dòng tiền thực thu và giữ nguyên số tháng tích lũy', () => {
+    // Trường hợp Ngô Thị Thảo trong ảnh thực tế:
+    // 1. Tăng mới 12 tháng (01/2026 - 12/2026): 5.808.000 đ (sau đó đã ghi chú thoái trả 6 tháng 07/2026-12/2026)
+    // 2. Gia hạn 3 tháng (10/2026 - 12/2026): 1.452.000 đ
+    // 3. Bút toán thoái trả 6 tháng (07/2026 - 12/2026): -2.904.000 đ
+    const mockThaoResults: any[] = [
+      {
+        id: 65,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        bhxh: '1420991171',
+        type: 'BHXH',
+        from_month: '2026-10',
+        to_month: '2026-12',
+        months: 3,
+        income: 2500000,
+        amount: 1452000,
+        action_type: 'Gia hạn',
+        payment_status: 'Đã thu tiền'
+      },
+      {
+        id: 62,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        bhxh: '1420991171',
+        type: 'BHXH',
+        from_month: '2026-01',
+        to_month: '2026-06',
+        months: 6,
+        income: 2500000,
+        amount: 5808000,
+        action_type: 'Tăng mới',
+        payment_status: 'Đã thu tiền'
+      },
+      {
+        id: 64,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        bhxh: '1420991171',
+        type: 'BHXH',
+        from_month: '2026-07',
+        to_month: '2026-12',
+        months: 6,
+        income: 2500000,
+        amount: -2904000,
+        is_adjustment: true,
+        action_type: 'Thoái thu hoàn trả',
+        payment_status: 'Đã thoái thu'
+      }
+    ];
+
+    const html = renderToString(
+      React.createElement(SearchResultModal, {
+        isOpen: true,
+        onClose: () => {},
+        results: mockThaoResults,
+        searchCode: '014182000354'
+      })
+    );
+
+    // 1. Phải hiển thị net dòng tiền: 1.452.000 + 5.808.000 - 2.904.000 = 4.356.000 đ
+    expect(html).toContain('4.356.000');
+
+    // 2. Tổng thời gian BHXH tự nguyện tích lũy giữ nguyên 9 tháng (6 + 3), bút toán thoái thu không bị cộng thêm tháng
+    expect(html).toContain('9 tháng');
+
+    // 3. Phải có badge "Thoái trả" và hiển thị số tiền âm hoàn trả
+    expect(html).toContain('Thoái trả');
+    expect(html).toContain('-2.904.000');
+    expect(html).toContain('Đã thoái thu');
+  });
+
+  it('8. CustomerParticipationViewModal: Bổ sung phát sinh thoái trả vào Bảng 2 quá trình tại đại lý', () => {
+    const mockCustomer: any = {
+      id: 'cust-64',
+      name: 'Ngô Thị Thảo',
+      cccd: '014182000354',
+      bhxh: '1420991171',
+      prior_compulsory_months: 3,
+      prior_voluntary_months: 0,
+      prior_periods: [
+        {
+          id: 'p1',
+          type: 'BAT_BUOC',
+          unit: 'Hộ kinh doanh',
+          job: 'Đóng BHXH bắt buộc',
+          fromMonth: '07/2026',
+          toMonth: '09/2026',
+          months: 3,
+          salary: 3000000
+        }
+      ]
+    };
+
+    const mockRecords: any[] = [
+      {
+        id: 65,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        type: 'BHXH',
+        from_month: '2026-10',
+        to_month: '2026-12',
+        months: 3,
+        amount: 1452000,
+        nn_support_amount: 198000,
+        payment_status: 'Đã thu tiền',
+        date: '2026-11-03'
+      },
+      {
+        id: 62,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        type: 'BHXH',
+        from_month: '2026-01',
+        to_month: '2026-06',
+        months: 6,
+        amount: 5808000,
+        nn_support_amount: 792000,
+        payment_status: 'Đã thu tiền',
+        date: '2026-11-03'
+      },
+      {
+        id: 64,
+        name: 'Ngô Thị Thảo',
+        cccd: '014182000354',
+        type: 'BHXH',
+        from_month: '2026-07',
+        to_month: '2026-12',
+        months: 6,
+        amount: -2904000,
+        nn_support_amount: -396000,
+        is_adjustment: true,
+        action_type: 'Thoái thu hoàn trả',
+        payment_status: 'Đã thoái thu',
+        decision_number: '112/QĐ-BHXH',
+        date: '2026-11-03'
+      }
+    ];
+
+    const html = renderToString(
+      React.createElement(CustomerParticipationViewModal, {
+        customer: mockCustomer,
+        records: mockRecords,
+        isOpen: true,
+        onClose: () => {},
+        onOpenEditModal: () => {}
+      })
+    );
+
+    // Bảng 2 hiển thị tiêu đề gồm cả phát sinh thoái trả (3 phát sinh)
+    expect(html).toContain('Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu &amp; phát sinh thoái trả)');
+    expect(html).toMatch(/3.*phát sinh/);
+
+    // Bảng 2 có dòng bút toán thoái trả với số tháng âm, số tiền âm, và badge Đã thoái thu
+    expect(html).toContain('Bút toán thoái trả');
+    expect(html).toContain('-6 th');
+    expect(html).toContain('-2.904.000 đ');
+    expect(html).toContain('-396.000 đ');
+    expect(html).toContain('Đã thoái thu');
+    expect(html).toContain('112/QĐ-BHXH');
+
+    // Tổng số tháng tích lũy vẫn là 12 tháng (3 bắt buộc + 9 tự nguyện), không bị clawback tính thêm tháng
+    expect(html).toMatch(/12.*tháng/);
   });
 });
