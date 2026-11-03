@@ -54,7 +54,7 @@ export const extractAgencyPeriods = (customer: CustomerType, records: RecordType
     if (actionType === 'Nhập từ Excel') return false;
     // YÊU CẦU NGHIỆP VỤ: Quá trình phát sinh tại Đại lý này (Tự động từ phiếu thu) chỉ hiển thị/tính toán những giao dịch có số tiền > 0
     const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
-    if (rawAmt !== undefined && rawAmt !== null) {
+    if (rawAmt !== undefined) {
       const amt = Number(rawAmt);
       if (isNaN(amt) || amt <= 0) return false;
     } else {

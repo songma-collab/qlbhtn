@@ -58,7 +58,7 @@ export const CustomerParticipationManagement: React.FC = () => {
       const actionType = r.action_type || (r as any).actionType;
       if (actionType === 'Nhập từ Excel') continue;
       const rawAmt = r.amount !== undefined ? r.amount : (r as any).total_amount;
-      if (rawAmt !== undefined && rawAmt !== null) {
+      if (rawAmt !== undefined) {
         const amt = Number(rawAmt);
         if (isNaN(amt) || amt <= 0) continue;
       }

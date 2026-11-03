@@ -251,7 +251,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                       </span>
                     ) : (
                       <span className="px-2.5 py-0.5 bg-emerald-100 text-emerald-950 border border-emerald-300 text-xs font-black rounded-full uppercase">
-                        Đã dùng {totalBhxhMonths}/120 tháng hỗ trợ
+                        Đã dùng {Math.min(120, supportedBhxhMonths)}/120 tháng hỗ trợ
                       </span>
                     )}
                   </div>
@@ -267,7 +267,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                       </span>
                     ) : (
                       <span className="text-emerald-900">
-                        ✓ Còn lại <strong>{120 - totalBhxhMonths} tháng</strong> được NSNN hỗ trợ mức đóng theo quy định.
+                        ✓ Còn lại <strong>{Math.max(0, 120 - supportedBhxhMonths)} tháng</strong> được NSNN hỗ trợ mức đóng theo quy định.
                       </span>
                     )}
                   </p>

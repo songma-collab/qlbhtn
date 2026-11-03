@@ -223,6 +223,15 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
           months: 1,
           amount: -50000,
           paymentStatus: 'Đã thu tiền'
+        } as any,
+        {
+          id: 25,
+          cccd: '001200000002',
+          type: 'BHXH',
+          months: 1,
+          wage: 1650000,
+          amount: null,
+          paymentStatus: 'Đã thu tiền'
         } as any
       ];
 
