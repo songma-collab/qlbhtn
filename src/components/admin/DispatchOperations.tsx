@@ -539,7 +539,7 @@ const DispatchOperations: React.FC = () => {
     const amountStr = formatMoney(c.amount);
 
     const tpls = settings?.reminder_message_templates || settings?.reminderMessageTemplates || getStoredReminderMessageTemplates();
-    const staffMember = staff.find((s: any) => s.id === c.staffId) || currentUser;
+    const staffMember = (staff || []).find((s: any) => s.id === c.staffId) || currentUser;
     const staffName = staffMember?.name || currentUser?.name || 'Cán bộ đại lý';
     const staffPhone = staffMember?.phone || currentUser?.phone || '0988.xxx.xxx';
     const agencyName = settings?.agencyName || 'Đại lý thu BHXH, BHYT Sông Mã';

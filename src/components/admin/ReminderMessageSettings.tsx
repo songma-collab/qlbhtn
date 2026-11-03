@@ -40,8 +40,9 @@ export const ReminderMessageSettings: React.FC = () => {
   const [hasChanges, setHasChanges] = useState(false);
   const [copiedTag, setCopiedTag] = useState<string | null>(null);
 
-  // Đồng bộ khi settings thay đổi từ hệ thống
+  // Đồng bộ khi settings thay đổi từ hệ thống (chỉ khi người dùng chưa có thay đổi dở dang)
   useEffect(() => {
+    if (hasChanges) return;
     const currentTemplates = settings?.reminder_message_templates || settings?.reminderMessageTemplates;
     if (currentTemplates) {
       setTemplates({
@@ -50,10 +51,34 @@ export const ReminderMessageSettings: React.FC = () => {
       });
       setHasChanges(false);
     }
-  }, [settings]);
+  }, [settings, hasChanges]);
 
   const handleTextChange = (field: keyof ReminderMessageTemplates, value: string) => {
-    setTemplates((prev: Required<ReminderMessageTemplates>) => ({ ...prev, [field]: value }));
+    setTemplates((prev: Required<ReminderMessageTemplates>) => {
+      const next = { ...prev, [field]: value };
+      if (field === 'renewalReminderBHXH' || field === 'renewal_bhxh') {
+        next.renewalReminderBHXH = value;
+        next.renewal_bhxh = value;
+      } else if (field === 'renewalReminderBHYT' || field === 'renewal_bhyt') {
+        next.renewalReminderBHYT = value;
+        next.renewal_bhyt = value;
+      } else if (field === 'dispatchUrgentBHXH' || field === 'dispatch_urgent_bhxh') {
+        next.dispatchUrgentBHXH = value;
+        next.dispatch_urgent_bhxh = value;
+      } else if (field === 'dispatchUrgentBHYT' || field === 'dispatch_urgent_bhyt') {
+        next.dispatchUrgentBHYT = value;
+        next.dispatch_urgent_bhyt = value;
+      } else if (field === 'dispatchStandard' || field === 'dispatch_standard' || field === 'dispatch_periodic') {
+        next.dispatchStandard = value;
+        next.dispatch_standard = value;
+        next.dispatch_periodic = value;
+      } else if (field === 'dispatchReceipt' || field === 'dispatch_receipt' || field === 'dispatch_confirmed') {
+        next.dispatchReceipt = value;
+        next.dispatch_receipt = value;
+        next.dispatch_confirmed = value;
+      }
+      return next;
+    });
     setHasChanges(true);
   };
 

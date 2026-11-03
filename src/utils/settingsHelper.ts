@@ -442,12 +442,85 @@ export const normalizeReminderMessageTemplates = (
 ): ReminderMessageTemplates => {
   if (!raw || typeof raw !== 'object') return { ...DEFAULT_REMINDER_MESSAGE_TEMPLATES };
 
-  const renewal_bhxh = raw.renewal_bhxh ?? raw.renewalReminderBHXH ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHXH;
-  const renewal_bhyt = raw.renewal_bhyt ?? raw.renewalReminderBHYT ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHYT;
-  const dispatch_urgent_bhxh = raw.dispatch_urgent_bhxh ?? raw.dispatchUrgentBHXH ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHXH;
-  const dispatch_urgent_bhyt = raw.dispatch_urgent_bhyt ?? raw.dispatchUrgentBHYT ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHYT;
-  const dispatch_periodic = raw.dispatch_periodic ?? raw.dispatch_standard ?? raw.dispatchStandard ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchStandard;
-  const dispatch_confirmed = raw.dispatch_confirmed ?? raw.dispatch_receipt ?? raw.dispatchReceipt ?? DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchReceipt;
+  // 1. Renewal BHXH
+  let renewal_bhxh = DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHXH;
+  if (raw.renewalReminderBHXH && raw.renewalReminderBHXH !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHXH) {
+    renewal_bhxh = raw.renewalReminderBHXH;
+  } else if (raw.renewal_bhxh && raw.renewal_bhxh !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewal_bhxh) {
+    renewal_bhxh = raw.renewal_bhxh;
+  } else if (raw.renewalReminderBHXH) {
+    renewal_bhxh = raw.renewalReminderBHXH;
+  } else if (raw.renewal_bhxh) {
+    renewal_bhxh = raw.renewal_bhxh;
+  }
+
+  // 2. Renewal BHYT
+  let renewal_bhyt = DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHYT;
+  if (raw.renewalReminderBHYT && raw.renewalReminderBHYT !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewalReminderBHYT) {
+    renewal_bhyt = raw.renewalReminderBHYT;
+  } else if (raw.renewal_bhyt && raw.renewal_bhyt !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewal_bhyt) {
+    renewal_bhyt = raw.renewal_bhyt;
+  } else if (raw.renewalReminderBHYT) {
+    renewal_bhyt = raw.renewalReminderBHYT;
+  } else if (raw.renewal_bhyt) {
+    renewal_bhyt = raw.renewal_bhyt;
+  }
+
+  // 3. Dispatch Urgent BHXH
+  let dispatch_urgent_bhxh = DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHXH;
+  if (raw.dispatchUrgentBHXH && raw.dispatchUrgentBHXH !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHXH) {
+    dispatch_urgent_bhxh = raw.dispatchUrgentBHXH;
+  } else if (raw.dispatch_urgent_bhxh && raw.dispatch_urgent_bhxh !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_urgent_bhxh) {
+    dispatch_urgent_bhxh = raw.dispatch_urgent_bhxh;
+  } else if (raw.dispatchUrgentBHXH) {
+    dispatch_urgent_bhxh = raw.dispatchUrgentBHXH;
+  } else if (raw.dispatch_urgent_bhxh) {
+    dispatch_urgent_bhxh = raw.dispatch_urgent_bhxh;
+  }
+
+  // 4. Dispatch Urgent BHYT
+  let dispatch_urgent_bhyt = DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHYT;
+  if (raw.dispatchUrgentBHYT && raw.dispatchUrgentBHYT !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchUrgentBHYT) {
+    dispatch_urgent_bhyt = raw.dispatchUrgentBHYT;
+  } else if (raw.dispatch_urgent_bhyt && raw.dispatch_urgent_bhyt !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_urgent_bhyt) {
+    dispatch_urgent_bhyt = raw.dispatch_urgent_bhyt;
+  } else if (raw.dispatchUrgentBHYT) {
+    dispatch_urgent_bhyt = raw.dispatchUrgentBHYT;
+  } else if (raw.dispatch_urgent_bhyt) {
+    dispatch_urgent_bhyt = raw.dispatch_urgent_bhyt;
+  }
+
+  // 5. Dispatch Periodic
+  let dispatch_periodic = DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchStandard;
+  if (raw.dispatchStandard && raw.dispatchStandard !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchStandard) {
+    dispatch_periodic = raw.dispatchStandard;
+  } else if (raw.dispatch_standard && raw.dispatch_standard !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_standard) {
+    dispatch_periodic = raw.dispatch_standard;
+  } else if (raw.dispatch_periodic && raw.dispatch_periodic !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_periodic) {
+    dispatch_periodic = raw.dispatch_periodic;
+  } else if (raw.dispatchStandard) {
+    dispatch_periodic = raw.dispatchStandard;
+  } else if (raw.dispatch_standard) {
+    dispatch_periodic = raw.dispatch_standard;
+  } else if (raw.dispatch_periodic) {
+    dispatch_periodic = raw.dispatch_periodic;
+  }
+
+  // 6. Dispatch Confirmed / Receipt
+  let dispatch_confirmed = DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchReceipt;
+  if (raw.dispatchReceipt && raw.dispatchReceipt !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatchReceipt) {
+    dispatch_confirmed = raw.dispatchReceipt;
+  } else if (raw.dispatch_receipt && raw.dispatch_receipt !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_receipt) {
+    dispatch_confirmed = raw.dispatch_receipt;
+  } else if (raw.dispatch_confirmed && raw.dispatch_confirmed !== DEFAULT_REMINDER_MESSAGE_TEMPLATES.dispatch_confirmed) {
+    dispatch_confirmed = raw.dispatch_confirmed;
+  } else if (raw.dispatchReceipt) {
+    dispatch_confirmed = raw.dispatchReceipt;
+  } else if (raw.dispatch_receipt) {
+    dispatch_confirmed = raw.dispatch_receipt;
+  } else if (raw.dispatch_confirmed) {
+    dispatch_confirmed = raw.dispatch_confirmed;
+  }
 
   return {
     ...DEFAULT_REMINDER_MESSAGE_TEMPLATES,

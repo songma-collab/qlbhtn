@@ -57,7 +57,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
   const getStaffForRecord = (record: any) => {
     if (!record) return currentUser;
     const staffId = record.staffId || record.staff_id;
-    return staff.find((s: any) => s.id === staffId || s.username === staffId || s.staffCode === staffId) || currentUser;
+    return (staff || []).find((s: any) => s.id === staffId || s.username === staffId || s.staffCode === staffId || s.code === staffId) || currentUser;
   };
 
   // Lấy tên cán bộ phụ trách hiển thị chuẩn xác

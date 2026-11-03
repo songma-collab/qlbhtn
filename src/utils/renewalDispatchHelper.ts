@@ -171,8 +171,12 @@ export const generateRenewalMessage = (
     }
   }
 
-  const staffName = staffMember?.name || staffMember?.full_name || staffMember?.fullName || 'Bộ phận Quản lý Khách hàng';
-  const staffPhone = staffMember?.phone || staffMember?.phoneNumber || '0987.654.321';
+  const staffName = (typeof staffMember === 'string'
+    ? staffMember
+    : (staffMember?.name || staffMember?.full_name || staffMember?.fullName)) || 'Bộ phận Quản lý Khách hàng';
+  const staffPhone = (typeof staffMember === 'object'
+    ? (staffMember?.phone || staffMember?.phoneNumber)
+    : undefined) || '0988.408.996';
   const agencyName = agencyNameInput || 'Điểm thu BHXH, BHYT Sông Mã';
   const amt = Number(record.amount !== undefined ? record.amount : (record.total_amount !== undefined ? record.total_amount : (record.latest_amount || 0))) || 0;
   const amountStr = amt > 0 ? amt.toLocaleString('vi-VN') + ' đ' : '0 đ';

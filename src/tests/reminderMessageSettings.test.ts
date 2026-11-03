@@ -166,4 +166,32 @@ describe('Kiểm thử Cấu hình Mẫu Tin Nhắn Đôn Đốc (Reminder Messa
     expect(merged.reminder_message_templates?.renewal_bhxh).toBe('Template từ cơ sở dữ liệu');
     expect(merged.reminder_message_templates?.renewal_bhyt).toBe(DEFAULT_REMINDER_MESSAGE_TEMPLATES.renewal_bhyt);
   });
+
+  it('7. Đồng bộ hai chiều (Bi-directional Sync) giữa camelCase và snake_case alias khi lưu hoặc chuẩn hóa', () => {
+    // Trường hợp 1: Cập nhật camelCase renewalReminderBHXH
+    storeReminderMessageTemplates({
+      renewalReminderBHXH: 'Mẫu mới qua camelCase: {ten_khach_hang}'
+    });
+    const fromStorage1 = getStoredReminderMessageTemplates();
+    expect(fromStorage1.renewalReminderBHXH).toBe('Mẫu mới qua camelCase: {ten_khach_hang}');
+    expect(fromStorage1.renewal_bhxh).toBe('Mẫu mới qua camelCase: {ten_khach_hang}');
+
+    // Trường hợp 2: Cập nhật snake_case dispatch_urgent_bhxh
+    storeReminderMessageTemplates({
+      dispatch_urgent_bhxh: 'Mẫu khẩn cấp snake_case: {ten_khach_hang} - {so_tien}'
+    });
+    const fromStorage2 = getStoredReminderMessageTemplates();
+    expect(fromStorage2.dispatchUrgentBHXH).toBe('Mẫu khẩn cấp snake_case: {ten_khach_hang} - {so_tien}');
+    expect(fromStorage2.dispatch_urgent_bhxh).toBe('Mẫu khẩn cấp snake_case: {ten_khach_hang} - {so_tien}');
+
+    // Trường hợp 3: Khi truyền một object có cả hai trường nhưng một trường bị sửa đổi
+    const customMixed = {
+      ...DEFAULT_REMINDER_MESSAGE_TEMPLATES,
+      renewalReminderBHXH: 'Nội dung người dùng chỉnh sửa trong form'
+    };
+    storeReminderMessageTemplates(customMixed);
+    const fromStorage3 = getStoredReminderMessageTemplates();
+    expect(fromStorage3.renewalReminderBHXH).toBe('Nội dung người dùng chỉnh sửa trong form');
+    expect(fromStorage3.renewal_bhxh).toBe('Nội dung người dùng chỉnh sửa trong form');
+  });
 });
