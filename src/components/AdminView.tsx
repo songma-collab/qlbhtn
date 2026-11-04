@@ -52,6 +52,9 @@ const preloadModule = (tab: string) => {
     case 'financial-settlement':
       import('./admin/FinancialSettlement');
       break;
+    case 'predictive-analytics':
+      import('./admin/PredictiveAnalytics');
+      break;
     case 'reports':
       import('./admin/Reports');
       break;
@@ -66,6 +69,12 @@ const preloadModule = (tab: string) => {
       break;
     case 'system-settings':
       import('./admin/SystemSettings');
+      break;
+    case 'homepage-settings':
+      import('./admin/HomepageSettings');
+      break;
+    case 'audit':
+      import('./admin/AuditLogs');
       break;
     default:
       break;

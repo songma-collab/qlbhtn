@@ -312,6 +312,7 @@ export const customerService = {
         : (customerIdentifier || {});
       const cleanC = (idObj.cccd || '').replace(/\D/g, '');
       const cleanB = (idObj.bhxh || '').replace(/\D/g, '');
+      const cleanP = (idObj.phone || '').replace(/\D/g, '');
       const cleanK = (idObj.customerKey || '').trim();
 
       const activeRecords = (currentRecords || []).filter(r => {
@@ -319,8 +320,9 @@ export const customerService = {
         if (pStatus === 'Đã hủy') return false;
         const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
         const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
+        const rP = (r.phone || '').replace(/\D/g, '');
         const rK = (r.customer_key || (r as any).customerKey || '').trim();
-        return (cleanK && rK === cleanK) || (cleanC && (rC === cleanC || rB === cleanC)) || (cleanB && (rB === cleanB || rC === cleanB));
+        return (cleanK && rK === cleanK) || (cleanC && (rC === cleanC || rB === cleanC)) || (cleanB && (rB === cleanB || rC === cleanB)) || (cleanP && rP === cleanP);
       });
 
       if (activeRecords.length === 0) {
@@ -329,6 +331,8 @@ export const customerService = {
           await supabase.from('customers').delete().eq('customer_key', cleanK);
         } else if (cleanC || cleanB) {
           await supabase.from('customers').delete().or(`cccd.eq.${cleanC || 'null'},bhxh.eq.${cleanB || 'null'}`);
+        } else if (cleanP) {
+          await supabase.from('customers').delete().eq('phone', cleanP);
         }
         return { success: true, error: null };
       }
@@ -422,8 +426,10 @@ export const customerService = {
       let query = supabase.from('customers').update(updatePayload);
       if (cleanK) {
         query = query.eq('customer_key', cleanK);
-      } else {
+      } else if (cleanC || cleanB) {
         query = query.or(`cccd.eq.${cleanC || 'null'},bhxh.eq.${cleanB || 'null'}`);
+      } else if (cleanP) {
+        query = query.eq('phone', cleanP);
       }
       const { error } = await query;
       if (error) throw error;

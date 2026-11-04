@@ -255,8 +255,13 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     serverReloadTrigger,
   ]);
 
-  // Tự động làm mới dữ liệu máy chủ ngay lập tức khi danh sách bản ghi toàn cục cập nhật
+  // Tự động làm mới dữ liệu máy chủ ngay lập tức khi danh sách bản ghi toàn cục cập nhật (bỏ qua lần đầu khởi tạo)
+  const isInitialMountRef = useRef<boolean>(true);
   useEffect(() => {
+    if (isInitialMountRef.current) {
+      isInitialMountRef.current = false;
+      return;
+    }
     refreshServerData();
   }, [records, refreshServerData]);
 
