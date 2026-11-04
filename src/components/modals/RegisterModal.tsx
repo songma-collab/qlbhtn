@@ -47,13 +47,14 @@ import RegisterSummary from './register/RegisterSummary';
 interface RegisterModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onSuccess?: () => void;
   type: 'BHXH' | 'BHYT';
   record?: any | null;
   isRenew?: boolean;
   initialData?: any;
 }
 
-const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, record = null, isRenew = false, initialData }) => {
+const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSuccess, type, record = null, isRenew = false, initialData }) => {
   const { 
     records, 
     customers,
@@ -810,6 +811,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           const success = await updateRecord(targetId, recordToUpdate);
           if (success) {
             showToast('Cập nhật hồ sơ thành công!');
+            onSuccess?.();
             onClose();
           }
           return;
@@ -866,6 +868,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, type, re
           }
 
           showToast(actionType === 'Gia hạn' ? 'Đã ghi nhận giao dịch gia hạn!' : 'Lưu hồ sơ và ghi nhận thu tiền thành công!');
+          onSuccess?.();
           onClose();
         } catch (error: any) {
           console.error("Lỗi khi thêm hồ sơ:", error);

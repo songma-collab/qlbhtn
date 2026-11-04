@@ -119,3 +119,20 @@ body {
   opacity: 0.4;
   border-radius: 50%;
 }
+
+/* Animation mượt mà đồng nhất cho chuyển tab & tải phân hệ toàn hệ thống */
+@keyframes adminTabFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-tab-fade {
+  animation: adminTabFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}

@@ -30,6 +30,48 @@ const AuditLogs = lazyWithRetry(() => import('./admin/AuditLogs'));
 const FinancialSettlement = lazyWithRetry(() => import('./admin/FinancialSettlement'));
 const DispatchOperations = lazyWithRetry(() => import('./admin/DispatchOperations'));
 
+const preloadModule = (tab: string) => {
+  switch (tab) {
+    case 'dashboard':
+      import('./admin/Dashboard');
+      break;
+    case 'crm-bhxh':
+    case 'crm-bhyt':
+      import('./admin/CRM');
+      break;
+    case 'crm-participation':
+      import('./admin/CustomerParticipationManagement');
+      break;
+    case 'crm-dispatch':
+      import('./admin/DispatchOperations');
+      break;
+    case 'finance-bhxh':
+    case 'finance-bhyt':
+      import('./admin/Finance');
+      break;
+    case 'financial-settlement':
+      import('./admin/FinancialSettlement');
+      break;
+    case 'reports':
+      import('./admin/Reports');
+      break;
+    case 'commission-reports':
+      import('./admin/CommissionReport');
+      break;
+    case 'leaderboard':
+      import('./admin/Leaderboard');
+      break;
+    case 'staff':
+      import('./admin/Staff');
+      break;
+    case 'system-settings':
+      import('./admin/SystemSettings');
+      break;
+    default:
+      break;
+  }
+};
+
 interface SidebarNavItemProps {
   id: string;
   title: string;
@@ -37,21 +79,28 @@ interface SidebarNavItemProps {
   isActive: boolean;
   isCollapsed: boolean;
   onClick: () => void;
+  onMouseEnter?: () => void;
   badge?: React.ReactNode;
 }
 
 const SidebarNavItem: React.FC<SidebarNavItemProps> = ({
+  id,
   title,
   icon,
   isActive,
   isCollapsed,
   onClick,
+  onMouseEnter,
   badge
 }) => {
   return (
     <button 
       type="button"
-      onClick={onClick} 
+      onClick={onClick}
+      onMouseEnter={() => {
+        preloadModule(id);
+        onMouseEnter?.();
+      }}
       title={title}
       aria-current={isActive ? 'page' : undefined}
       className={`group relative w-full flex items-center ${
@@ -104,7 +153,8 @@ const AdminView = () => {
     isAdmin, 
     showToast,
     globalRegisterModal,
-    setGlobalRegisterModal
+    setGlobalRegisterModal,
+    refreshData
   } = useAppContext() as any;
   const navigate = useNavigate();
   const location = useLocation();
@@ -252,6 +302,33 @@ const AdminView = () => {
 
   // 2. Đồng bộ từ State vào URL (Khi component con kích hoạt setAdminTab hoặc đổi tab nội bộ)
   const isFirstMountRef = React.useRef(true);
+  const mainContentRef = React.useRef<HTMLDivElement>(null);
+
+  // Preload các phân hệ quản trị cốt lõi khi trình duyệt rảnh rỗi (idle) để chuyển tab 0ms độ trễ
+  React.useEffect(() => {
+    const idlePreload = () => {
+      preloadModule('crm-bhxh');
+      preloadModule('crm-participation');
+      preloadModule('finance-bhxh');
+      preloadModule('crm-dispatch');
+      preloadModule('reports');
+    };
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(idlePreload);
+      } else {
+        setTimeout(idlePreload, 250);
+      }
+    }
+  }, []);
+
+  // Đưa khung nhìn về đầu trang khi chuyển phân hệ
+  React.useEffect(() => {
+    if (mainContentRef.current) {
+      mainContentRef.current.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [adminTab]);
+
   React.useEffect(() => {
     // URL luôn là Source of Truth trong lần mount đầu tiên, không ghi đè URL khi mới nạp trang
     if (isFirstMountRef.current) {
@@ -267,11 +344,14 @@ const AdminView = () => {
   }, [adminTab]);
 
   const handleTabChange = (tab: string) => {
-    setAdminTab(tab);
+    preloadModule(tab);
     const targetPath = getPathFromTab(tab);
-    if (location.pathname !== targetPath) {
-      navigate(targetPath);
-    }
+    React.startTransition(() => {
+      setAdminTab(tab);
+      if (location.pathname !== targetPath) {
+        navigate(targetPath);
+      }
+    });
     setIsMobileMenuOpen(false);
     setIsMobileSearchOpen(false);
   };
@@ -1031,61 +1111,63 @@ const AdminView = () => {
         </aside>
 
         {/* Main Content View with extra bottom padding on mobile for Bottom Navigation */}
-        <div className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto bg-[#F8FAFC] pb-24 md:pb-8">
+        <div ref={mainContentRef} className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto bg-[#F8FAFC] pb-24 md:pb-8">
           <React.Suspense
             fallback={
-              <div className="flex items-center justify-center min-h-[360px]">
-                <div className="flex flex-col items-center gap-2.5">
+              <div className="flex items-center justify-center min-h-[360px] animate-tab-fade">
+                <div className="flex flex-col items-center gap-2.5 p-6 bg-white/80 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-xs">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#004182] border-t-transparent"></div>
-                  <span className="text-xs text-slate-500 font-medium">Đang tải phân hệ...</span>
+                  <span className="text-xs text-slate-500 font-semibold">Đang chuẩn bị phân hệ...</span>
                 </div>
               </div>
             }
           >
-            {adminTab === 'dashboard' && <Dashboard />}
-            {adminTab === 'crm-bhxh' && <CRM type="BHXH" />}
-            {adminTab === 'crm-bhyt' && <CRM type="BHYT" />}
-            {adminTab === 'crm-participation' && <CustomerParticipationManagement />}
-            {adminTab === 'crm-dispatch' && (canAccessDispatch ? <DispatchOperations /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền truy cập chức năng Điều Phối & Đôn Đốc.
-              </div>
-            ))}
-            {adminTab === 'predictive-analytics' && <PredictiveAnalytics />}
-            {adminTab === 'finance-bhxh' && <Finance type="BHXH" />}
-            {adminTab === 'finance-bhyt' && <Finance type="BHYT" />}
-            {adminTab === 'financial-settlement' && (canAccessSettlement ? <FinancialSettlement /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền truy cập chức năng Báo Cáo & Chốt Sổ Tài Chính.
-              </div>
-            ))}
-            {adminTab === 'staff' && (canAccessStaff ? <Staff /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền quản lý danh sách và phân quyền nhân viên.
-              </div>
-            ))}
-            {adminTab === 'system-settings' && (canAccessSystemSettings ? <SystemSettings /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền cấu hình hệ thống.
-              </div>
-            ))}
-            {adminTab === 'homepage-settings' && (canAccessSystemSettings ? <HomepageSettings /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền chỉnh sửa trang chủ.
-              </div>
-            ))}
-            {adminTab === 'audit' && (canAccessAudit ? <AuditLogs /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền xem nhật ký hoạt động hệ thống.
-              </div>
-            ))}
-            {adminTab === 'reports' && <Reports />}
-            {adminTab === 'commission-reports' && <CommissionReport />}
-            {adminTab === 'leaderboard' && (canAccessLeaderboard ? <Leaderboard /> : (
-              <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                Bạn không có quyền xem bảng xếp hạng & thi đua KPI.
-              </div>
-            ))}
+            <div key={adminTab} className="animate-tab-fade">
+              {adminTab === 'dashboard' && <Dashboard />}
+              {adminTab === 'crm-bhxh' && <CRM key="crm-bhxh" type="BHXH" />}
+              {adminTab === 'crm-bhyt' && <CRM key="crm-bhyt" type="BHYT" />}
+              {adminTab === 'crm-participation' && <CustomerParticipationManagement />}
+              {adminTab === 'crm-dispatch' && (canAccessDispatch ? <DispatchOperations /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền truy cập chức năng Điều Phối & Đôn Đốc.
+                </div>
+              ))}
+              {adminTab === 'predictive-analytics' && <PredictiveAnalytics />}
+              {adminTab === 'finance-bhxh' && <Finance key="finance-bhxh" type="BHXH" />}
+              {adminTab === 'finance-bhyt' && <Finance key="finance-bhyt" type="BHYT" />}
+              {adminTab === 'financial-settlement' && (canAccessSettlement ? <FinancialSettlement /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền truy cập chức năng Báo Cáo & Chốt Sổ Tài Chính.
+                </div>
+              ))}
+              {adminTab === 'staff' && (canAccessStaff ? <Staff /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền quản lý danh sách và phân quyền nhân viên.
+                </div>
+              ))}
+              {adminTab === 'system-settings' && (canAccessSystemSettings ? <SystemSettings /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền cấu hình hệ thống.
+                </div>
+              ))}
+              {adminTab === 'homepage-settings' && (canAccessSystemSettings ? <HomepageSettings /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền chỉnh sửa trang chủ.
+                </div>
+              ))}
+              {adminTab === 'audit' && (canAccessAudit ? <AuditLogs /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền xem nhật ký hoạt động hệ thống.
+                </div>
+              ))}
+              {adminTab === 'reports' && <Reports />}
+              {adminTab === 'commission-reports' && <CommissionReport />}
+              {adminTab === 'leaderboard' && (canAccessLeaderboard ? <Leaderboard /> : (
+                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                  Bạn không có quyền xem bảng xếp hạng & thi đua KPI.
+                </div>
+              ))}
+            </div>
           </React.Suspense>
         </div>
       </div>
@@ -1326,6 +1408,9 @@ const AdminView = () => {
             if (wasFromReminder) {
               setIsRenewalReminderOpen(true);
             }
+          }}
+          onSuccess={() => {
+            refreshData?.();
           }}
           type={renewalRegisterModal.type}
           record={renewalRegisterModal.record}

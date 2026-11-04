@@ -64,6 +64,17 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
       onRecordChanged?.();
       if (data) {
         addAuditLog?.('Tạo hồ sơ mới', `Tạo hồ sơ ${data.type || ''} cho khách hàng ${data.name || ''}`);
+        // Đồng bộ tức thời thông tin hợp đồng và hạn đóng mới nhất vào bảng Master customers
+        const custKey = data.customer_key || (data as any).customerKey || data.cccd || data.bhxh;
+        customerService.resyncCustomerFromRecords(
+          {
+            customerKey: custKey,
+            cccd: data.cccd,
+            bhxh: data.bhxh,
+            phone: data.phone
+          },
+          [...records, data]
+        ).catch(e => console.warn('[useRecordsState] resyncCustomerFromRecords on addRecord failed:', e));
       }
       return data;
     } catch (error: any) {
@@ -160,6 +171,19 @@ export function useRecordsState(options: UseRecordsStateOptions = {}) {
       onRecordChanged?.();
       if (targetRecord) {
         addAuditLog?.('Cập nhật hồ sơ', `Cập nhật thông tin hồ sơ khách hàng ${targetRecord.name}`);
+        // Đồng bộ tức thời thông tin cập nhật vào bảng Master customers
+        const custKey = targetRecord.customer_key || (targetRecord as any).customerKey || targetRecord.cccd || targetRecord.bhxh;
+        const mergedRecord = { ...targetRecord, ...updatedFields };
+        const updatedRecords = records.map(r => r.id === id ? mergedRecord : r);
+        customerService.resyncCustomerFromRecords(
+          {
+            customerKey: custKey,
+            cccd: mergedRecord.cccd,
+            bhxh: mergedRecord.bhxh,
+            phone: mergedRecord.phone
+          },
+          updatedRecords
+        ).catch(e => console.warn('[useRecordsState] resyncCustomerFromRecords on updateRecord failed:', e));
       }
       return true;
     } catch (error: any) {

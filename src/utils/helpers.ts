@@ -391,15 +391,26 @@ export interface CustomerSummaryRecord extends RecordType {
 export const groupRecordsByCustomer = (allRecords: RecordType[] | any[], filterType?: string): CustomerSummaryRecord[] => {
   if (!allRecords || allRecords.length === 0) return [];
 
+  // Tối ưu hóa O(N): Thu thập trước danh sách hồ sơ bị thoái thu hoàn trả toàn bộ vào Map O(1)
+  const clawedBackAmountMap = new Map<number | string, number>();
+  for (const adj of allRecords) {
+    if (!adj) continue;
+    const isAdj = adj.is_adjustment !== undefined ? adj.is_adjustment : (adj as any).isAdjustment;
+    const origId = adj.original_record_id !== undefined ? adj.original_record_id : (adj as any).originalRecordId;
+    if (isAdj && origId != null) {
+      const currentClawed = clawedBackAmountMap.get(origId) || 0;
+      clawedBackAmountMap.set(origId, currentClawed + Math.abs(Number(adj.amount) || 0));
+    }
+  }
+
   const validRecords = allRecords.filter(r => {
+    if (!r) return false;
     const pStatus = r.payment_status || (r as any).paymentStatus;
     if (pStatus === 'Đã hủy' || pStatus === 'Đã thoái thu') return false;
     const isAdj = r.is_adjustment !== undefined ? r.is_adjustment : (r as any).isAdjustment;
     if (isAdj) return false;
-    const isFullyClawedBack = allRecords.some(
-      adj => ((adj.is_adjustment ?? (adj as any).isAdjustment)) && ((adj.original_record_id ?? (adj as any).originalRecordId)) === r.id && Math.abs(Number(adj.amount) || 0) >= (Number(r.amount) || 0)
-    );
-    if (isFullyClawedBack) return false;
+    const clawedAmount = clawedBackAmountMap.get(r.id);
+    if (clawedAmount !== undefined && clawedAmount >= (Number(r.amount) || 0)) return false;
     if (filterType && filterType !== 'ALL' && r.type !== filterType) return false;
     return true;
   });

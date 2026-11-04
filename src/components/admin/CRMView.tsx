@@ -255,6 +255,11 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     serverReloadTrigger,
   ]);
 
+  // Tự động làm mới dữ liệu máy chủ ngay lập tức khi danh sách bản ghi toàn cục cập nhật
+  useEffect(() => {
+    refreshServerData();
+  }, [records, refreshServerData]);
+
   const useServerData = serverSideMode && serverTotalCount > 0;
   const filteredRecords = uniqueCustomersList;
   const totalCount = useServerData ? serverTotalCount : uniqueCustomersList.length;
@@ -289,6 +294,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       const cleanB = (c.bhxh || '').replace(/\D/g, '');
       const cleanO = (c.old_bhxh || (c as any).oldBhxh || '').replace(/\D/g, '');
       const cleanK = (c.customer_key || (c as any).customerKey || '').trim();
+      const cName = (c.name || '').trim().toLowerCase();
+      const cPhone = (c.phone || '').trim().replace(/\D/g, '');
 
       const matchedRecs = activeRecords.filter(r => {
         if (!r) return false;
@@ -296,9 +303,17 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         const rC = (r.cccd || '').replace(/\D/g, '');
         const rB = (r.bhxh || '').replace(/\D/g, '');
         const rO = (r.old_bhxh || (r as any).oldBhxh || (r as any).bhxhCu || '').replace(/\D/g, '');
-        return (cleanC && (rC === cleanC || rB === cleanC)) ||
-               (cleanB && (rB === cleanB || rC === cleanB || rO === cleanB)) ||
-               (cleanO && (rO === cleanO || rB === cleanO));
+        if ((cleanC && (rC === cleanC || rB === cleanC)) ||
+            (cleanB && (rB === cleanB || rC === cleanB || rO === cleanB)) ||
+            (cleanO && (rO === cleanO || rB === cleanO))) {
+          return true;
+        }
+        const rName = (r.name || '').trim().toLowerCase();
+        const rPhone = (r.phone || '').trim().replace(/\D/g, '');
+        if (cName && rName && cName === rName && cPhone && rPhone && cPhone === rPhone) {
+          return true;
+        }
+        return false;
       });
 
       if (matchedRecs.length === 0) return c;
@@ -1241,6 +1256,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         <RegisterModal
           isOpen={isRegisterModalOpen}
           onClose={() => setIsRegisterModalOpen(false)}
+          onSuccess={() => {
+            refreshServerData();
+            refreshData?.();
+          }}
           type={registerType}
           record={registerRecord}
           initialData={registerRecord}

@@ -42,7 +42,7 @@ const DeferredRoute = ({ children }: { children: React.ReactNode }) => (
 );
 
 const GlobalRegisterModalContainer = () => {
-  const { globalRegisterModal, setGlobalRegisterModal } = useAppContext();
+  const { globalRegisterModal, setGlobalRegisterModal, refreshData } = useAppContext();
   const [modalState, setModalState] = React.useState<{ isOpen: boolean; type: 'BHXH' | 'BHYT'; initialData?: any }>({ isOpen: false, type: 'BHXH' });
 
   React.useEffect(() => {
@@ -62,6 +62,9 @@ const GlobalRegisterModalContainer = () => {
     <RegisterModal
       isOpen={modalState.isOpen}
       onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+      onSuccess={() => {
+        refreshData?.();
+      }}
       type={modalState.type}
       initialData={modalState.initialData}
     />
@@ -83,10 +86,10 @@ const AppContent = () => {
   });
 
   React.useEffect(() => {
-    if (scrollContainerRef.current) {
+    if (scrollContainerRef.current && !isAdminRoute) {
       scrollContainerRef.current.scrollTop = 0;
     }
-  }, [location.pathname]);
+  }, [location.pathname, isAdminRoute]);
 
   return (
     <div className="text-gray-800 antialiased h-screen flex flex-col overflow-hidden bg-[#f0f4f8]">
