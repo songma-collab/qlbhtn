@@ -540,5 +540,53 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(formatPeriodTest('2026-11', undefined, 3)).toBe('11/2026 → 01/2027');
     });
   });
+
+  describe('Audit & Phòng vệ: calculatePeriodSupportedMonths & Phân bổ hỗ trợ NSNN', () => {
+    it('bảo toàn tổng số tháng khi count thủ công khác khoảng ngày tháng thực tế', async () => {
+      const { calculatePeriodSupportedMonths } = await import('../utils/customerParticipationHelper');
+
+      // Giai đoạn giao nhau: 01/2017 đến 12/2018 (span thực tế 24 tháng: 12 tháng trước 2018, 12 tháng từ 2018)
+      // Giả sử count nhập thủ công là 10 tháng
+      const res = calculatePeriodSupportedMonths({
+        type: 'tunguyen',
+        sm: 1,
+        sy: 2017,
+        em: 12,
+        ey: 2018,
+        months: 10
+      });
+
+      expect(res.totalMonths).toBe(10);
+      expect(res.supportedMonths + res.unsupportedBefore2018Months).toBe(10);
+      expect(res.supportedMonths).toBe(5);
+      expect(res.unsupportedBefore2018Months).toBe(5);
+    });
+
+    it('tính toán chính xác giai đoạn thuần túy trước 2018 hoặc sau 2018', async () => {
+      const { calculatePeriodSupportedMonths } = await import('../utils/customerParticipationHelper');
+
+      const pre2018 = calculatePeriodSupportedMonths({
+        type: 'tunguyen',
+        sm: 1,
+        sy: 2015,
+        em: 12,
+        ey: 2016,
+        months: 24
+      });
+      expect(pre2018.supportedMonths).toBe(0);
+      expect(pre2018.unsupportedBefore2018Months).toBe(24);
+
+      const post2018 = calculatePeriodSupportedMonths({
+        type: 'tunguyen',
+        sm: 1,
+        sy: 2020,
+        em: 12,
+        ey: 2020,
+        months: 12
+      });
+      expect(post2018.supportedMonths).toBe(12);
+      expect(post2018.unsupportedBefore2018Months).toBe(0);
+    });
+  });
 });
 

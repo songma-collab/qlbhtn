@@ -384,7 +384,8 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
     let unassignedBatchRecordCount = 0;
 
     let totalCommissionPaid = 0;   // Hoa hồng phát sinh cho giao dịch đã thu
-    let totalClawback = 0;         // Bù trừ âm / thu hồi
+    let totalClawback = 0;         // Bù trừ âm / thu hồi tiền đóng
+    let totalCommissionClawback = 0; // Thu hồi hoa hồng cán bộ
 
     relevant.forEach((r: any) => {
       const amt = Number(r.amount) || 0;
@@ -395,8 +396,9 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
       const isSubmittedBHXH = r.is_submitted_bhxh !== undefined ? r.is_submitted_bhxh : r.isSubmittedBHXH;
 
-      if (isAdjustment || amt < 0) {
+      if (isAdjustment || amt < 0 || paymentStatus === 'Đã thoái thu') {
         totalClawback += Math.abs(amt);
+        totalCommissionClawback += Math.abs(comm);
       }
 
       if (paymentStatus === 'Đã thu tiền') {
@@ -452,6 +454,7 @@ export const FinanceView: React.FC<FinanceViewProps> = ({ type = 'BHXH' }) => {
       totalCommissionPaid,
       totalCommissionFromBHXH: totalCommissionPaid,
       totalClawback,
+      totalCommissionClawback,
       netAgencyFunds,
       totalTransactions: relevant.length
     };

@@ -164,7 +164,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   const activeResults = paidResults;
 
   // Thống kê tổng số tiền đã đóng tích lũy (Tổng thực thu trừ thoái thu hoàn trả)
-  const totalAmountPaid = activeResults
+  const totalAmountPaid = Math.max(0, activeResults
     .reduce((sum, r) => {
       const amt = Number(r.amount) || 0;
       const isClawback = Boolean(
@@ -181,7 +181,7 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
         return sum + Math.max(0, amt);
       }
       return sum;
-    }, 0);
+    }, 0));
 
   // 4. Thống kê quá trình tham gia BHXH tự nguyện và hạn mức hỗ trợ NSNN 10 năm (từ 01/2018)
   const bhxhRecords = activeResults.filter(r => r.type === 'BHXH');

@@ -303,17 +303,20 @@ export const customerService = {
    * Đồng bộ lại thông tin tóm tắt của khách hàng trong bảng customers từ danh sách records thực tế còn lại
    */
   async resyncCustomerFromRecords(
-    customerIdentifier: { customerKey?: string | undefined; cccd?: string | undefined; bhxh?: string | undefined; phone?: string | undefined; id?: any },
+    customerIdentifier: string | { customerKey?: string | undefined; cccd?: string | undefined; bhxh?: string | undefined; phone?: string | undefined; id?: any },
     currentRecords: any[]
   ): Promise<{ success: boolean; error: Error | null }> {
     try {
-      const cleanC = (customerIdentifier.cccd || '').replace(/\D/g, '');
-      const cleanB = (customerIdentifier.bhxh || '').replace(/\D/g, '');
-      const cleanK = (customerIdentifier.customerKey || '').trim();
+      const idObj = typeof customerIdentifier === 'string'
+        ? { customerKey: customerIdentifier, cccd: customerIdentifier.replace(/\D/g, '') }
+        : (customerIdentifier || {});
+      const cleanC = (idObj.cccd || '').replace(/\D/g, '');
+      const cleanB = (idObj.bhxh || '').replace(/\D/g, '');
+      const cleanK = (idObj.customerKey || '').trim();
 
       const activeRecords = (currentRecords || []).filter(r => {
         const pStatus = r.payment_status || (r as any).paymentStatus;
-        if (pStatus === 'Đã hủy' || pStatus === 'Đã thoái thu') return false;
+        if (pStatus === 'Đã hủy') return false;
         const rC = (r.cccd || (r as any).citizenId || '').replace(/\D/g, '');
         const rB = (r.bhxh || (r as any).bhxhCode || r.old_bhxh || (r as any).oldBhxh || '').replace(/\D/g, '');
         const rK = (r.customer_key || (r as any).customerKey || '').trim();
@@ -338,7 +341,7 @@ export const customerService = {
       const validContributionRecords = activeRecords.filter(r => {
         const isAdj = r.is_adjustment || (r as any).isAdjustment;
         const aType = r.action_type || (r as any).actionType;
-        return !isAdj && aType !== 'Thoái thu' && (Number(r.amount) || 0) > 0;
+        return !isAdj && aType !== 'Thoái thu' && aType !== 'Thoái thu hoàn trả' && (Number(r.amount) || 0) > 0;
       });
 
       // Sắp xếp tìm giao dịch đóng/nộp tiền mới nhất theo thời gian thực (loại trừ thoái thu âm tiền)
@@ -371,15 +374,23 @@ export const customerService = {
       const nextPaymentBhyt = bhytContract?.next_payment || (bhytContract as any)?.nextPayment || null;
 
       const totalAmountPaid = Math.max(0, activeRecords
-        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
+        .filter(r => {
+          const pStatus = r.payment_status || (r as any).paymentStatus;
+          const isClawback = Boolean(r.is_adjustment || (r as any).isAdjustment || r.action_type === 'Thoái thu hoàn trả' || (r as any).actionType === 'Thoái thu hoàn trả' || (Number(r.amount) || 0) < 0);
+          return pStatus === 'Đã thu tiền' || pStatus === 'Đã thoái thu' || isClawback;
+        })
         .reduce((sum, r) => sum + (Number(r.amount) || 0), 0));
 
       const totalContributions = Math.max(0, activeRecords
-        .filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền')
+        .filter(r => {
+          const pStatus = r.payment_status || (r as any).paymentStatus;
+          const isClawback = Boolean(r.is_adjustment || (r as any).isAdjustment || r.action_type === 'Thoái thu hoàn trả' || (r as any).actionType === 'Thoái thu hoàn trả' || (Number(r.amount) || 0) < 0);
+          return pStatus === 'Đã thu tiền' || isClawback;
+        })
         .reduce((sum, r) => {
           const isAdj = r.is_adjustment || (r as any).isAdjustment;
           const aType = r.action_type || (r as any).actionType;
-          return sum + (isAdj || aType === 'Thoái thu' ? -1 : 1);
+          return sum + (isAdj || aType === 'Thoái thu' || aType === 'Thoái thu hoàn trả' || (Number(r.amount) || 0) < 0 ? -1 : 1);
         }, 0));
 
       const updatePayload: Record<string, any> = {

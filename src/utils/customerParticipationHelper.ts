@@ -259,7 +259,8 @@ export const calculatePeriodSupportedMonths = (rawP: any): {
 } => {
   if (!rawP) return { totalMonths: 0, supportedMonths: 0, unsupportedBefore2018Months: 0 };
   const p = normalizePeriod(rawP);
-  const count = Number(p.months) || 0;
+  const explicitCount = Number(rawP.months);
+  const count = explicitCount > 0 ? explicitCount : (Number(p.months) || 0);
   if (count <= 0) return { totalMonths: 0, supportedMonths: 0, unsupportedBefore2018Months: 0 };
 
   if (p.type !== 'tunguyen') {
@@ -299,13 +300,23 @@ export const calculatePeriodSupportedMonths = (rawP: any): {
   }
 
   // Giai đoạn giao nhau: Bắt đầu trước 2018 và kết thúc từ 2018 trở đi
-  const beforeCount = Math.max(0, supportStartTotal - startTotal);
-  const afterCount = Math.max(0, endTotal - supportStartTotal + 1);
+  const rawBeforeCount = Math.max(0, supportStartTotal - startTotal);
+  const rawAfterCount = Math.max(0, endTotal - supportStartTotal + 1);
+  const totalDateSpan = rawBeforeCount + rawAfterCount;
+
+  let supportedMonths = rawAfterCount;
+  let unsupportedBefore2018Months = rawBeforeCount;
+
+  // Nếu người dùng nhập số tháng thủ công khác với khoảng ngày tháng
+  if (count !== totalDateSpan && totalDateSpan > 0) {
+    supportedMonths = Math.min(count, Math.round((rawAfterCount / totalDateSpan) * count));
+    unsupportedBefore2018Months = Math.max(0, count - supportedMonths);
+  }
 
   return {
     totalMonths: count,
-    supportedMonths: afterCount,
-    unsupportedBefore2018Months: beforeCount
+    supportedMonths,
+    unsupportedBefore2018Months
   };
 };
 

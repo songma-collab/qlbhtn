@@ -541,10 +541,20 @@ export const recordService = {
         .order('next_payment', { ascending: false, nullsFirst: false })
         .order('date', { ascending: false })
         .order('id', { ascending: false })
-        .limit(1);
+        .limit(10);
 
       if (error) throw error;
-      return data?.[0] ? dbToRecord(data[0]) : null;
+      if (!data || data.length === 0) return null;
+
+      // Ưu tiên bản ghi thu phí thực tế gần nhất, loại trừ các bút toán thoái thu/điều chỉnh âm
+      const validRow = data.find(r => {
+        const isAdj = Boolean(r.is_adjustment);
+        const aType = r.action_type;
+        const amount = Number(r.amount) || 0;
+        return !isAdj && aType !== 'Thoái thu' && aType !== 'Thoái thu hoàn trả' && amount > 0;
+      }) || data[0];
+
+      return validRow ? dbToRecord(validRow) : null;
     } catch (err) {
       console.warn('[RecordService] findLatestRecordByCode error:', err);
       return null;

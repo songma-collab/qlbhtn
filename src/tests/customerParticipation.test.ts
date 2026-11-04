@@ -248,4 +248,75 @@ describe('Kiểm thử Phân hệ Hồ Sơ Tham Gia BHXH & Quy tắc trần 10 n
     });
   });
 
+  describe('5. Đồng bộ Master Data: customerService.resyncCustomerFromRecords với nghiệp vụ thoái thu', () => {
+    it('tính toán chính xác total_amount_paid và total_contributions khi có bút toán thoái thu', async () => {
+      let updatedPayload: any = null;
+      const mockUpdate = vi.fn().mockImplementation((payload) => {
+        updatedPayload = payload;
+        return {
+          eq: vi.fn().mockResolvedValue({ error: null }),
+          or: vi.fn().mockResolvedValue({ error: null })
+        };
+      });
+
+      const originalFrom = supabase.from;
+      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'customers') {
+          return { update: mockUpdate } as any;
+        }
+        return originalFrom.call(supabase, table);
+      });
+
+      // Tình huống: Khách hàng Ngô Thị Thảo nộp 5.808.000 đ (12 tháng), sau đó thoái thu 2.904.000 đ (6 tháng)
+      const mockRecords: any[] = [
+        {
+          id: 101,
+          cccd: '014182000354',
+          name: 'Ngô Thị Thảo',
+          type: 'BHXH',
+          payment_status: 'Đã thu tiền',
+          action_type: 'Tăng mới',
+          amount: 5808000,
+          months: 12,
+          date: '2026-01-01',
+          next_payment: '2026-12-31'
+        },
+        {
+          id: 102,
+          cccd: '014182000354',
+          name: 'Ngô Thị Thảo',
+          type: 'BHXH',
+          payment_status: 'Đã thoái thu',
+          action_type: 'Thoái thu hoàn trả',
+          is_adjustment: true,
+          amount: -2904000,
+          months: 6,
+          date: '2026-07-01'
+        }
+      ];
+
+      const existingCustomer: any = {
+        id: 'cust-uuid-1',
+        cccd: '014182000354',
+        name: 'Ngô Thị Thảo',
+        customer_key: '014182000354',
+        type: 'BHXH'
+      };
+
+      const res = await customerService.resyncCustomerFromRecords(
+        { customerKey: '014182000354', cccd: '014182000354' },
+        mockRecords
+      );
+
+      expect(res.success).toBe(true);
+      expect(updatedPayload).not.toBeNull();
+      // Thực thu ròng: 5.808.000 - 2.904.000 = 2.904.000 đ
+      expect(updatedPayload.total_amount_paid).toBe(2904000);
+      // Số lần đóng ròng: 1 lần nộp - 1 lần thoái thu = 0
+      expect(updatedPayload.total_contributions).toBe(0);
+
+      fromSpy.mockRestore();
+    });
+  });
+
 });

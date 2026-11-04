@@ -32,6 +32,7 @@ export interface CashflowSummaryData {
   totalCommissionPaid: number;
   totalCommissionFromBHXH?: number;
   totalClawback: number;
+  totalCommissionClawback?: number;
   netAgencyFunds: number;
   totalTransactions?: number;
 }
@@ -357,14 +358,14 @@ export const FinanceCashflowStatement: React.FC<FinanceCashflowStatementProps> =
               </div>
             </div>
 
-            {/* Dòng thoái thu hoa hồng nếu có */}
-            {cashflowSummary.totalClawback > 0 && (
+            {/* Dòng thoái thu hoa hồng cán bộ nếu có */}
+            {((cashflowSummary.totalCommissionClawback ?? 0) > 0 || cashflowSummary.totalClawback > 0) && (
               <div className="mt-2.5 pt-2 border-t border-amber-200/80 flex justify-between items-center text-xs text-rose-700">
                 <span className="flex items-center gap-1 font-medium">
-                  <Info size={13} /> Thu hồi hoa hồng / Clawback do hồ sơ thoái nộp:
+                  <Info size={13} /> Thu hồi hoa hồng / Clawback cán bộ do thoái thu:
                 </span>
                 <span className="font-mono tabular-nums font-bold">
-                  -{formatMoney(cashflowSummary.totalClawback)}
+                  -{formatMoney(cashflowSummary.totalCommissionClawback ?? cashflowSummary.totalClawback)}
                 </span>
               </div>
             )}
