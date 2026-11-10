@@ -25,10 +25,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   // 1. Chờ kiểm tra chữ ký số JWT và Session trực tiếp từ Server
   if (!isAuthReady) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#F8FAFC] gap-3">
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#eef2f6] gap-3">
         <Loader2 className="w-9 h-9 animate-spin text-[#004182]" />
-        <p className="text-sm font-semibold text-gray-700 tracking-tight">Đang thẩm định phiên bảo mật...</p>
-        <p className="text-xs text-gray-400">Xác thực chứng thư số với Auth Server</p>
+        <p className="text-sm font-semibold text-slate-700 tracking-tight">Đang thẩm định phiên bảo mật...</p>
+        <p className="text-xs text-slate-500">Xác thực chứng thư số với Auth Server</p>
       </div>
     );
   }
@@ -47,7 +47,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     };
 
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-[#F8FAFC] p-4">
+      <div className="h-screen w-screen flex items-center justify-center bg-[#eef2f6] p-4">
         <div className="max-w-md w-full bg-white rounded-2xl p-8 border border-red-100 shadow-xl text-center flex flex-col items-center">
           <div className="w-16 h-16 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mb-4 border border-red-100">
             <ShieldAlert size={32} />

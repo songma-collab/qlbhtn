@@ -37,7 +37,7 @@ export const CustomerFilterBar: React.FC<CustomerFilterBarProps> = ({
   setUseVirtualization
 }) => {
   return (
-    <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
       {/* Banner bảo mật PII nếu đang che */}
       {isPIIMasked && (
         <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2">

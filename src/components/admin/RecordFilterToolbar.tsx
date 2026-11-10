@@ -44,7 +44,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
   };
 
   return (
-    <div id="record-filter-toolbar" className="p-3 sm:p-4 border-b border-slate-200 bg-slate-50/70 flex flex-col gap-3">
+    <div id="record-filter-toolbar" className="p-3 sm:p-4 border-b border-slate-200 bg-slate-100/70 flex flex-col gap-3">
       {/* ================= TẦNG 1: THANH TÁC NGHIỆP NHANH (QUICK FILTER PILLS) ================= */}
       <div id="quick-filter-pills-bar" className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
         {/* Pill 1: Tất cả */}
@@ -55,7 +55,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
             filterState.quickPill === 'ALL'
               ? 'bg-[#004182] text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
           }`}
         >
           <Layers size={14} className={filterState.quickPill === 'ALL' ? 'text-white' : 'text-slate-500'} />
@@ -77,7 +77,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
             filterState.quickPill === 'UNSUBMITTED'
               ? 'bg-[#004182] text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
           }`}
           title="Hồ sơ đã thu tiền nhưng chưa chuyển nộp cơ quan BHXH"
         >
@@ -100,7 +100,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
             filterState.quickPill === 'UPCOMING_RENEWAL'
               ? 'bg-[#004182] text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
           }`}
           title="Hồ sơ đến hạn trong vòng 30 ngày tới (đã loại trừ khách hàng đã dừng đóng)"
         >
@@ -123,7 +123,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
           className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-150 cursor-pointer ${
             filterState.quickPill === 'PENDING_PAYMENT'
               ? 'bg-[#004182] text-white shadow-xs'
-              : 'bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 hover:border-slate-300'
+              : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400'
           }`}
           title="Hồ sơ đang ở trạng thái Chờ thanh toán"
         >
@@ -150,7 +150,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
             value={filterState.searchQuery}
             onChange={handleSearchChange}
             placeholder="Tìm tên, CCCD/ĐDCN, Mã BHXH, SĐT..."
-            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-200 bg-white outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm text-slate-800 transition-all placeholder:text-slate-400"
+            className="w-full h-10 pl-9 pr-8 rounded-xl border border-slate-300 bg-white outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm text-slate-800 transition-all placeholder:text-slate-400"
           />
           {filterState.searchQuery && (
             <button
@@ -172,7 +172,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
             onFilterChange({ customerStatus: e.target.value as RecordFilterState['customerStatus'] });
             if (onPageReset) onPageReset();
           }}
-          className="h-10 flex-1 min-w-[150px] sm:min-w-[160px] px-3 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all"
+          className="h-10 flex-1 min-w-[150px] sm:min-w-[160px] px-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all shadow-2xs"
         >
           <option value="ALL">Tất cả trạng thái KH</option>
           <option value="Đang tham gia">🟢 Đang tham gia</option>
@@ -187,7 +187,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
             onFilterChange({ submissionFilter: e.target.value });
             if (onPageReset) onPageReset();
           }}
-          className="h-10 flex-1 min-w-[155px] sm:min-w-[170px] px-3 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all"
+          className="h-10 flex-1 min-w-[155px] sm:min-w-[170px] px-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all shadow-2xs"
         >
           <option value="ALL">Tất cả nộp BHXH</option>
           <option value="UNSUBMITTED">⏳ Chưa chuyển BHXH</option>
@@ -211,7 +211,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
             onFilterChange({ periodType: e.target.value as RecordFilterState['periodType'] });
             if (onPageReset) onPageReset();
           }}
-          className="h-10 flex-1 min-w-[140px] sm:min-w-[150px] px-3 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all"
+          className="h-10 flex-1 min-w-[140px] sm:min-w-[150px] px-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all shadow-2xs"
         >
           <option value="ALL">Toàn bộ thời gian</option>
           <option value="CURRENT_MONTH">Tháng hiện tại</option>
@@ -232,7 +232,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
                 if (onPageReset) onPageReset();
               }}
               title="Từ ngày"
-              className="h-10 px-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-[#004182] text-slate-800"
+              className="h-10 px-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-[#004182] text-slate-800 shadow-2xs"
             />
             <span className="text-slate-400 text-xs">-</span>
             <input
@@ -244,7 +244,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
                 if (onPageReset) onPageReset();
               }}
               title="Đến ngày"
-              className="h-10 px-2.5 rounded-xl border border-slate-200 text-xs sm:text-sm bg-white outline-none focus:border-[#004182] text-slate-800"
+              className="h-10 px-2.5 rounded-xl border border-slate-300 text-xs sm:text-sm bg-white outline-none focus:border-[#004182] text-slate-800 shadow-2xs"
             />
           </div>
         )}
@@ -258,7 +258,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
               onFilterChange({ staffId: e.target.value });
               if (onPageReset) onPageReset();
             }}
-            className="h-10 flex-1 min-w-[140px] sm:min-w-[150px] px-3 rounded-xl border border-slate-200 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all"
+            className="h-10 flex-1 min-w-[140px] sm:min-w-[150px] px-3 rounded-xl border border-slate-300 bg-white font-medium text-slate-800 outline-none focus:border-[#004182] focus:ring-1 focus:ring-[#004182] text-xs sm:text-sm transition-all shadow-2xs"
           >
             <option value="ALL">Tất cả nhân viên</option>
             <option value="admin">Admin (Tự đăng ký)</option>
@@ -278,7 +278,7 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
             onReset();
             if (onPageReset) onPageReset();
           }}
-          className="h-10 w-10 text-slate-500 hover:text-[#004182] bg-white hover:bg-slate-50 rounded-xl border border-slate-200 transition shadow-xs flex items-center justify-center shrink-0 cursor-pointer"
+          className="h-10 w-10 text-slate-600 hover:text-[#004182] bg-white hover:bg-slate-50 rounded-xl border border-slate-300 transition shadow-2xs flex items-center justify-center shrink-0 cursor-pointer"
           title="Đặt lại bộ lọc về mặc định"
         >
           <RotateCcw size={16} />

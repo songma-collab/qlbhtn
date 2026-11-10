@@ -92,7 +92,7 @@ const AppContent = () => {
   }, [location.pathname, isAdminRoute]);
 
   return (
-    <div className="text-gray-800 antialiased h-screen flex flex-col overflow-hidden bg-[#f0f4f8]">
+    <div className="text-slate-900 subpixel-antialiased h-screen flex flex-col overflow-hidden bg-[#eef2f6]">
       <NetworkStatusBanner />
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative flex flex-col">
         {!isAdminRoute && <Navbar />}

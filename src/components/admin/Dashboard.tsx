@@ -598,66 +598,66 @@ const Dashboard: React.FC = () => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div 
           onClick={() => setAdminTab('crm-bhxh')}
-          className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-between cursor-pointer hover:border-[#004182]/40 transition"
+          className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/90 flex items-center justify-between cursor-pointer hover:border-[#004182]/50 transition"
         >
           <div className="flex items-center gap-3.5">
             <div className="w-11 h-11 rounded-xl bg-blue-50 text-[#004182] flex items-center justify-center font-bold">
               <Users size={22} />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Tổng Người Tham Gia</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-900">{stats.totalRecords}</p>
-              <p className="text-[11px] text-slate-500 font-medium">
-                <strong className="text-emerald-600">{stats.activeCustomersCount}</strong> đang đóng • <strong className="text-amber-600">{stats.stoppedCustomersCount}</strong> dừng đóng
+              <p className="text-xs font-bold text-slate-600">Tổng Người Tham Gia</p>
+              <p className="text-xl sm:text-2xl font-black text-slate-900">{stats.totalRecords}</p>
+              <p className="text-[11px] text-slate-600 font-medium">
+                <strong className="text-emerald-700">{stats.activeCustomersCount}</strong> đang đóng • <strong className="text-amber-700">{stats.stoppedCustomersCount}</strong> dừng đóng
               </p>
             </div>
           </div>
-          <ChevronRight size={18} className="text-slate-400" />
+          <ChevronRight size={18} className="text-slate-500" />
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/90 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center font-bold">
               <TrendingUp size={22} />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Doanh Thu Thu Nộp ({periodLabel})</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-900">{formatMoney(stats.totalRev)}</p>
-              <p className="text-[11px] text-slate-500 font-medium">Thực thu tiền mặt & chuyển khoản</p>
+              <p className="text-xs font-bold text-slate-600">Doanh Thu Thu Nộp ({periodLabel})</p>
+              <p className="text-xl sm:text-2xl font-black text-slate-900">{formatMoney(stats.totalRev)}</p>
+              <p className="text-[11px] text-slate-600 font-medium">Thực thu tiền mặt & chuyển khoản</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-between">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/90 flex items-center justify-between">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center font-bold">
               <Star size={22} />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Hoa Hồng Đại Lý ({periodLabel})</p>
-              <p className="text-xl sm:text-2xl font-bold text-slate-900">{formatMoney(stats.totalComm)}</p>
-              <p className="text-[11px] text-slate-500 font-medium">Theo biểu tỷ lệ thù lao quy định</p>
+              <p className="text-xs font-bold text-slate-600">Hoa Hồng Đại Lý ({periodLabel})</p>
+              <p className="text-xl sm:text-2xl font-black text-slate-900">{formatMoney(stats.totalComm)}</p>
+              <p className="text-[11px] text-slate-600 font-medium">Theo biểu tỷ lệ thù lao quy định</p>
             </div>
           </div>
         </div>
 
         <div 
           onClick={() => setAdminTab('crm-dispatch')}
-          className="bg-white p-4 sm:p-5 rounded-2xl shadow-xs border border-slate-200 flex items-center justify-between cursor-pointer hover:border-rose-300 transition"
+          className="bg-white p-4 sm:p-5 rounded-2xl shadow-sm border border-slate-200/90 flex items-center justify-between cursor-pointer hover:border-rose-400 transition"
         >
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center font-bold">
+            <div className="w-11 h-11 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center font-bold">
               <AlertTriangle size={22} />
             </div>
             <div>
-              <p className="text-xs font-semibold text-slate-500">Hồ Sơ Sắp Hết Hạn</p>
-              <p className="text-xl sm:text-2xl font-bold text-rose-600">{stats.expiringRecordsCount}</p>
-              <p className="text-[11px] text-slate-500 font-medium">
-                <span className="text-rose-600 font-semibold">&lt; 30 ngày</span> • Đôn đốc tái tục
+              <p className="text-xs font-bold text-slate-600">Hồ Sơ Sắp Hết Hạn</p>
+              <p className="text-xl sm:text-2xl font-black text-rose-700">{stats.expiringRecordsCount}</p>
+              <p className="text-[11px] text-slate-600 font-medium">
+                <span className="text-rose-700 font-bold">&lt; 30 ngày</span> • Đôn đốc tái tục
               </p>
             </div>
           </div>
-          <ChevronRight size={18} className="text-slate-400" />
+          <ChevronRight size={18} className="text-slate-500" />
         </div>
       </div>
 

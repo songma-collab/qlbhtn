@@ -115,27 +115,27 @@ export const CustomerDirectoryCard: React.FC<CustomerDirectoryCardProps> = ({
         {/* Thông tin định danh chi tiết */}
         <div className="space-y-1.5 py-2 border-t border-b border-slate-100 text-xs">
           <div className="flex justify-between items-center text-slate-600">
-            <span className="text-slate-400 text-[11px]">Định danh CCCD:</span>
-            <span className="font-mono text-slate-800 font-medium">
+            <span className="text-slate-600 font-medium text-[11px]">Định danh CCCD:</span>
+            <span className="font-mono text-slate-900 font-semibold">
               {renderPII(rawCccd, 'CCCD', c.id)}
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
-            <span className="text-slate-400 text-[11px]">Mã số BHXH:</span>
-            <span className="font-mono text-slate-800 font-medium">
+            <span className="text-slate-600 font-medium text-[11px]">Mã số BHXH:</span>
+            <span className="font-mono text-slate-900 font-semibold">
               {renderPII(rawBhxh, 'BHXH', c.id)}
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
-            <span className="text-slate-400 text-[11px]">Kỳ đóng:</span>
-            <span className="font-mono text-slate-800 font-medium">
+            <span className="text-slate-600 font-medium text-[11px]">Kỳ đóng:</span>
+            <span className="font-mono text-slate-900 font-semibold">
               {periodStr}
             </span>
           </div>
           <div className="flex justify-between items-center text-slate-600">
-            <span className="text-slate-400 text-[11px]">Hạn nộp tiếp theo:</span>
+            <span className="text-slate-600 font-medium text-[11px]">Hạn nộp tiếp theo:</span>
             <span 
-              className="text-slate-700 font-bold font-mono tabular-nums cursor-help border-b border-dotted border-slate-400"
+              className="text-slate-900 font-bold font-mono tabular-nums cursor-help border-b border-dashed border-slate-400"
               title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
             >
               {nextPay ? formatDateVN(nextPay) : '---'}

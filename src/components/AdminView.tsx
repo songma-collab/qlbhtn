@@ -439,9 +439,9 @@ const AdminView = () => {
 
   if (!isAuthReady) {
     return (
-      <div className="flex flex-col items-center justify-center h-screen bg-[#F8FAFC]">
+      <div className="flex flex-col items-center justify-center h-screen bg-[#eef2f6]">
         <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#004182]"></div>
-        <span className="mt-3 text-sm text-gray-600 font-bold">Đang tải dữ liệu quản trị...</span>
+        <span className="mt-3 text-sm text-slate-700 font-bold">Đang tải dữ liệu quản trị...</span>
       </div>
     );
   }
@@ -451,7 +451,7 @@ const AdminView = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#eef2f6]">
       {/* Top Header */}
       <header className="bg-white border-b border-gray-200 h-16 sm:h-20 flex shrink-0 sticky top-0 z-50">
         {/* Brand Block (Left) - Hidden on mobile, w-64 or w-20 on desktop based on collapse */}
@@ -1120,13 +1120,13 @@ const AdminView = () => {
         </aside>
 
         {/* Main Content View with extra bottom padding on mobile for Bottom Navigation */}
-        <div ref={mainContentRef} className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto bg-[#F8FAFC] pb-24 md:pb-8">
+        <div ref={mainContentRef} className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto bg-[#eef2f6] pb-24 md:pb-8">
           <React.Suspense
             fallback={
               <div className="flex items-center justify-center min-h-[360px] animate-tab-fade">
-                <div className="flex flex-col items-center gap-2.5 p-6 bg-white/80 backdrop-blur-xs rounded-2xl border border-slate-200/80 shadow-xs">
+                <div className="flex flex-col items-center gap-2.5 p-6 bg-white rounded-2xl border border-slate-300 shadow-md">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#004182] border-t-transparent"></div>
-                  <span className="text-xs text-slate-500 font-semibold">Đang chuẩn bị phân hệ...</span>
+                  <span className="text-xs text-slate-700 font-semibold">Đang chuẩn bị phân hệ...</span>
                 </div>
               </div>
             }

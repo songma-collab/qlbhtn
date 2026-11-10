@@ -64,7 +64,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
       {/* Desktop Table View */}
       <div className="hidden md:block overflow-x-auto custom-scrollbar">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50/90 text-slate-600 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
+          <thead className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-300 text-xs uppercase tracking-wider">
             <tr>
               <th className="p-4 w-12 text-center">
                 <input 
@@ -151,19 +151,19 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                       </div>
                     )}
                     {r.notes && (
-                      <div className="mt-1 text-[11px] text-slate-600 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block max-w-[260px] truncate" title={r.notes}>
-                        <span className="font-semibold text-slate-400">Ghi chú:</span> {r.notes}
+                      <div className="mt-1 text-[11px] text-slate-700 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-md inline-block max-w-[260px] truncate" title={r.notes}>
+                        <span className="font-semibold text-slate-500">Ghi chú:</span> {r.notes}
                       </div>
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-800 font-medium">
+                    <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-900 font-semibold">
                       <span>{renderCustomerPII(rawCccd, 'CCCD', r.id)}</span>
                       {isPIIMasked && r.id && (
                         <button
                           type="button"
                           onClick={() => toggleRowPII(r.id)}
-                          className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
+                          className="text-slate-500 hover:text-slate-700 p-0.5 transition cursor-pointer"
                           title={isRowRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
                         >
                           {isRowRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -171,8 +171,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                       )}
                     </div>
                     {hasOldBhxh && (
-                      <div className="text-[11px] text-slate-500 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
-                        <span className="text-slate-400">Mã cũ:</span>
+                      <div className="text-[11px] text-slate-600 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
+                        <span className="text-slate-500 font-medium">Mã cũ:</span>
                         <span>{renderCustomerPII(oldBhxh, 'BHXH', r.id)}</span>
                       </div>
                     )}
@@ -180,14 +180,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   <td className="p-4">
                     <div className="flex items-center gap-1.5">
                       <Phone size={13} className="text-[#004182] shrink-0" />
-                      <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
+                      <span className="font-mono tabular-nums text-slate-900 font-semibold text-xs">
                         {renderCustomerPII(rawPhone, 'PHONE', r.id)}
                       </span>
                       {isPIIMasked && r.id && (
                         <button
                           type="button"
                           onClick={() => toggleRowPII(r.id)}
-                          className="text-slate-400 hover:text-slate-600 p-0.5 transition cursor-pointer"
+                          className="text-slate-500 hover:text-slate-700 p-0.5 transition cursor-pointer"
                           title={isRowRevealed ? "Ẩn dữ liệu định danh (CCCD, SĐT)" : "Hiện dữ liệu định danh (CCCD, SĐT)"}
                         >
                           {isRowRevealed ? <EyeOff size={12} /> : <Eye size={12} />}
@@ -196,14 +196,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="font-mono tabular-nums text-slate-800 font-medium text-xs">
+                    <span className="font-mono tabular-nums text-slate-900 font-semibold text-xs">
                       {periodStr}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-700 text-xs font-medium">
+                  <td className="p-4 text-slate-800 text-xs font-semibold">
                     {nextPay ? (
                       <span 
-                        className="font-mono tabular-nums font-bold cursor-help border-b border-dotted border-slate-400"
+                        className="font-mono tabular-nums font-bold cursor-help border-b border-dashed border-slate-500"
                         title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
                       >
                         {formatDateVN(nextPay)}
@@ -417,39 +417,39 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
 
                 <div className="grid grid-cols-2 gap-2 text-xs bg-slate-50 p-2.5 rounded-xl border border-slate-200/80 mb-3">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Định danh CCCD</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block">Định danh CCCD</span>
                     <span className="font-mono font-medium text-slate-800">
                       {renderCustomerPII(rawCccd, 'CCCD', r.id)}
                     </span>
                     {hasOldBhxh && (
-                      <span className="text-[10px] text-slate-500 block font-mono">
+                      <span className="text-[10px] text-slate-600 block font-mono">
                         Mã cũ: {renderCustomerPII(oldBhxh, 'BHXH', r.id)}
                       </span>
                     )}
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Số điện thoại</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block">Số điện thoại</span>
                     <span className="font-mono font-medium text-slate-800">
                       {renderCustomerPII(rawPhone, 'PHONE', r.id)}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Kỳ đóng</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block">Kỳ đóng</span>
                     <span className="font-mono font-medium text-slate-800">
                       {periodStr}
                     </span>
                   </div>
                   <div>
-                    <span className="text-[10px] text-slate-400 block">Hạn đóng tiếp</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block">Hạn đóng tiếp</span>
                     <span 
-                      className="text-slate-700 font-bold font-mono tabular-nums cursor-help border-b border-dotted border-slate-400"
+                      className="text-slate-800 font-bold font-mono tabular-nums cursor-help border-b border-dashed border-slate-400"
                       title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
                     >
                       {nextPay ? formatDateVN(nextPay) : '---'}
                     </span>
                   </div>
                   <div className="col-span-2 flex items-center justify-between pt-1 border-t border-slate-200/60">
-                    <span className="text-[10px] text-slate-400 block">Trạng thái đóng</span>
+                    <span className="text-[10px] text-slate-500 font-semibold block">Trạng thái đóng</span>
                     <CustomerStatusBadge 
                       payment_status={payStatus} 
                       paymentStatus={payStatus} 

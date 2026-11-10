@@ -941,11 +941,11 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
             <h2 className="text-xl sm:text-2xl font-bold text-slate-900 tracking-tight">
               {selectedType === 'ALL' ? 'Danh Bạ & Hồ Sơ Khách Hàng' : `Danh Bạ Khách Hàng ${selectedType}`}
             </h2>
-            <span className="text-xs text-slate-500 font-normal">
+            <span className="text-xs text-slate-600 font-semibold">
               · {directoryStats.total} đối tượng
             </span>
           </div>
-          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          <p className="text-xs sm:text-sm text-slate-600 mt-1">
             Quản lý tập trung thông tin nhân khẩu, mã định danh và dữ liệu tham gia BHXH/BHYT tuân thủ Nghị định 13/2023/NĐ-CP
           </p>
         </div>
@@ -1019,8 +1019,8 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
           {/* Nhập/Xuất Excel */}
           {canCreateCustomer && (
-            <label className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs">
-              <FileUp size={15} className="mr-1 text-slate-500" />
+            <label className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs">
+              <FileUp size={15} className="mr-1 text-slate-600" />
               <span>Nhập Excel</span>
               <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={importExcel} />
             </label>
@@ -1030,10 +1030,10 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
               <button
                 type="button"
                 onClick={exportExcel}
-                className="bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
                 title="Xuất dữ liệu Excel"
               >
-                <FileDown size={15} className="mr-1 text-slate-500" />
+                <FileDown size={15} className="mr-1 text-slate-600" />
                 <span>Dữ Liệu Thô {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
               </button>
               {(selectedType === 'BHYT' || selectedType === 'ALL') && (
@@ -1094,7 +1094,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
       />
 
       {/* 3. Nội dung hiển thị: Bảng quản lý vs Danh bạ thẻ đối tượng */}
-      <div className="bg-white rounded-2xl shadow-xs border border-slate-200 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
         {viewMode === 'directory' ? (
           /* ================= VIEW 1: DANH BẠ THẺ ĐỐI TƯỢNG (DIRECTORY VIEW) ================= */
           <div className="p-4 bg-slate-50/50">
