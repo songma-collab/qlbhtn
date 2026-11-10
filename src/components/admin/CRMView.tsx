@@ -1191,7 +1191,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
         {/* 4. Phân trang chuẩn Design System */}
         {!useVirtualization && totalPages > 1 && (
           <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
+            <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
               <span>Hiển thị</span>
               <select
                 value={itemsPerPage}
@@ -1199,7 +1199,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
                   setItemsPerPage(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium outline-none cursor-pointer"
+                className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-medium outline-none cursor-pointer"
               >
                 <option value={10}>10</option>
                 <option value={20}>20</option>

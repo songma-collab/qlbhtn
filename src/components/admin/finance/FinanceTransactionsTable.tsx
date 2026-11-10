@@ -77,7 +77,7 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
     <div className="bg-white rounded-b-2xl overflow-hidden border-t border-slate-200">
       <div className="overflow-x-auto custom-scrollbar">
         <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50/90 text-slate-600 font-semibold border-b border-slate-200 text-xs uppercase tracking-wider">
+          <thead className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-300 text-xs uppercase tracking-wider">
             <tr>
               <th className="p-4 w-12 text-center">
                 <input 
@@ -336,7 +336,7 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
       {/* Phân trang */}
       {totalPages > 1 && (
         <div className="p-3 sm:p-4 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-          <div className="flex items-center gap-2 text-xs text-slate-500">
+          <div className="flex items-center gap-2 text-xs text-slate-700 font-medium">
             <span>Hiển thị</span>
             <select
               value={itemsPerPage}
@@ -344,7 +344,7 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                 setItemsPerPage(Number(e.target.value));
                 setCurrentPage(1);
               }}
-              className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700 font-medium outline-none cursor-pointer"
+              className="bg-white border border-slate-300 rounded-lg px-2 py-1 text-slate-700 font-medium outline-none cursor-pointer"
             >
               <option value={10}>10</option>
               <option value={20}>20</option>
