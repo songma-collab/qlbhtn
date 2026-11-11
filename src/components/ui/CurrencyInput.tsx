@@ -36,12 +36,12 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
 
   React.useEffect(() => {
     if (numericValue !== undefined && numericValue !== null && !isNaN(numericValue)) {
-      const formatted = numericValue.toLocaleString('vi-VN');
-      if (formatted !== displayValue.replace(/\D/g, '').replace(/^0+/, '')) {
-        setDisplayValue(formatted);
+      const currentNum = parseInt(displayValue.replace(/\D/g, '') || '0', 10);
+      if (numericValue !== currentNum) {
+        setDisplayValue(numericValue > 0 ? numericValue.toLocaleString('vi-VN') : (numericValue === 0 ? '0' : ''));
       }
-    } else if (numericValue === 0) {
-      setDisplayValue('0');
+    } else {
+      setDisplayValue('');
     }
   }, [numericValue]);
 

@@ -397,7 +397,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                 </tr>
               );
             })}
-            {customers.length === 0 && (
+            {safeCustomers.length === 0 && (
               <tr>
                 <td colSpan={9} className="p-12 text-center text-slate-500">
                   Không tìm thấy hồ sơ khách hàng nào phù hợp với bộ lọc.
