@@ -136,3 +136,19 @@ body {
 .animate-tab-fade {
   animation: adminTabFadeIn 0.15s ease-out forwards;
 }
+
+/* Hiệu ứng Shimmer Skeleton lướt sóng ánh sáng chuẩn Enterprise UI (CLS = 0) */
+@keyframes shimmerWave {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #e2e8f0 0%, #f1f5f9 50%, #e2e8f0 100%);
+  background-size: 200% 100%;
+  animation: shimmerWave 1.6s infinite ease-in-out;
+}

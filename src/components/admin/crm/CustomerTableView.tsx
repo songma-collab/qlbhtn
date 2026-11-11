@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Phone, Eye, EyeOff, UserCheck, History, QrCode, 
-  UserPlus, Copy, Zap, Edit, Trash2 
+  UserPlus, Copy, Zap, Edit, Trash2, MoreHorizontal 
 } from 'lucide-react';
 import { formatDateVN, formatMonthVN, calculateNextPaymentFromToMonth } from '../../../utils/helpers';
 import { CustomerStatusBadge, CustomerParticipationBadge } from '../../common/CustomerStatusBadge';
@@ -58,6 +58,33 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
   const safeStaffList = Array.isArray(staffList) ? staffList : [];
   const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
   const safeCustomers = Array.isArray(customers) ? customers.filter(Boolean) : [];
+
+  // Trạng thái mở menu thao tác phụ cho từng dòng
+  const [activeActionMenuId, setActiveActionMenuId] = useState<any>(null);
+
+  // Lắng nghe sự kiện click bên ngoài để tự động đóng dropdown menu
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.action-menu-container')) {
+        setActiveActionMenuId(null);
+      }
+    };
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveActionMenuId(null);
+      }
+    };
+
+    if (activeActionMenuId) {
+      document.addEventListener('pointerdown', handleOutsideClick);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('pointerdown', handleOutsideClick);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [activeActionMenuId]);
 
   return (
     <>
@@ -226,94 +253,146 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     />
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center justify-center gap-1.5">
-                      <button 
-                        type="button"
-                        onClick={() => r.id && onStatusClick(r)} 
-                        disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Đổi trạng thái Đang tham gia / Dừng đóng"
-                      >
-                        <UserCheck size={18} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => onParticipationClick(r)} 
-                        className="p-1.5 rounded-lg text-indigo-600 hover:bg-indigo-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Hồ sơ tham gia trước đây"
-                      >
-                        <History size={18} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => onViewHistory(r)} 
-                        disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Xem kết quả tra cứu quá trình"
-                      >
-                        <Eye size={18} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => onVietQrClick(r)} 
-                        disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Mã VietQR nộp tiền"
-                      >
-                        <QrCode size={18} />
-                      </button>
-                      {currentUser?.role !== 'Nhân viên' && (
-                        <button 
-                          type="button"
-                          onClick={() => r.id && onAssignClick(r.id)} 
-                          disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                          title="Phân công nhân viên"
-                        >
-                          <UserPlus size={18} />
-                        </button>
-                      )}
-                      <button 
-                        type="button"
-                        onClick={() => r.id && onCopyZalo(r)} 
-                        disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Sao chép tin nhắn Zalo"
-                      >
-                        <Copy size={18} />
-                      </button>
-                      <button 
-                        type="button"
-                        onClick={() => r.id && onExtendClick(r)} 
-                        disabled={!r.id} 
-                        className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                        title="Gia hạn hồ sơ"
-                      >
-                        <Zap size={18} />
-                      </button>
-                      {canEditCustomer && (
-                        <button 
-                          type="button"
-                          onClick={() => r.id && onEditClick(r)} 
-                          disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                          title="Sửa thông tin"
-                        >
-                          <Edit size={18} />
-                        </button>
-                      )}
-                      {canDeleteCustomer && (
-                        <button 
-                          type="button"
-                          onClick={() => r.id && onDeleteClick(r.id)} 
-                          disabled={!r.id} 
-                          className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:scale-110 active:scale-95 disabled:opacity-50 transition-all cursor-pointer" 
-                          title="Xóa"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      )}
-                    </div>
+                    {(() => {
+                      const isActionMenuOpen = Boolean(rowId && activeActionMenuId === rowId);
+                      const isNearBottom = index >= safeCustomers.length - 2 && safeCustomers.length >= 3;
+
+                      return (
+                        <div className="flex items-center justify-center gap-1.5 relative action-menu-container">
+                          {/* 1. Nút Hành Động Chính 1: Gia Hạn / Phát Sinh (⚡) */}
+                          <button 
+                            type="button"
+                            onClick={() => r.id && onExtendClick(r)} 
+                            disabled={!r.id} 
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 hover:border-amber-300 border border-amber-200/80 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-2xs" 
+                            title="Gia hạn hồ sơ / Phát sinh kỳ đóng mới"
+                          >
+                            <Zap size={14} className="text-amber-600 fill-amber-500" />
+                            <span>Gia hạn</span>
+                          </button>
+
+                          {/* 2. Nút Hành Động Chính 2: Tra Cứu Quá Trình (👁️) */}
+                          <button 
+                            type="button"
+                            onClick={() => onViewHistory(r)} 
+                            disabled={!r.id} 
+                            className="p-1.5 rounded-lg text-[#004182] bg-blue-50 hover:bg-blue-100 hover:border-blue-300 border border-blue-200/80 active:scale-95 disabled:opacity-50 transition-all cursor-pointer shadow-2xs" 
+                            title="Xem kết quả tra cứu quá trình tham gia BHXH"
+                          >
+                            <Eye size={16} />
+                          </button>
+
+                          {/* 3. Menu Thao Tác Bổ Trợ [...] */}
+                          <div className="relative">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveActionMenuId(isActionMenuOpen ? null : rowId);
+                              }}
+                              className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-95 border ${
+                                isActionMenuOpen 
+                                  ? 'bg-slate-200 text-slate-900 border-slate-300 shadow-inner' 
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200 shadow-2xs'
+                              }`}
+                              title="Thao tác bổ trợ (VietQR, Zalo, Phân công, Sửa, Xóa...)"
+                            >
+                              <MoreHorizontal size={16} />
+                            </button>
+
+                            {isActionMenuOpen && (
+                              <div 
+                                className={`absolute right-0 ${
+                                  isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
+                                } w-56 bg-white rounded-xl shadow-xl border border-slate-200/90 py-1.5 z-50 text-left animate-tab-fade text-xs`}
+                                role="menu"
+                              >
+                                <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                  Thao tác bổ trợ
+                                </div>
+                                
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); onVietQrClick(r); }}
+                                  disabled={!r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition text-left cursor-pointer"
+                                >
+                                  <QrCode size={15} className="text-sky-600 shrink-0" />
+                                  <span>Tạo mã VietQR nộp tiền</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); onCopyZalo(r); }}
+                                  disabled={!r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition text-left cursor-pointer"
+                                >
+                                  <Copy size={15} className="text-emerald-600 shrink-0" />
+                                  <span>Sao chép tin nhắn Zalo</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); onParticipationClick(r); }}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition text-left cursor-pointer"
+                                >
+                                  <History size={15} className="text-indigo-600 shrink-0" />
+                                  <span>Hồ sơ tham gia trước đây</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); onStatusClick(r); }}
+                                  disabled={!r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition text-left cursor-pointer"
+                                >
+                                  <UserCheck size={15} className="text-amber-600 shrink-0" />
+                                  <span>Đổi trạng thái tham gia</span>
+                                </button>
+
+                                {currentUser?.role !== 'Nhân viên' && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveActionMenuId(null); r.id && onAssignClick(r.id); }}
+                                    disabled={!r.id}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition text-left cursor-pointer"
+                                  >
+                                    <UserPlus size={15} className="text-purple-600 shrink-0" />
+                                    <span>Phân công cán bộ quản lý</span>
+                                  </button>
+                                )}
+
+                                {canEditCustomer && (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveActionMenuId(null); r.id && onEditClick(r); }}
+                                    disabled={!r.id}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-[#004182] transition text-left cursor-pointer"
+                                  >
+                                    <Edit size={15} className="text-[#004182] shrink-0" />
+                                    <span>Chỉnh sửa thông tin</span>
+                                  </button>
+                                )}
+
+                                {canDeleteCustomer && (
+                                  <div className="pt-1 mt-1 border-t border-slate-100">
+                                    <button
+                                      type="button"
+                                      onClick={() => { setActiveActionMenuId(null); r.id && onDeleteClick(r.id); }}
+                                      disabled={!r.id}
+                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer font-medium"
+                                    >
+                                      <Trash2 size={15} className="text-rose-500 shrink-0" />
+                                      <span>Xóa khách hàng</span>
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </td>
                 </tr>
               );
@@ -465,60 +544,144 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     interactive={Boolean(r.id)}
                     onClick={() => r.id && onStatusClick(r)} 
                   />
-                  <div className="flex items-center gap-1">
-                    <button 
-                      type="button"
-                      onClick={() => onViewHistory(r)} 
-                      className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50"
-                      title="Lịch sử"
-                    >
-                      <History size={15} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => onVietQrClick(r)} 
-                      className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50"
-                      title="VietQR"
-                    >
-                      <QrCode size={15} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => onCopyZalo(r)} 
-                      className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50"
-                      title="Zalo"
-                    >
-                      <Copy size={15} />
-                    </button>
-                    <button 
-                      type="button"
-                      onClick={() => onExtendClick(r)} 
-                      className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50"
-                      title="Gia hạn"
-                    >
-                      <Zap size={15} />
-                    </button>
-                    {canEditCustomer && (
-                      <button 
-                        type="button"
-                        onClick={() => onEditClick(r)} 
-                        className="p-1.5 rounded-lg text-[#004182] hover:bg-blue-50"
-                        title="Sửa"
-                      >
-                        <Edit size={15} />
-                      </button>
-                    )}
-                    {canDeleteCustomer && (
-                      <button 
-                        type="button"
-                        onClick={() => onDeleteClick(r.id)} 
-                        className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50"
-                        title="Xóa"
-                      >
-                        <Trash2 size={15} />
-                      </button>
-                    )}
-                  </div>
+                  {(() => {
+                    const mobMenuId = `mob-${rowId}`;
+                    const isMobMenuOpen = Boolean(rowId && activeActionMenuId === mobMenuId);
+
+                    return (
+                      <div className="flex items-center gap-1.5 relative action-menu-container">
+                        {/* 1. Nút Gia hạn nổi bật */}
+                        <button 
+                          type="button"
+                          onClick={() => r.id && onExtendClick(r)} 
+                          disabled={!r.id} 
+                          className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 active:scale-95 transition shadow-2xs"
+                          title="Gia hạn hồ sơ"
+                        >
+                          <Zap size={13} className="text-amber-600 fill-amber-500" />
+                          <span>Gia hạn</span>
+                        </button>
+
+                        {/* 2. Nút Tra cứu */}
+                        <button 
+                          type="button"
+                          onClick={() => onViewHistory(r)} 
+                          disabled={!r.id} 
+                          className="p-1.5 rounded-lg text-[#004182] bg-blue-50 hover:bg-blue-100 border border-blue-200 active:scale-95 transition shadow-2xs"
+                          title="Xem lịch sử tra cứu"
+                        >
+                          <Eye size={15} />
+                        </button>
+
+                        {/* 3. Nút Menu thao tác khác [...] */}
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveActionMenuId(isMobMenuOpen ? null : mobMenuId);
+                            }}
+                            className={`p-1.5 rounded-lg transition active:scale-95 border ${
+                              isMobMenuOpen
+                                ? 'bg-slate-200 text-slate-900 border-slate-300'
+                                : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200 shadow-2xs'
+                            }`}
+                            title="Thao tác khác"
+                          >
+                            <MoreHorizontal size={15} />
+                          </button>
+
+                          {isMobMenuOpen && (
+                            <div 
+                              className="absolute right-0 bottom-full mb-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200/90 py-1.5 z-50 text-left animate-tab-fade text-xs"
+                              role="menu"
+                            >
+                              <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                                Thao tác bổ trợ
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => { setActiveActionMenuId(null); onVietQrClick(r); }}
+                                disabled={!r.id}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-sky-50 transition text-left cursor-pointer"
+                              >
+                                <QrCode size={14} className="text-sky-600 shrink-0" />
+                                <span>Mã VietQR nộp tiền</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setActiveActionMenuId(null); onCopyZalo(r); }}
+                                disabled={!r.id}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-emerald-50 transition text-left cursor-pointer"
+                              >
+                                <Copy size={14} className="text-emerald-600 shrink-0" />
+                                <span>Sao chép tin Zalo</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setActiveActionMenuId(null); onParticipationClick(r); }}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-indigo-50 transition text-left cursor-pointer"
+                              >
+                                <History size={14} className="text-indigo-600 shrink-0" />
+                                <span>Hồ sơ tham gia trước đây</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => { setActiveActionMenuId(null); onStatusClick(r); }}
+                                disabled={!r.id}
+                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-amber-50 transition text-left cursor-pointer"
+                              >
+                                <UserCheck size={14} className="text-amber-600 shrink-0" />
+                                <span>Đổi trạng thái tham gia</span>
+                              </button>
+
+                              {currentUser?.role !== 'Nhân viên' && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); r.id && onAssignClick(r.id); }}
+                                  disabled={!r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-purple-50 transition text-left cursor-pointer"
+                                >
+                                  <UserPlus size={14} className="text-purple-600 shrink-0" />
+                                  <span>Phân công cán bộ</span>
+                                </button>
+                              )}
+
+                              {canEditCustomer && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setActiveActionMenuId(null); r.id && onEditClick(r); }}
+                                  disabled={!r.id}
+                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-blue-50 transition text-left cursor-pointer"
+                                >
+                                  <Edit size={14} className="text-[#004182] shrink-0" />
+                                  <span>Chỉnh sửa thông tin</span>
+                                </button>
+                              )}
+
+                              {canDeleteCustomer && (
+                                <div className="pt-1 mt-1 border-t border-slate-100">
+                                  <button
+                                    type="button"
+                                    onClick={() => { setActiveActionMenuId(null); r.id && onDeleteClick(r.id); }}
+                                    disabled={!r.id}
+                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer font-medium"
+                                  >
+                                    <Trash2 size={14} className="text-rose-500 shrink-0" />
+                                    <span>Xóa khách hàng</span>
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             );

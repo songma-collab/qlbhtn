@@ -11,6 +11,7 @@ import { classifyRenewalRecords, RenewalUrgency } from '../utils/renewalDispatch
 import { formatMoney, formatDateVN, formatMonthVN, getInitials, prepareRenewalRecord } from '../utils/helpers';
 import { hasPermission } from '../utils/permissions';
 import { getTabFromPathname, getPathFromTab } from '../utils/adminRoutes';
+import { ModuleLoadingSkeleton } from './common/Skeleton';
 
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
@@ -1122,14 +1123,7 @@ const AdminView = () => {
         {/* Main Content View with extra bottom padding on mobile for Bottom Navigation */}
         <div ref={mainContentRef} className="flex-1 p-3 sm:p-5 md:p-8 overflow-y-auto bg-[#eef2f6] pb-24 md:pb-8">
           <React.Suspense
-            fallback={
-              <div className="flex items-center justify-center min-h-[360px] animate-tab-fade">
-                <div className="flex flex-col items-center gap-2.5 p-6 bg-white rounded-2xl border border-slate-300 shadow-md">
-                  <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#004182] border-t-transparent"></div>
-                  <span className="text-xs text-slate-700 font-semibold">Đang chuẩn bị phân hệ...</span>
-                </div>
-              </div>
-            }
+            fallback={<ModuleLoadingSkeleton tab={adminTab} />}
           >
             <div key={adminTab} className="animate-tab-fade">
               {adminTab === 'dashboard' && <Dashboard />}

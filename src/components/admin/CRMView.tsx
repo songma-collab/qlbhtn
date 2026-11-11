@@ -73,6 +73,7 @@ import { VirtualizedRecordTable } from '../common/VirtualizedRecordTable';
 import { hasPermission } from '../../utils/permissions';
 import { CustomerDirectoryCard } from './crm/CustomerDirectoryCard';
 import { CustomerTableView } from './crm/CustomerTableView';
+import { CustomerTableSkeleton, CustomerDirectorySkeleton } from '../common/Skeleton';
 import { AssignStaffModal } from './crm/AssignStaffModal';
 import { ExcelImportConfirmModal } from './crm/ExcelImportConfirmModal';
 
@@ -1095,7 +1096,13 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
 
       {/* 3. Nội dung hiển thị: Bảng quản lý vs Danh bạ thẻ đối tượng */}
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 overflow-hidden">
-        {viewMode === 'directory' ? (
+        {isServerLoading ? (
+          viewMode === 'directory' ? (
+            <CustomerDirectorySkeleton count={6} />
+          ) : (
+            <CustomerTableSkeleton rows={Math.min(itemsPerPage, 10)} />
+          )
+        ) : viewMode === 'directory' ? (
           /* ================= VIEW 1: DANH BẠ THẺ ĐỐI TƯỢNG (DIRECTORY VIEW) ================= */
           <div className="p-4 bg-slate-50/50">
             {paginatedCustomers.length === 0 ? (
