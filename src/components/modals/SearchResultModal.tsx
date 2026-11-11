@@ -452,15 +452,10 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                       </span>
                     </div>
                     <div className="flex justify-between items-start">
-                      <span className="text-gray-500">Phân kỳ &amp; Ghi chú:</span>
-                      <div className="text-right">
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${
-                          isClawback ? 'bg-purple-50 text-purple-700 border border-purple-200' : 'bg-blue-50 text-blue-700 border border-blue-200'
-                        }`}>
-                          {isClawback ? 'Thoái thu hoàn trả' : r.method}
-                        </span>
-                        {r.notes && <p className="text-xs text-gray-600 italic mt-1">{r.notes}</p>}
-                      </div>
+                      <span className="text-gray-500">Ghi chú:</span>
+                      <span className="text-gray-800 font-medium text-xs italic text-right max-w-[65%]">
+                        {r.notes || '---'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-500">Hạn tiếp theo:</span>
@@ -473,19 +468,19 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
           </div>
 
           {/* Desktop Table View */}
-          <div className="hidden md:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+          <div className="hidden md:block bg-white dark:bg-slate-800 rounded-xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-[#004182] text-white font-semibold whitespace-nowrap">
+                <thead className="bg-[#004182] dark:bg-slate-900 text-white font-semibold whitespace-nowrap">
                   <tr>
-                    <th className="p-3">Loại hình</th>
-                    <th className="p-3">Thời gian tham gia</th>
-                    <th className="p-3">Số tháng</th>
-                    <th className="p-3">Mức thu nhập lựa chọn</th>
-                    <th className="p-3">Tổng Tiền Thanh Toán (VND)</th>
-                    <th className="p-3">Ghi chú &amp; Phân kỳ</th>
-                    <th className="p-3">Hạn tiếp theo</th>
-                    <th className="p-3">Trạng thái</th>
+                    <th className="py-2.5 px-3">Loại hình</th>
+                    <th className="py-2.5 px-3">Thời gian tham gia</th>
+                    <th className="py-2.5 px-3 text-center">Số tháng</th>
+                    <th className="py-2.5 px-3 text-right">Mức thu nhập lựa chọn</th>
+                    <th className="py-2.5 px-3 text-right">Tổng Tiền Thanh Toán (VND)</th>
+                    <th className="py-2.5 px-3">Ghi chú</th>
+                    <th className="py-2.5 px-3">Hạn tiếp theo</th>
+                    <th className="py-2.5 px-3">Trạng thái</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -544,69 +539,59 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                     return (
                       <tr 
                         key={idx} 
-                        className={isClawback ? "hover:bg-purple-50/40 bg-purple-50/15 transition" : "hover:bg-blue-50/40 transition"}
+                        className={isClawback ? "hover:bg-purple-50/40 bg-purple-50/15 transition" : "hover:bg-blue-50/40 dark:hover:bg-slate-700/40 transition"}
                       >
-                        <td className={`p-3 font-bold ${r.type === 'BHXH' ? 'text-[#004182]' : 'text-[#0ea5e9]'}`}>
+                        <td className="py-2.5 px-3 whitespace-nowrap">
                           <div className="flex items-center gap-1.5">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-slate-100">
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                              r.type === 'BHXH' ? 'bg-blue-100 text-[#004182] dark:bg-blue-950/80 dark:text-sky-300' : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/80 dark:text-emerald-300'
+                            }`}>
                               {r.type}
                             </span>
-                            {isClawback && (
-                              <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-purple-100 text-purple-700 border border-purple-200 whitespace-nowrap">
+                            {isClawback ? (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-100 text-purple-700 border border-purple-200 whitespace-nowrap">
                                 Thoái trả
                               </span>
+                            ) : (
+                              r.actionType && (
+                                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-slate-600 whitespace-nowrap">
+                                  {r.actionType}
+                                </span>
+                              )
                             )}
                           </div>
                         </td>
-                        <td className="p-3 text-gray-800 font-semibold whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-gray-800 dark:text-gray-200 font-semibold whitespace-nowrap">
                           {r.periodDisplay}
                         </td>
-                        <td className="p-3 text-gray-700 font-medium whitespace-nowrap">
+                        <td className="py-2.5 px-3 text-gray-700 dark:text-gray-300 font-medium text-center whitespace-nowrap">
                           {isClawback ? (
                             <strong className="text-rose-600 font-bold">-{r.months} tháng</strong>
                           ) : (
                             `${r.months} tháng`
                           )}
                         </td>
-                        <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">
+                        <td className="py-2.5 px-3 font-semibold text-gray-800 dark:text-gray-200 text-right whitespace-nowrap">
                           {incVal && incVal > 0 ? formatMoney(incVal) : (r.type === 'BHYT' ? 'Theo quy định' : '---')}
                         </td>
-                        <td className={`p-3 font-black whitespace-nowrap ${isClawback ? 'text-rose-600 font-mono' : 'text-[#004182]'}`}>
+                        <td className={`py-2.5 px-3 font-black text-right whitespace-nowrap ${isClawback ? 'text-rose-600 font-mono' : 'text-[#004182] dark:text-sky-400'}`}>
                           {isClawback 
                             ? `-${formatMoney(Math.abs(Number(r.amount) || 0))}` 
                             : (r.amount ? formatMoney(r.amount) : '---')}
                         </td>
-                        <td className="p-3 text-xs text-gray-700 max-w-[240px]">
-                          <div className="flex flex-col gap-1 items-start">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              {isClawback ? (
-                                <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-[11px] bg-purple-50 text-purple-700 border border-purple-200">
-                                  Thoái thu hoàn trả
-                                </span>
-                              ) : (
-                                r.method && (
-                                  <span className="inline-flex items-center px-2 py-0.5 rounded font-semibold text-[11px] bg-blue-50 text-blue-700 border border-blue-200">
-                                    {r.method}
-                                  </span>
-                                )
-                              )}
-                              {r.actionType && (
-                                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
-                                  {r.actionType}
-                                </span>
-                              )}
-                            </div>
-                            {r.notes ? (
-                              <span className="text-gray-600 text-xs italic line-clamp-2" title={r.notes}>
-                                {r.notes}
-                              </span>
-                            ) : null}
-                          </div>
+                        <td className="py-2.5 px-3 text-xs text-gray-600 dark:text-gray-400 max-w-[200px]">
+                          {r.notes ? (
+                            <span className="italic truncate block" title={r.notes}>
+                              {r.notes}
+                            </span>
+                          ) : (
+                            <span className="text-gray-300 dark:text-gray-600">---</span>
+                          )}
                         </td>
-                        <td className="p-3 font-semibold text-gray-800 whitespace-nowrap">
+                        <td className="py-2.5 px-3 font-semibold text-gray-800 dark:text-gray-200 whitespace-nowrap">
                           {isClawback ? '-' : (r.nextPayment ? formatDateVN(r.nextPayment) : '---')}
                         </td>
-                        <td className="p-3 whitespace-nowrap">
+                        <td className="py-2.5 px-3 whitespace-nowrap">
                           <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold ${statusClass}`}>
                             {statusLabel}
                           </span>

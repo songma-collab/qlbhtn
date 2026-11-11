@@ -1560,44 +1560,51 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
                     <TurnstileCaptcha onToken={setCaptchaToken} resetTrigger={captchaResetTrigger} />
                   )}
 
-                  {/* Nút hành động Lưu & Xác Nhận / Hủy bỏ với Button Primitive */}
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5">
-                    <Button 
+                  {/* Nút hành động Lưu & Xác Nhận / Hủy bỏ với UI cao cấp & chuyển màu mượt mà */}
+                  <div className="bg-white dark:bg-slate-800 p-4 rounded-2xl border border-slate-200/90 dark:border-slate-700 shadow-sm space-y-2.5">
+                    <button 
                       type="submit" 
-                      variant="primary"
-                      size="lg"
-                      isLoading={isSubmitting}
                       disabled={isSubmitting}
-                      className="w-full py-3.5 shadow-md hover:shadow-lg font-extrabold text-sm sm:text-base"
+                      className="w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#004182] via-[#005ea2] to-[#0ea5e9] hover:from-[#00366c] hover:via-[#004d8c] hover:to-[#0284c7] text-white font-extrabold text-sm sm:text-base flex items-center justify-center gap-2.5 shadow-lg shadow-[#004182]/25 hover:shadow-xl hover:shadow-[#004182]/35 active:scale-[0.99] transition-all duration-200 cursor-pointer disabled:opacity-50 disabled:pointer-events-none group"
                     >
-                      <Check size={20} className="mr-2 stroke-[3px]" /> 
-                      {isRenew 
-                        ? (type === 'BHXH' ? (bhxhActionType === 'Tăng mới' ? 'Xác Nhận Đóng Tăng Mới' : 'Xác Nhận Gia Hạn') : 'Xác Nhận Gia Hạn') 
-                        : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
-                    </Button>
+                      {isSubmitting ? (
+                        <>
+                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Đang xử lý hồ sơ...</span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-white shrink-0 group-hover:scale-110 transition-transform">
+                            <Check size={15} className="stroke-[3px]" />
+                          </div>
+                          <span className="tracking-wide">
+                            {isRenew 
+                              ? (type === 'BHXH' ? (bhxhActionType === 'Tăng mới' ? 'Xác Nhận Đóng Tăng Mới' : 'Xác Nhận Gia Hạn') : 'Xác Nhận Gia Hạn') 
+                              : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
+                          </span>
+                        </>
+                      )}
+                    </button>
 
-                    <Button 
+                    <button 
                       type="button" 
-                      variant="secondary"
-                      size="md"
                       disabled={isSubmitting}
                       onClick={onClose} 
-                      className="w-full py-2.5 font-bold"
+                      className="w-full py-2.5 px-4 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-200 dark:hover:bg-slate-700/60 font-bold text-xs sm:text-sm transition-all cursor-pointer flex items-center justify-center"
                     >
                       Hủy bỏ
-                    </Button>
+                    </button>
 
                     {/* Nút quay lại bước 2 trên mobile */}
                     <div className="lg:hidden pt-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
+                      <button
+                        type="button"
                         onClick={() => setCurrentStep(2)}
-                        leftIcon={<ArrowLeft size={14} />}
-                        className="w-full text-slate-500 hover:text-slate-800"
+                        className="w-full py-2 text-slate-500 hover:text-slate-800 font-semibold text-xs flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
                       >
-                        Quay lại Bước 2 (Chỉnh sửa mức đóng)
-                      </Button>
+                        <ArrowLeft size={14} />
+                        <span>Quay lại Bước 2 (Chỉnh sửa mức đóng)</span>
+                      </button>
                     </div>
                   </div>
                 </div>
