@@ -928,7 +928,7 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
     }
 
     return (
-      <span className="font-mono tabular-nums text-xs">
+      <span className="font-mono tabular-nums text-[13px]">
         {displayVal}
       </span>
     );

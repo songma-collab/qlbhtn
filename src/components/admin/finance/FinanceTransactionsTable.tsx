@@ -184,18 +184,18 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                         {actionTag}
                       </div>
                     </td>
-                    <td className="p-4 text-xs font-mono tabular-nums text-slate-600 font-medium">
+                    <td className="p-4 text-[13px] font-mono tabular-nums text-slate-600 font-medium">
                       {periodStr}
                     </td>
-                    {/* SỐ TIỀN THU: font-mono tabular-nums text-right */}
-                    <td className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
+                    {/* SỐ TIỀN THU: font-mono tabular-nums text-right (tăng 1px -> text-[15px]) */}
+                    <td className={`p-4 font-mono tabular-nums text-right font-bold text-[15px] ${
                       r.amount < 0 ? 'text-rose-600' : 'text-[#004182]'
                     }`}>
                       {formatMoney(r.amount)}
                     </td>
-                    {/* HOA HỒNG: font-mono tabular-nums text-right */}
+                    {/* HOA HỒNG: font-mono tabular-nums text-right (tăng 1px -> text-[15px]) */}
                     <td 
-                      className={`p-4 font-mono tabular-nums text-right font-bold text-sm ${
+                      className={`p-4 font-mono tabular-nums text-right font-bold text-[15px] ${
                         commAmount < 0 ? 'text-rose-600' : 'text-emerald-700'
                       }`}
                       title={`Tỷ lệ hoa hồng: ${(rate * 100).toFixed(1)}% (${formatMoney(commAmount)})`}
@@ -317,10 +317,10 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                 <td colSpan={5} className="p-4 text-slate-700">
                   Tổng cộng trang hiện tại ({paginatedRecords.length} / {totalCount} giao dịch):
                 </td>
-                <td className="p-4 font-mono tabular-nums text-right text-sm text-[#004182]">
+                <td className="p-4 font-mono tabular-nums text-right text-[15px] text-[#004182]">
                   {formatMoney(paginatedRecords.reduce((acc: number, r: any) => acc + (Number(r.amount) || 0), 0))}
                 </td>
-                <td className="p-4 font-mono tabular-nums text-right text-sm text-emerald-700">
+                <td className="p-4 font-mono tabular-nums text-right text-[15px] text-emerald-700">
                   {formatMoney(paginatedRecords.reduce((acc: number, r: any) => {
                     const rate = getCommissionRateForRecord(r, policies, settings);
                     return acc + (Number(r.amount) * rate);

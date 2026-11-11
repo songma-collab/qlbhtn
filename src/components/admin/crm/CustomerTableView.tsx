@@ -184,7 +184,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     )}
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-900 font-semibold">
+                    <div className="flex items-center gap-1.5 font-mono tabular-nums text-slate-900 font-semibold text-[13px]">
                       <span>{renderCustomerPII(rawCccd, 'CCCD', r.id)}</span>
                       {isPIIMasked && r.id && (
                         <button
@@ -198,7 +198,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                       )}
                     </div>
                     {hasOldBhxh && (
-                      <div className="text-[11px] text-slate-600 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
+                      <div className="text-[12px] text-slate-600 font-mono mt-0.5 flex items-center gap-1" title="Mã số BHXH 10 số cũ (trước đồng bộ CCCD)">
                         <span className="text-slate-500 font-medium">Mã cũ:</span>
                         <span>{renderCustomerPII(oldBhxh, 'BHXH', r.id)}</span>
                       </div>
@@ -206,8 +206,8 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   </td>
                   <td className="p-4">
                     <div className="flex items-center gap-1.5">
-                      <Phone size={13} className="text-[#004182] shrink-0" />
-                      <span className="font-mono tabular-nums text-slate-900 font-semibold text-xs">
+                      <Phone size={13.5} className="text-[#004182] shrink-0" />
+                      <span className="font-mono tabular-nums text-slate-900 font-semibold text-[13px]">
                         {renderCustomerPII(rawPhone, 'PHONE', r.id)}
                       </span>
                       {isPIIMasked && r.id && (
@@ -223,14 +223,14 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className="font-mono tabular-nums text-slate-900 font-semibold text-xs">
+                    <span className="font-mono tabular-nums text-slate-900 font-semibold text-[13px]">
                       {periodStr}
                     </span>
                   </td>
-                  <td className="p-4 text-slate-800 text-xs font-semibold">
+                  <td className="p-4 text-slate-800 text-[13px] font-semibold">
                     {nextPay ? (
                       <span 
-                        className="font-mono tabular-nums font-bold cursor-help border-b border-dashed border-slate-500"
+                        className="font-mono tabular-nums font-bold cursor-help border-b border-dashed border-slate-500 text-[13px]"
                         title="Hạn chót luật định theo Khoản 3 Điều 36 Luật BHXH 2024"
                       >
                         {formatDateVN(nextPay)}
