@@ -14,6 +14,7 @@ import {
 import { parseMonthAndYear } from '../../utils/dateStandardHelper';
 import { useAppContext } from '../../context/AppContext';
 import { maskCCCD, maskName } from '../../utils/security';
+import { PolicyHelpBadge } from '../ui/Tooltip';
 
 interface SearchResultModalProps {
   isOpen: boolean;
@@ -299,8 +300,13 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
                   </div>
                 </div>
                 <div className="md:text-right">
-                  <span className="text-xs font-bold uppercase tracking-wider text-gray-500 block mb-1">
-                    Trần hỗ trợ NSNN (Khoản 1 Điều 36 Luật BHXH 2024 &amp; NĐ 159/2025)
+                  <span className="text-xs font-bold uppercase tracking-wider text-gray-500 inline-flex items-center gap-1 mb-1 justify-end">
+                    <span>Trần hỗ trợ NSNN (Khoản 1 Điều 36 Luật BHXH 2024 &amp; NĐ 159/2025)</span>
+                    <PolicyHelpBadge
+                      title="Trần hỗ trợ 10 năm NSNN"
+                      lawRef="Khoản 1 Điều 36 Luật BHXH 2024"
+                      content="Căn cứ Khoản 1 Điều 36 Luật BHXH 2024: Người tham gia được Nhà nước hỗ trợ tiền đóng tối đa 10 năm (120 tháng) trong suốt cuộc đời. Sau khi đủ 120 tháng, người tham gia sẽ đóng 100% mức thu nhập lựa chọn."
+                    />
                   </span>
                   <p className="text-xs sm:text-sm font-semibold text-gray-700">
                     {isOver10Years ? (

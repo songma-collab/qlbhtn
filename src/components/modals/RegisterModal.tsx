@@ -30,7 +30,9 @@ import {
   formatMonthToVN
 } from '../../utils/dateFormatter';
 import { calculateBHXH, calculateBHYTCoterminous, getPolicyValueForDate, getCustomerPreviousBHXHMonths, getEffectiveCommissionConfig, getCommissionBreakdownForRecord } from '../../utils/calculations';
-import { X, Check, Clock, ShieldCheck } from 'lucide-react';
+import { X, Check, Clock, ShieldCheck, ArrowRight, ArrowLeft } from 'lucide-react';
+import { PolicyHelpBadge } from '../ui/Tooltip';
+import { Button } from '../ui/Button';
 import { recordService, customerService } from '../../services';
 import { callPublicPortal } from '../../utils/publicPortal';
 import TurnstileCaptcha from '../TurnstileCaptcha';
@@ -103,6 +105,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
   const [captchaResetTrigger, setCaptchaResetTrigger] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [bhxhActionType, setBhxhActionType] = useState<'Tăng mới' | 'Gia hạn'>('Gia hạn');
+  const [currentStep, setCurrentStep] = useState<1 | 2 | 3>(1);
 
   const commRates = useMemo(() => {
     const config = getEffectiveCommissionConfig(policies, settings);
@@ -1337,12 +1340,22 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
                               Tổng thời gian đã tích lũy: <strong className="text-[#004182] font-black">{bhxhCalc.previousMonths || 0} tháng ({Math.floor((bhxhCalc.previousMonths || 0) / 12)} năm {(bhxhCalc.previousMonths || 0) % 12 > 0 ? `${(bhxhCalc.previousMonths || 0) % 12} tháng` : ''})</strong>
                             </span>
                             {(bhxhCalc.previousMonths || 0) >= 120 ? (
-                              <span className="px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-amber-100 text-amber-900 border border-amber-300">
-                                Đã hết hạn hỗ trợ 10 năm NSNN (Đóng 100% gốc)
+                              <span className="px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-amber-100 text-amber-900 border border-amber-300 inline-flex items-center gap-1">
+                                <span>Đã hết hạn hỗ trợ 10 năm NSNN (Đóng 100% gốc)</span>
+                                <PolicyHelpBadge
+                                  title="Trần hỗ trợ 10 năm NSNN"
+                                  lawRef="Khoản 1 Điều 36 Luật BHXH 2024"
+                                  content="Căn cứ Khoản 1 Điều 36 Luật BHXH 2024: Người tham gia BHXH tự nguyện được Nhà nước hỗ trợ tiền đóng tối đa 10 năm (120 tháng) trong suốt cuộc đời. Khách hàng đã đủ 120 tháng nên sẽ đóng 100% mức thu nhập lựa chọn."
+                                />
                               </span>
                             ) : (
-                              <span className="px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-emerald-100 text-emerald-900 border border-emerald-300">
-                                Đã dùng {(bhxhCalc.previousMonths || 0)}/120 tháng hỗ trợ
+                              <span className="px-2.5 py-0.5 rounded-full font-extrabold text-[11px] bg-emerald-100 text-emerald-900 border border-emerald-300 inline-flex items-center gap-1">
+                                <span>Đã dùng {(bhxhCalc.previousMonths || 0)}/120 tháng hỗ trợ</span>
+                                <PolicyHelpBadge
+                                  title="Trần hỗ trợ 120 tháng NSNN"
+                                  lawRef="Khoản 1 Điều 36 Luật BHXH 2024"
+                                  content={`Căn cứ Khoản 1 Điều 36 Luật BHXH 2024: Nhà nước hỗ trợ tiền đóng tối đa 10 năm (120 tháng). Khách hàng hiện còn lại ${Math.max(0, 120 - (bhxhCalc.previousMonths || 0))} tháng được NSNN hỗ trợ.`}
+                                />
                               </span>
                             )}
                           </div>
@@ -1353,78 +1366,174 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
                 </div>
               )}
 
-              {/* Bố cục 2 khu vực: Bên Trái (Thông tin & Mức đóng) - Bên Phải (Tổng kết & Xác nhận) */}
+              {/* Thanh Điều Hướng Phân Bước Công Thái Học (Step Wizard - Progressive Disclosure) */}
+              <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-2 mb-5 flex items-center justify-between gap-1 overflow-x-auto select-none">
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(1)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    currentStep === 1
+                      ? 'bg-[#004182] text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                    currentStep === 1 ? 'bg-white text-[#004182]' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    1
+                  </span>
+                  <span className="whitespace-nowrap">1. Người tham gia</span>
+                </button>
+
+                <div className="h-0.5 flex-1 min-w-[8px] bg-slate-200" />
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(2)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    currentStep === 2
+                      ? 'bg-[#004182] text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                    currentStep === 2 ? 'bg-white text-[#004182]' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    2
+                  </span>
+                  <span className="whitespace-nowrap">2. Phương án & Mức đóng</span>
+                </button>
+
+                <div className="h-0.5 flex-1 min-w-[8px] bg-slate-200" />
+
+                <button
+                  type="button"
+                  onClick={() => setCurrentStep(3)}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                    currentStep === 3
+                      ? 'bg-[#004182] text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0 ${
+                    currentStep === 3 ? 'bg-white text-[#004182]' : 'bg-slate-200 text-slate-700'
+                  }`}>
+                    3
+                  </span>
+                  <span className="whitespace-nowrap">3. Tổng kết & Lưu</span>
+                </button>
+              </div>
+
+              {/* Bố cục thích ứng: Trên Desktop hiển thị 2 cột đầy đủ, Trên Mobile chuyển đổi theo từng bước */}
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
                 {/* KHU VỰC BÊN TRÁI: THÔNG TIN CÁ NHÂN & THIẾT LẬP MỨC ĐÓNG (7/12 cols) */}
                 <div className="lg:col-span-7 space-y-6">
-                  {/* Mục 1: Thông Tin Cá Nhân Người Tham Gia */}
-                  {type === 'BHXH' && !isRenew && (
-                    <BHXHForm
-                      formData={formData}
-                      setFormData={setFormData}
-                      errors={errors}
-                      isRenew={isRenew}
-                      recordId={record?.id}
-                      autoFillCustomerInfo={autoFillCustomerInfo}
-                      handleDOBChange={handleDOBChange}
-                      handleCCCDChange={handleCCCDChange}
-                      handlePhoneChange={handlePhoneChange}
-                      handleEmailChange={handleEmailChange}
-                      isSearchingCustomer={isSearchingCustomer}
-                      autoFilledBadge={autoFilledBadge}
-                      bhxhCalc={bhxhCalc}
-                    />
-                  )}
+                  {/* Mục 1: Thông Tin Cá Nhân Người Tham Gia (Chỉ ẩn trên mobile khi không ở Step 1) */}
+                  <div className={`space-y-6 ${currentStep !== 1 ? 'hidden lg:block' : 'block'}`}>
+                    {type === 'BHXH' && !isRenew && (
+                      <BHXHForm
+                        formData={formData}
+                        setFormData={setFormData}
+                        errors={errors}
+                        isRenew={isRenew}
+                        recordId={record?.id}
+                        autoFillCustomerInfo={autoFillCustomerInfo}
+                        handleDOBChange={handleDOBChange}
+                        handleCCCDChange={handleCCCDChange}
+                        handlePhoneChange={handlePhoneChange}
+                        handleEmailChange={handleEmailChange}
+                        isSearchingCustomer={isSearchingCustomer}
+                        autoFilledBadge={autoFilledBadge}
+                        bhxhCalc={bhxhCalc}
+                      />
+                    )}
 
-                  {type === 'BHYT' && !isRenew && (
-                    <BHYTForm
-                      bhytMembers={bhytMembers}
-                      setBhytMembers={setBhytMembers}
-                      isRenew={isRenew}
-                      recordId={record?.id}
-                      autoFillCustomerInfo={autoFillCustomerInfo}
-                      setFormData={setFormData}
-                      isSearchingCustomer={isSearchingCustomer}
-                    />
-                  )}
+                    {type === 'BHYT' && !isRenew && (
+                      <BHYTForm
+                        bhytMembers={bhytMembers}
+                        setBhytMembers={setBhytMembers}
+                        isRenew={isRenew}
+                        recordId={record?.id}
+                        autoFillCustomerInfo={autoFillCustomerInfo}
+                        setFormData={setFormData}
+                        isSearchingCustomer={isSearchingCustomer}
+                      />
+                    )}
 
-                  {/* Phân loại nghiệp vụ hồ sơ BHXH: Nút tích chọn Tăng mới vs Gia hạn */}
-                  {type === 'BHXH' && (
-                    <BHXHActionTypeSelector
-                      actionType={bhxhActionType}
-                      onChange={setBhxhActionType}
-                      previousMonths={bhxhCalc.previousMonths || 0}
-                      commBHXHNewPct={commRates.commBHXHNewPct}
-                      commBHXHRenewPct={commRates.commBHXHRenewPct}
-                      isRenew={isRenew}
-                      hasPreviousRenew={hasPreviousRenew}
-                    />
-                  )}
+                    {/* Nút chuyển tiếp trên mobile từ Bước 1 sang Bước 2 */}
+                    <div className="lg:hidden pt-3 flex justify-end">
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => setCurrentStep(2)}
+                        rightIcon={<ArrowRight size={16} />}
+                      >
+                        Tiếp tục: Phương án đóng
+                      </Button>
+                    </div>
+                  </div>
 
-                  {/* Mục 2: Thiết Lập Mức Đóng */}
-                  {type === 'BHXH' && (
-                    <BHXHCalcSettings
-                      bhxhCalc={bhxhCalc}
-                      setBhxhCalc={setBhxhCalc}
-                    />
-                  )}
+                  {/* Mục 2: Phân loại & Thiết Lập Mức Đóng (Chỉ ẩn trên mobile khi không ở Step 2) */}
+                  <div className={`space-y-6 ${currentStep !== 2 ? 'hidden lg:block' : 'block'}`}>
+                    {/* Phân loại nghiệp vụ hồ sơ BHXH: Nút tích chọn Tăng mới vs Gia hạn */}
+                    {type === 'BHXH' && (
+                      <BHXHActionTypeSelector
+                        actionType={bhxhActionType}
+                        onChange={setBhxhActionType}
+                        previousMonths={bhxhCalc.previousMonths || 0}
+                        commBHXHNewPct={commRates.commBHXHNewPct}
+                        commBHXHRenewPct={commRates.commBHXHRenewPct}
+                        isRenew={isRenew}
+                        hasPreviousRenew={hasPreviousRenew}
+                      />
+                    )}
 
-                  {type === 'BHYT' && (
-                    <BHYTCalcSettings
-                      bhytMembers={bhytMembers}
-                      setBhytMembers={setBhytMembers}
-                      bhytCalc={bhytCalc}
-                      setBhytCalc={setBhytCalc}
-                      formData={formData}
-                      setFormData={setFormData}
-                      isRenew={isRenew}
-                      recordId={record?.id}
-                    />
-                  )}
+                    {/* Thiết Lập Mức Đóng BHXH */}
+                    {type === 'BHXH' && (
+                      <BHXHCalcSettings
+                        bhxhCalc={bhxhCalc}
+                        setBhxhCalc={setBhxhCalc}
+                      />
+                    )}
+
+                    {/* Thiết Lập Mức Đóng BHYT */}
+                    {type === 'BHYT' && (
+                      <BHYTCalcSettings
+                        bhytMembers={bhytMembers}
+                        setBhytMembers={setBhytMembers}
+                        bhytCalc={bhytCalc}
+                        setBhytCalc={setBhytCalc}
+                        formData={formData}
+                        setFormData={setFormData}
+                        isRenew={isRenew}
+                        recordId={record?.id}
+                      />
+                    )}
+
+                    {/* Nút điều hướng trên mobile cho Bước 2 */}
+                    <div className="lg:hidden pt-3 flex items-center justify-between gap-2">
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        onClick={() => setCurrentStep(1)}
+                        leftIcon={<ArrowLeft size={16} />}
+                      >
+                        Quay lại Bước 1
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="md"
+                        onClick={() => setCurrentStep(3)}
+                        rightIcon={<ArrowRight size={16} />}
+                      >
+                        Tiếp tục: Thanh toán
+                      </Button>
+                    </div>
+                  </div>
                 </div>
 
-                {/* KHU VỰC BÊN PHẢI: TỔNG KẾT ĐĂNG KÝ & THANH TOÁN (5/12 cols) */}
-                <div className="lg:col-span-5 lg:sticky lg:top-4 space-y-4">
+                {/* KHU VỰC BÊN PHẢI: TỔNG KẾT ĐĂNG KÝ & THANH TOÁN (5/12 cols, Chỉ ẩn trên mobile khi không ở Step 3) */}
+                <div className={`lg:col-span-5 lg:sticky lg:top-4 space-y-4 ${currentStep !== 3 ? 'hidden lg:block' : 'block'}`}>
                   <RegisterSummary
                     type={type}
                     isRenew={isRenew}
@@ -1448,35 +1557,45 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
                     <TurnstileCaptcha onToken={setCaptchaToken} resetTrigger={captchaResetTrigger} />
                   )}
 
-                  {/* Nút hành động Lưu & Xác Nhận / Hủy bỏ */}
+                  {/* Nút hành động Lưu & Xác Nhận / Hủy bỏ với Button Primitive */}
                   <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 shadow-xs space-y-2.5">
-                    <button 
+                    <Button 
                       type="submit" 
+                      variant="primary"
+                      size="lg"
+                      isLoading={isSubmitting}
                       disabled={isSubmitting}
-                      className={`w-full py-3.5 px-6 rounded-xl bg-[#004182] hover:bg-blue-900 text-white font-extrabold text-sm sm:text-base shadow-md hover:shadow-lg transition-all transform active:scale-98 flex items-center justify-center ${isSubmitting ? 'opacity-70 cursor-not-allowed' : 'cursor-pointer'}`}
+                      className="w-full py-3.5 shadow-md hover:shadow-lg font-extrabold text-sm sm:text-base"
                     >
-                      {isSubmitting ? (
-                        <>
-                          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-                          Đang lưu hồ sơ...
-                        </>
-                      ) : (
-                        <>
-                          <Check size={20} className="mr-2 stroke-[3px]" /> 
-                          {isRenew 
-                            ? (type === 'BHXH' ? (bhxhActionType === 'Tăng mới' ? 'Xác Nhận Đóng Tăng Mới' : 'Xác Nhận Gia Hạn') : 'Xác Nhận Gia Hạn') 
-                            : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
-                        </>
-                      )}
-                    </button>
-                    <button 
+                      <Check size={20} className="mr-2 stroke-[3px]" /> 
+                      {isRenew 
+                        ? (type === 'BHXH' ? (bhxhActionType === 'Tăng mới' ? 'Xác Nhận Đóng Tăng Mới' : 'Xác Nhận Gia Hạn') : 'Xác Nhận Gia Hạn') 
+                        : (record ? 'Lưu & Cập Nhật' : 'Lưu & Xác Nhận')}
+                    </Button>
+
+                    <Button 
                       type="button" 
+                      variant="secondary"
+                      size="md"
                       disabled={isSubmitting}
                       onClick={onClose} 
-                      className="w-full py-2.5 px-4 rounded-xl text-gray-600 hover:text-gray-900 font-bold hover:bg-gray-200/60 transition border border-gray-200 bg-white cursor-pointer text-sm text-center disabled:opacity-50"
+                      className="w-full py-2.5 font-bold"
                     >
                       Hủy bỏ
-                    </button>
+                    </Button>
+
+                    {/* Nút quay lại bước 2 trên mobile */}
+                    <div className="lg:hidden pt-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setCurrentStep(2)}
+                        leftIcon={<ArrowLeft size={14} />}
+                        className="w-full text-slate-500 hover:text-slate-800"
+                      >
+                        Quay lại Bước 2 (Chỉnh sửa mức đóng)
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>

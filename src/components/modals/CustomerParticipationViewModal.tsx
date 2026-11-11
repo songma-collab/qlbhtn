@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { PolicyHelpBadge } from '../ui/Tooltip';
 import {
   extractAgencyPeriods,
   transferCustomerTo1Lan,
@@ -284,9 +285,14 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
           {/* Tiến trình hỗ trợ NSNN 10 năm */}
           <div className="p-4 rounded-2xl bg-gradient-to-r from-blue-50/80 via-indigo-50/40 to-white border border-blue-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5">
+              <div className="text-xs font-bold text-blue-900 flex items-center gap-1.5 flex-wrap">
                 <Info size={15} className="text-blue-600 shrink-0" />
                 <span>Tiến trình hưởng hỗ trợ tiền đóng từ Ngân sách Nhà nước (Trần tối đa 10 năm = 120 tháng)</span>
+                <PolicyHelpBadge
+                  title="Trần hỗ trợ 10 năm NSNN"
+                  lawRef="Khoản 1 Điều 36 Luật BHXH 2024"
+                  content="Căn cứ Khoản 1 Điều 36 Luật BHXH 2024: Người tham gia BHXH tự nguyện được Nhà nước hỗ trợ tiền đóng theo tỷ lệ phần trăm trên mức chuẩn hộ nghèo của khu vực nông thôn trong thời gian tối đa là 10 năm (120 tháng) trong suốt cuộc đời."
+                />
               </div>
               <div className="text-xs text-gray-500 mt-1 leading-relaxed">
                 Tổng số tháng tự nguyện tích lũy: <strong className="text-blue-700">{totalVoluntary} tháng</strong> (Nơi khác: {priorVoluntaryMonths} th + Đại lý này: {agencyMonths} th)
