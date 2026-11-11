@@ -8,32 +8,32 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variantStyles: Record<NonNullable<BadgeProps['variant']>, { container: string; dot: string }> = {
   default: {
-    container: 'bg-slate-100 text-slate-700 border-slate-200',
-    dot: 'bg-slate-400',
+    container: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+    dot: 'bg-slate-400 dark:bg-slate-500',
   },
   primary: {
-    container: 'bg-blue-50 text-[#004182] border-blue-200/80',
-    dot: 'bg-[#004182]',
+    container: 'bg-blue-50 text-[#004182] border-blue-200/80 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    dot: 'bg-[#004182] dark:bg-sky-400',
   },
   success: {
-    container: 'bg-emerald-50 text-emerald-700 border-emerald-200/80',
-    dot: 'bg-emerald-500',
+    container: 'bg-emerald-50 text-emerald-700 border-emerald-200/80 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/60',
+    dot: 'bg-emerald-500 dark:bg-emerald-400',
   },
   warning: {
-    container: 'bg-amber-50 text-amber-800 border-amber-200/80',
-    dot: 'bg-amber-500',
+    container: 'bg-amber-50 text-amber-800 border-amber-200/80 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/60',
+    dot: 'bg-amber-500 dark:bg-amber-400',
   },
   danger: {
-    container: 'bg-rose-50 text-rose-700 border-rose-200/80',
-    dot: 'bg-rose-500',
+    container: 'bg-rose-50 text-rose-700 border-rose-200/80 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-900/60',
+    dot: 'bg-rose-500 dark:bg-rose-400',
   },
   info: {
-    container: 'bg-sky-50 text-sky-700 border-sky-200/80',
-    dot: 'bg-sky-500',
+    container: 'bg-sky-50 text-sky-700 border-sky-200/80 dark:bg-sky-950/40 dark:text-sky-300 dark:border-sky-900/60',
+    dot: 'bg-sky-500 dark:bg-sky-400',
   },
   purple: {
-    container: 'bg-purple-50 text-purple-700 border-purple-200/80',
-    dot: 'bg-purple-500',
+    container: 'bg-purple-50 text-purple-700 border-purple-200/80 dark:bg-purple-950/40 dark:text-purple-300 dark:border-purple-900/60',
+    dot: 'bg-purple-500 dark:bg-purple-400',
   },
 };
 

@@ -1,19 +1,88 @@
 @import "tailwindcss";
 
+:root {
+  /* ==========================================================================
+     SEMANTIC DESIGN TOKENS (LIGHT THEME - DEFAULT)
+     ========================================================================== */
+  --canvas-subtle: #EEF2F6;
+  --surface-panel: #FFFFFF;
+  --surface-panel-subtle: #F8FAFC;
+  --surface-border: #CBD5E1;
+  --surface-border-subtle: #E2E8F0;
+
+  --brand-primary: #004182;
+  --brand-primary-hover: #003166;
+  --brand-primary-light: #E6F0FA;
+  --brand-accent: #0EA5E9;
+  --brand-accent-hover: #0284C7;
+  --brand-success: #10B981;
+  --brand-warning: #F59E0B;
+  --brand-danger: #EF4444;
+
+  --text-strong: #0F172A;
+  --text-medium: #334155;
+  --text-muted: #64748B;
+  --text-inverse: #FFFFFF;
+}
+
+.dark, [data-theme="dark"] {
+  /* ==========================================================================
+     SEMANTIC DESIGN TOKENS (DARK THEME - READY)
+     ========================================================================== */
+  --canvas-subtle: #0B1120;
+  --surface-panel: #1E293B;
+  --surface-panel-subtle: #0F172A;
+  --surface-border: #334155;
+  --surface-border-subtle: #1E293B;
+
+  --brand-primary: #38BDF8;
+  --brand-primary-hover: #0EA5E9;
+  --brand-primary-light: rgba(56, 189, 248, 0.15);
+  --brand-accent: #38BDF8;
+  --brand-accent-hover: #7DD3FC;
+  --brand-success: #34D399;
+  --brand-warning: #FBBF24;
+  --brand-danger: #F87171;
+
+  --text-strong: #F8FAFC;
+  --text-medium: #CBD5E1;
+  --text-muted: #94A3B8;
+  --text-inverse: #0F172A;
+}
+
 @theme {
-  --color-primary: #004182;
-  --color-primary-dark: #002b5a;
+  --color-primary: var(--brand-primary);
+  --color-primary-dark: var(--brand-primary-hover);
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-hover: var(--brand-primary-hover);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-accent: var(--brand-accent);
+  --color-brand-success: var(--brand-success);
+  --color-brand-warning: var(--brand-warning);
+  --color-brand-danger: var(--brand-danger);
+
+  --color-canvas-subtle: var(--canvas-subtle);
+  --color-surface-panel: var(--surface-panel);
+  --color-surface-panel-subtle: var(--surface-panel-subtle);
+  --color-surface-border: var(--surface-border);
+  --color-surface-border-subtle: var(--surface-border-subtle);
+
+  --color-content-strong: var(--text-strong);
+  --color-content-medium: var(--text-medium);
+  --color-content-muted: var(--text-muted);
+  --color-content-inverse: var(--text-inverse);
+
   --color-secondary: #006d30;
   --color-secondary-bright: #22c55e;
   --color-on-primary: #ffffff;
-  --color-surface: #f8f9ff;
-  --color-surface-card: #ffffff;
+  --color-surface: var(--surface-panel-subtle);
+  --color-surface-card: var(--surface-panel);
   --color-tertiary-fixed: #ffdea6;
   --color-tertiary-fixed-dim: #ffbb16;
-  --color-on-surface: #0b1c30;
-  --color-on-surface-variant: #424750;
-  --color-outline-variant: #c3c6d2;
-  --color-border-subtle: #E2E8F0;
+  --color-on-surface: var(--text-strong);
+  --color-on-surface-variant: var(--text-medium);
+  --color-outline-variant: var(--surface-border);
+  --color-border-subtle: var(--surface-border-subtle);
   --color-status-info: #0EA5E9;
   --color-surface-container: #e5eeff;
   --color-status-error: #BE123C;
@@ -53,7 +122,9 @@ body {
   -webkit-font-smoothing: subpixel-antialiased;
   -moz-osx-font-smoothing: auto;
   text-rendering: optimizeLegibility;
-  color: #0f172a;
+  background-color: var(--canvas-subtle, #eef2f6);
+  color: var(--text-strong, #0f172a);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Nâng cấp các kích thước font cố định siêu nhỏ để sắc nét, không bị subpixel blur */
@@ -76,32 +147,32 @@ body {
   width: 6px;
 }
 .custom-scrollbar::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: var(--surface-panel-subtle, #f1f5f9);
   border-radius: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: var(--surface-border, #cbd5e1);
   border-radius: 8px;
 }
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: var(--text-muted, #94a3b8);
 }
 
-/* Standard Admin Portal UI Classes */
+/* Standard Admin Portal UI Classes with Design Token Fallbacks */
 .admin-canvas {
-  background-color: #eef2f6;
+  background-color: var(--canvas-subtle, #eef2f6);
 }
 
 .admin-card {
-  background-color: #ffffff;
+  background-color: var(--surface-panel, #ffffff);
   border-radius: 1rem;
-  border: 1px solid #cbd5e1;
+  border: 1px solid var(--surface-border, #cbd5e1);
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.05);
 }
 
 .admin-table-container {
-  background-color: #ffffff;
-  border: 1px solid #cbd5e1;
+  background-color: var(--surface-panel, #ffffff);
+  border: 1px solid var(--surface-border, #cbd5e1);
   border-radius: 0.75rem;
   overflow: hidden;
   box-shadow: 0 1px 3px 0 rgba(15, 23, 42, 0.04);

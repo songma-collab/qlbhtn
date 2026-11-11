@@ -12,6 +12,7 @@ import { formatMoney, formatDateVN, formatMonthVN, getInitials, prepareRenewalRe
 import { hasPermission } from '../utils/permissions';
 import { getTabFromPathname, getPathFromTab } from '../utils/adminRoutes';
 import { ModuleLoadingSkeleton } from './common/Skeleton';
+import { ThemeToggle } from './ui';
 
 import { lazyWithRetry } from '../utils/lazyWithRetry';
 
@@ -612,6 +613,9 @@ const AdminView = () => {
               <Home size={16} />
               Cổng Dịch Vụ
             </button>
+
+            {/* Theme Toggle Button (Light / Dark Mode) */}
+            <ThemeToggle variant="icon" />
             
             {/* Notification Dropdown Container */}
             <div className="relative dropdown-container">

@@ -17,6 +17,7 @@ import { NetworkStatusBanner } from './components/common/NetworkStatusBanner';
 import { CommandPaletteModal } from './components/modals/CommandPaletteModal';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
+import { initTheme } from './utils/theme';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -86,13 +87,18 @@ const AppContent = () => {
   });
 
   React.useEffect(() => {
+    const cleanupTheme = initTheme();
+    return cleanupTheme;
+  }, []);
+
+  React.useEffect(() => {
     if (scrollContainerRef.current && !isAdminRoute) {
       scrollContainerRef.current.scrollTop = 0;
     }
   }, [location.pathname, isAdminRoute]);
 
   return (
-    <div className="text-slate-900 subpixel-antialiased h-screen flex flex-col overflow-hidden bg-[#eef2f6]">
+    <div className="text-slate-900 dark:text-slate-100 subpixel-antialiased h-screen flex flex-col overflow-hidden bg-canvas-subtle transition-colors duration-150">
       <NetworkStatusBanner />
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative flex flex-col">
         {!isAdminRoute && <Navbar />}
