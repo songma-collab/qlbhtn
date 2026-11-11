@@ -226,11 +226,14 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
   const isOver10Years = supportedBhxhMonths >= 120;
 
   return (
-    <div className="fixed inset-0 bg-[#004182]/70 backdrop-blur-sm z-[200] flex items-center justify-center p-4 transition-opacity duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-transform duration-300 flex flex-col max-h-[90vh]">
-        <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] p-5 flex justify-between items-center text-white">
+    <div className="fixed inset-0 bg-[#004182]/70 dark:bg-slate-950/80 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300">
+      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all duration-300 flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-bottom-sheet sm:animate-none">
+        {/* Mobile Pull Handle */}
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
+
+        <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] dark:from-slate-900 dark:to-slate-800 p-5 flex justify-between items-center text-white shrink-0">
           <h3 className="font-bold text-xl flex items-center"><Search size={20} className="mr-2" /> Kết Quả Tra Cứu Quá Trình</h3>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors">
+          <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors cursor-pointer">
             <X size={24} />
           </button>
         </div>

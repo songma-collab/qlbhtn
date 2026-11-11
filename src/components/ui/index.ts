@@ -6,3 +6,4 @@ export * from './Badge';
 export * from './Card';
 export * from './Tooltip';
 export * from './ThemeToggle';
+export * from './Modal';

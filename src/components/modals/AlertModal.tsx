@@ -60,17 +60,20 @@ const AlertModal: React.FC = () => {
 
   return createPortal(
     <div 
-      className="fixed inset-0 bg-[#004182]/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn"
+      className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[9999] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300 animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) closeAlert();
       }}
     >
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-transform duration-300 border border-slate-100">
+      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all duration-300 border border-slate-100 dark:border-slate-700/80 animate-bottom-sheet sm:animate-none">
+        {/* Mobile Drag Handle */}
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mt-3 sm:hidden" />
+
         <div className="p-6 text-center relative">
           <button 
             type="button" 
             onClick={closeAlert} 
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition"
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
             title="Đóng"
           >
             <X size={20} />
@@ -80,11 +83,11 @@ const AlertModal: React.FC = () => {
             {icon}
           </div>
 
-          <h3 className={`text-lg sm:text-xl font-bold mb-2 ${titleColor}`}>
+          <h3 className={`text-lg sm:text-xl font-bold mb-2 ${titleColor} dark:text-sky-400`}>
             {alertModalConfig.title}
           </h3>
           
-          <p className="text-gray-600 text-xs sm:text-sm mb-6 leading-relaxed whitespace-pre-line font-medium">
+          <p className="text-gray-600 dark:text-gray-300 text-xs sm:text-sm mb-6 leading-relaxed whitespace-pre-line font-medium">
             {alertModalConfig.message}
           </p>
           

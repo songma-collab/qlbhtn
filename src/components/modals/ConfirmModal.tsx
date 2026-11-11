@@ -53,13 +53,21 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   const { iconBg, icon, btnVariant } = getVariantStyles();
 
   return (
-    <div className="fixed inset-0 bg-[#004182]/70 backdrop-blur-xs z-[200] flex items-center justify-center p-4 transition-opacity duration-300 animate-fadeIn">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all duration-300 border border-slate-100 p-6 text-center">
+    <div 
+      className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300 animate-fadeIn"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all duration-300 border border-slate-100 dark:border-slate-700/80 p-6 text-center animate-bottom-sheet sm:animate-none">
+        {/* Mobile Drag Handle */}
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-4 sm:hidden" />
+
         <div className={`w-16 h-16 rounded-2xl ${iconBg} mx-auto flex items-center justify-center mb-4 shadow-inner`}>
           {icon}
         </div>
-        <h3 className="text-lg sm:text-xl font-black text-[#004182] mb-2">{title}</h3>
-        <p className="text-slate-600 text-xs sm:text-sm font-medium leading-relaxed mb-6">{message}</p>
+        <h3 className="text-lg sm:text-xl font-black text-[#004182] dark:text-sky-400 mb-2">{title}</h3>
+        <p className="text-slate-600 dark:text-slate-300 text-xs sm:text-sm font-medium leading-relaxed mb-6">{message}</p>
         <div className="flex flex-col sm:flex-row gap-2.5 justify-center">
           <Button 
             variant="secondary" 

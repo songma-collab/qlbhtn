@@ -160,8 +160,10 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto animate-fade-in">
-      <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-auto">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs overflow-y-auto animate-fade-in">
+      <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-0 sm:my-auto animate-bottom-sheet sm:animate-none">
+        {/* Mobile Pull Handle */}
+        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
         
         {/* Modal Header */}
         <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50/50 via-white to-blue-50/40">

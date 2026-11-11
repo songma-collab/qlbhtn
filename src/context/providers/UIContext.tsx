@@ -37,6 +37,7 @@ export interface ToastConfig {
   type: ToastType;
   duration?: number | undefined;
   timestamp?: number | undefined;
+  action?: ToastAction | undefined;
 }
 
 export interface GlobalRegisterModalState {
@@ -88,9 +89,10 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     return 'dashboard';
   });
   const [crmFilter, setCrmFilterState] = useState<string>('ALL');
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [toastConfig, setToastConfig] = useState<ToastConfig | null>(null);
-  const toasts = useMemo(() => (toastConfig ? [toastConfig] : []), [toastConfig]);
+  const [toastsList, setToastsList] = useState<ToastConfig[]>([]);
+  const toastConfig = useMemo(() => toastsList[toastsList.length - 1] || null, [toastsList]);
+  const toastMessage = useMemo(() => toastConfig?.message || null, [toastConfig]);
+  const toasts = toastsList;
   const [alertModalConfig, setAlertModalConfig] = useState<AlertModalConfig | null>(null);
   const [promptModalConfig, setPromptModalConfig] = useState<PromptModalConfig | null>(null);
   const [globalRegisterModal, setGlobalRegisterModal] = useState<GlobalRegisterModalState>({
@@ -106,54 +108,65 @@ export const UIProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     setCrmFilterState(filter);
   }, []);
 
-  const hideToast = useCallback((_id?: string) => {
-    setToastConfig(null);
-    setToastMessage(null);
+  const hideToast = useCallback((id?: string) => {
+    if (!id) {
+      setToastsList([]);
+      return;
+    }
+    setToastsList(prev => prev.filter(t => t.id !== id));
   }, []);
 
   const showToast = useCallback((
     msg: string, 
     typeOrOptions?: ToastType | string | { 
       type?: ToastType; 
+      action?: ToastAction;
       duration?: number;
       title?: string;
-    }
+    },
+    actionParam?: ToastAction
   ) => {
     const validTypes: ToastType[] = ['success', 'error', 'warning', 'info'];
     let type: ToastType = 'success';
     let duration = 4000;
     let title: string | undefined;
+    let action: ToastAction | undefined = actionParam;
 
     if (typeof typeOrOptions === 'object' && typeOrOptions !== null) {
       if (typeOrOptions.type && validTypes.includes(typeOrOptions.type)) {
         type = typeOrOptions.type;
       }
-      if (typeOrOptions.duration) {
+      if (typeOrOptions.duration !== undefined) {
         duration = typeOrOptions.duration;
       }
       if (typeOrOptions.title) {
         title = typeOrOptions.title;
       }
+      if (typeOrOptions.action) {
+        action = typeOrOptions.action;
+      }
     } else if (typeof typeOrOptions === 'string') {
       type = validTypes.includes(typeOrOptions as ToastType) ? (typeOrOptions as ToastType) : 'success';
     }
 
-    const currentToast: ToastConfig = {
-      id: `${Date.now()}`,
+    const toastId = `${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    const newToast: ToastConfig = {
+      id: toastId,
       message: msg,
       title,
       type,
       duration,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      action
     };
 
-    setToastMessage(msg);
-    setToastConfig(currentToast);
+    setToastsList(prev => [...prev.slice(-3), newToast]);
 
-    setTimeout(() => {
-      setToastConfig(prev => (prev?.id === currentToast.id ? null : prev));
-      setToastMessage(prev => (prev === msg ? null : prev));
-    }, duration);
+    if (duration > 0) {
+      setTimeout(() => {
+        setToastsList(prev => prev.filter(t => t.id !== toastId));
+      }, duration);
+    }
   }, []);
 
   const showAlert = useCallback((

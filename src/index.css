@@ -223,3 +223,35 @@ body {
   background-size: 200% 100%;
   animation: shimmerWave 1.6s infinite ease-in-out;
 }
+
+/* Animation trượt Bottom Sheet từ dưới lên trên Mobile (Phase 5 Micro-interactions) */
+@keyframes bottomSheetSlideUp {
+  0% {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-bottom-sheet {
+  animation: bottomSheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Animation xếp tầng Toast Notification */
+@keyframes toastStackIn {
+  0% {
+    transform: translateY(16px) scale(0.96);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-toast-stack {
+  animation: toastStackIn 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

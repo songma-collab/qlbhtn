@@ -1270,11 +1270,14 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
     : 'bg-tertiary-fixed-dim/90 text-primary-dark font-bold';
 
   return createPortal(
-    <div className="fixed inset-0 bg-primary/70 backdrop-blur-sm z-[100] overflow-y-auto w-full h-full transition-opacity duration-300">
-      <div className="min-h-full flex items-start justify-center p-2 sm:p-4 md:p-6 lg:p-8">
-        <div className="bg-white text-gray-800 rounded-2xl sm:rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl overflow-hidden transform transition-transform duration-300 flex flex-col relative border border-gray-200 my-auto">
+    <div className="fixed inset-0 bg-primary/70 dark:bg-slate-950/80 backdrop-blur-sm z-[100] overflow-y-auto w-full h-full transition-opacity duration-300">
+      <div className="min-h-full flex items-end sm:items-start justify-center p-0 sm:p-4 md:p-6 lg:p-8">
+        <div className="bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl overflow-hidden transform transition-all duration-300 flex flex-col relative border border-gray-200 dark:border-slate-700 my-0 sm:my-auto animate-bottom-sheet sm:animate-none">
+          {/* Mobile Pull Handle */}
+          <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
+
           {/* Header */}
-          <div className="bg-[#004182] px-5 sm:px-7 py-4 flex justify-between items-center text-white shrink-0 shadow-sm relative z-10">
+          <div className="bg-[#004182] dark:bg-slate-900 px-5 sm:px-7 py-4 flex justify-between items-center text-white shrink-0 shadow-sm relative z-10">
             <div>
               <h3 className="font-display text-lg md:text-xl font-extrabold leading-tight mb-0.5">{title}</h3>
               <span className={`text-[11px] px-2.5 py-0.5 rounded-full inline-block font-bold ${subtitleClass}`}>{subtitleText}</span>
