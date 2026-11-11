@@ -1,6 +1,7 @@
 import React from 'react';
 import { Search, X, RotateCcw, Send, Clock, AlertTriangle, Layers } from 'lucide-react';
 import { RecordFilterState } from '../../utils/recordFilters';
+import { Button } from '../ui/Button';
 
 interface RecordFilterToolbarProps {
   filterState: RecordFilterState;
@@ -271,18 +272,19 @@ export const RecordFilterToolbar: React.FC<RecordFilterToolbarProps> = ({
         )}
 
         {/* 6. Nút Đặt lại bộ lọc (Reset Filters) */}
-        <button
+        <Button
           id="btn-reset-filters"
-          type="button"
+          variant="outline"
+          size="icon"
           onClick={() => {
             onReset();
             if (onPageReset) onPageReset();
           }}
-          className="h-10 w-10 text-slate-600 hover:text-[#004182] bg-white hover:bg-slate-50 rounded-xl border border-slate-300 transition shadow-2xs flex items-center justify-center shrink-0 cursor-pointer"
+          className="h-10 w-10 text-slate-600 hover:text-[#004182] bg-white hover:bg-slate-50 rounded-xl border border-slate-300 transition shadow-2xs shrink-0 cursor-pointer"
           title="Đặt lại bộ lọc về mặc định"
         >
           <RotateCcw size={16} />
-        </button>
+        </Button>
       </div>
     </div>
   );

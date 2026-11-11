@@ -2,6 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 import { X, AlertTriangle, CheckCircle2, XCircle, Info } from 'lucide-react';
+import { Button } from '../ui/Button';
 
 const AlertModal: React.FC = () => {
   const { alertModalConfig, closeAlert } = useAppContext();
@@ -87,13 +88,14 @@ const AlertModal: React.FC = () => {
             {alertModalConfig.message}
           </p>
           
-          <button 
-            type="button" 
+          <Button 
+            variant={type === 'error' ? 'danger' : type === 'warning' ? 'warning' : type === 'success' ? 'success' : 'primary'}
+            size="md"
             onClick={handleConfirm} 
-            className={`w-full px-5 py-2.5 rounded-xl font-bold text-white shadow-md transition transform active:scale-95 cursor-pointer ${btnColor}`}
+            className="w-full shadow-md"
           >
             Đã hiểu
-          </button>
+          </Button>
         </div>
       </div>
     </div>,

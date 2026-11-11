@@ -74,6 +74,7 @@ import { hasPermission } from '../../utils/permissions';
 import { CustomerDirectoryCard } from './crm/CustomerDirectoryCard';
 import { CustomerTableView } from './crm/CustomerTableView';
 import { CustomerTableSkeleton, CustomerDirectorySkeleton } from '../common/Skeleton';
+import { Button } from '../ui/Button';
 import { AssignStaffModal } from './crm/AssignStaffModal';
 import { ExcelImportConfirmModal } from './crm/ExcelImportConfirmModal';
 
@@ -998,29 +999,30 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           {selectedIds.length > 0 && (
             <>
               {currentUser?.role !== 'Nhân viên' && (
-                <button
-                  type="button"
+                <Button
+                  variant="secondary"
+                  size="sm"
                   onClick={() => openAssignModal()}
-                  className="bg-purple-50 text-purple-700 border border-purple-200 hover:bg-purple-100 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                  leftIcon={<UserPlus size={15} />}
+                  className="bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
                 >
-                  <UserPlus size={15} className="mr-1" />
-                  <span>Phân công ({selectedIds.length})</span>
-                </button>
+                  Phân công ({selectedIds.length})
+                </Button>
               )}
-              <button
-                type="button"
+              <Button
+                variant="danger"
+                size="sm"
                 onClick={confirmBulkDelete}
-                className="bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                leftIcon={<Trash2 size={15} />}
               >
-                <Trash2 size={15} className="mr-1" />
-                <span>Xóa ({selectedIds.length})</span>
-              </button>
+                Xóa ({selectedIds.length})
+              </Button>
             </>
           )}
 
           {/* Nhập/Xuất Excel */}
           {canCreateCustomer && (
-            <label className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs">
+            <label className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-1.5 rounded-lg font-semibold transition text-xs flex items-center cursor-pointer shadow-2xs active:scale-[0.98]">
               <FileUp size={15} className="mr-1 text-slate-600" />
               <span>Nhập Excel</span>
               <input type="file" accept=".xlsx, .xls, .csv" className="hidden" ref={fileInputRef} onChange={importExcel} />
@@ -1028,50 +1030,50 @@ export const CRMView: React.FC<CRMViewProps> = ({ type = 'ALL' }) => {
           )}
           {canExportCustomers && (
             <>
-              <button
-                type="button"
+              <Button
+                variant="outline"
+                size="sm"
                 onClick={exportExcel}
-                className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                leftIcon={<FileDown size={15} className="text-slate-600" />}
                 title="Xuất dữ liệu Excel"
               >
-                <FileDown size={15} className="mr-1 text-slate-600" />
-                <span>Dữ Liệu Thô {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
-              </button>
+                Dữ Liệu Thô {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+              </Button>
               {(selectedType === 'BHYT' || selectedType === 'ALL') && (
-                <button
-                  type="button"
+                <Button
+                  variant="success"
+                  size="sm"
                   onClick={handleExportD03TS}
-                  className="bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                  leftIcon={<FileDown size={15} className="text-emerald-600" />}
                   title="Xuất mẫu D03-TS chuẩn BHXH VN"
                 >
-                  <FileDown size={15} className="mr-1 text-emerald-600" />
-                  <span>Mẫu D03-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
-                </button>
+                  Mẫu D03-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </Button>
               )}
               {(selectedType === 'BHXH' || selectedType === 'ALL') && (
-                <button
-                  type="button"
+                <Button
+                  variant="primary"
+                  size="sm"
                   onClick={handleExportD05TS}
-                  className="bg-blue-50 text-[#004182] border border-blue-200 hover:bg-blue-100 px-3 py-2 rounded-xl font-semibold transition text-xs flex items-center cursor-pointer shadow-xs"
+                  leftIcon={<FileDown size={15} />}
                   title="Xuất mẫu D05-TS chuẩn BHXH VN"
                 >
-                  <FileDown size={15} className="mr-1 text-[#004182]" />
-                  <span>Mẫu D05-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}</span>
-                </button>
+                  Mẫu D05-TS {selectedIds.length > 0 ? `(${selectedIds.length})` : ''}
+                </Button>
               )}
             </>
           )}
 
           {/* Thêm mới hồ sơ */}
           {canCreateCustomer && (
-            <button
-              type="button"
+            <Button
+              variant="primary"
+              size="sm"
               onClick={() => openRegisterModal(selectedType === 'BHYT' ? 'BHYT' : 'BHXH')}
-              className="bg-[#004182] hover:bg-[#003166] text-white px-3.5 py-2 rounded-xl font-semibold transition shadow-xs flex items-center text-xs cursor-pointer active:scale-[0.98]"
+              leftIcon={<Plus size={15} />}
             >
-              <Plus size={15} className="mr-1" />
-              <span>Thêm {selectedType === 'ALL' ? 'Hồ Sơ' : selectedType}</span>
-            </button>
+              Thêm {selectedType === 'ALL' ? 'Hồ Sơ' : selectedType}
+            </Button>
           )}
         </div>
       </div>
