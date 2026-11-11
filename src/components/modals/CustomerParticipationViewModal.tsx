@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { CustomerType, RecordType } from '../../context/types';
 import {
   X,
@@ -145,6 +146,20 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
   const isSupportExpired = supportStats.isSupportExpired;
   const unsupportedBefore2018 = supportStats.voluntaryUnsupportedBefore2018Months;
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !customer) return null;
 
   const handleExport1Lan = () => {
@@ -159,45 +174,59 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
     onOpenEditModal(customer);
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs overflow-y-auto animate-fade-in">
-      <div className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700 w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden my-0 sm:my-auto animate-bottom-sheet sm:animate-none">
-        {/* Mobile Pull Handle */}
-        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
-        
-        {/* Modal Header */}
-        <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-teal-50/50 via-white to-blue-50/40">
-          <div className="flex items-center gap-3.5">
-            <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
-              <Eye size={24} className="text-teal-100" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-lg sm:text-xl font-black text-gray-900 leading-tight">
-                  Quá Trình Tham Gia BHXH Chi Tiết
-                </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 text-teal-800">
-                  Hồ sơ toàn diện
-                </span>
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[1000] overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl shadow-2xl border border-gray-100 dark:border-slate-700 w-full max-w-4xl max-h-[88vh] sm:max-h-[85vh] flex flex-col overflow-hidden my-0 sm:my-auto animate-bottom-sheet sm:animate-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Mobile Pull Handle */}
+          <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
+          
+          {/* Modal Header */}
+          <div className="p-5 sm:p-6 border-b border-gray-100 dark:border-slate-700/80 flex items-center justify-between bg-gradient-to-r from-teal-50/50 via-white to-blue-50/40 dark:from-slate-800 dark:to-slate-900 shrink-0">
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-teal-600 text-white flex items-center justify-center shadow-md shadow-teal-500/20 shrink-0">
+                <Eye size={24} className="text-teal-100" />
               </div>
-              <p className="text-xs text-gray-500 mt-0.5">
-                Bao gồm toàn bộ thời gian trước đây và các kỳ đóng phát sinh tại đại lý này
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-black text-gray-900 dark:text-slate-100 leading-tight">
+                    Quá Trình Tham Gia BHXH Chi Tiết
+                  </h2>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-teal-100 dark:bg-teal-900/60 text-teal-800 dark:text-teal-200">
+                    Hồ sơ toàn diện
+                  </span>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  Bao gồm toàn bộ thời gian trước đây và các kỳ đóng phát sinh tại đại lý này
+                </p>
+              </div>
             </div>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-500 hover:text-gray-800 dark:text-gray-300 dark:hover:text-white flex items-center justify-center transition cursor-pointer"
+              title="Đóng cửa sổ"
+            >
+              <X size={20} />
+            </button>
           </div>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-10 h-10 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-500 hover:text-gray-800 flex items-center justify-center transition cursor-pointer"
-            title="Đóng cửa sổ"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Modal Body */}
-        <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 text-gray-700">
+          {/* Modal Body */}
+          <div className="p-5 sm:p-6 overflow-y-auto space-y-6 flex-1 min-h-0 text-gray-700 dark:text-gray-200 custom-scrollbar">
           
           {/* Thông tin định danh khách hàng */}
           <div className="bg-slate-50/80 rounded-2xl p-4 sm:p-5 border border-slate-200/60 flex flex-wrap items-center justify-between gap-4">
@@ -528,9 +557,9 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
         </div>
 
         {/* Modal Footer */}
-        <div className="p-4 sm:p-5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/50">
-          <div className="text-xs text-gray-500 font-medium">
-            Tổng cộng: <strong className="text-gray-900">{totalAccumulated} tháng</strong> đóng BHXH ({priorPeriods.length} giai đoạn ngoài, {agencyPeriods.length} giai đoạn tại đại lý)
+        <div className="p-4 sm:p-5 border-t border-gray-100 dark:border-slate-700/80 flex flex-col sm:flex-row items-center justify-between gap-3 bg-gray-50/50 dark:bg-slate-900/40 shrink-0">
+          <div className="text-xs text-gray-500 dark:text-gray-400 font-medium">
+            Tổng cộng: <strong className="text-gray-900 dark:text-slate-100">{totalAccumulated} tháng</strong> đóng BHXH ({priorPeriods.length} giai đoạn ngoài, {agencyPeriods.length} giai đoạn tại đại lý)
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto justify-end">
@@ -547,7 +576,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
             <button
               type="button"
               onClick={handleEditClick}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-bold text-xs sm:text-sm flex items-center justify-center gap-1.5 transition cursor-pointer"
             >
               <Edit size={15} />
               <span>Cập nhật hồ sơ</span>
@@ -556,7 +585,7 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
             <button
               type="button"
               onClick={onClose}
-              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white border border-gray-200 hover:bg-gray-100 text-gray-700 font-bold text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
+              className="w-full sm:w-auto px-4 py-2.5 rounded-2xl bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 hover:bg-gray-100 dark:hover:bg-slate-600 text-gray-700 dark:text-gray-200 font-bold text-xs sm:text-sm flex items-center justify-center transition cursor-pointer"
             >
               Đóng
             </button>
@@ -565,5 +594,12 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
 
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, History, X, ShieldCheck } from 'lucide-react';
 import {
   formatMonthVN,
@@ -218,6 +219,20 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
     supportedBhxhMonths += supp;
   }
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   const bhxhYears = Math.floor(totalBhxhMonths / 12);
   const bhxhRemMonths = totalBhxhMonths % 12;
   const bhxhTimeStr = bhxhYears > 0 
@@ -225,19 +240,33 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
     : `${totalBhxhMonths} tháng`;
   const isOver10Years = supportedBhxhMonths >= 120;
 
-  return (
-    <div className="fixed inset-0 bg-[#004182]/70 dark:bg-slate-950/80 backdrop-blur-sm z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300">
-      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all duration-300 flex flex-col max-h-[92vh] sm:max-h-[90vh] animate-bottom-sheet sm:animate-none">
-        {/* Mobile Pull Handle */}
-        <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[1000] overflow-y-auto bg-[#004182]/70 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6 lg:p-8"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden transform transition-all duration-300 flex flex-col max-h-[88vh] sm:max-h-[85vh] my-0 sm:my-auto animate-bottom-sheet sm:animate-none"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Mobile Pull Handle */}
+          <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto my-2.5 sm:hidden" />
 
-        <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] dark:from-slate-900 dark:to-slate-800 p-5 flex justify-between items-center text-white shrink-0">
-          <h3 className="font-bold text-xl flex items-center"><Search size={20} className="mr-2" /> Kết Quả Tra Cứu Quá Trình</h3>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors cursor-pointer">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar bg-gray-50">
+          <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] dark:from-slate-900 dark:to-slate-800 p-5 flex justify-between items-center text-white shrink-0">
+            <h3 className="font-bold text-xl flex items-center"><Search size={20} className="mr-2" /> Kết Quả Tra Cứu Quá Trình</h3>
+            <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors cursor-pointer" title="Đóng">
+              <X size={24} />
+            </button>
+          </div>
+          <div className="p-6 md:p-8 overflow-y-auto flex-1 min-h-0 custom-scrollbar bg-gray-50 dark:bg-slate-900/40 text-gray-700 dark:text-gray-200">
           {/* Khối thẻ thông tin khách hàng tổng quan */}
           <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm mb-6 space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -590,12 +619,19 @@ const SearchResultModal: React.FC<SearchResultModalProps> = ({ isOpen, onClose, 
             </div>
           </div>
         </div>
-        <div className="p-5 border-t border-gray-200 bg-white flex justify-end">
-          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl bg-gray-200 text-gray-700 font-bold hover:bg-gray-300 transition-all">Đóng</button>
+        <div className="p-5 border-t border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex justify-end shrink-0">
+          <button type="button" onClick={onClose} className="px-6 py-2.5 rounded-xl bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-gray-200 font-bold hover:bg-gray-300 dark:hover:bg-slate-600 transition-all cursor-pointer">Đóng</button>
         </div>
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default SearchResultModal;

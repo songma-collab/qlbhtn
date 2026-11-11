@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { StaffType } from '../../context/types';
 import { X, Phone, Mail, MapPin, Shield, CreditCard, Tag, CheckCircle2, Clock } from 'lucide-react';
 import { getInitials } from '../../utils/helpers';
@@ -10,13 +11,41 @@ interface UserProfileModalProps {
 }
 
 export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onClose, user }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !user) return null;
 
   const isActive = user.status === 'Đang hoạt động' || user.status === 'Hoạt động';
 
-  return (
-    <div className="fixed inset-0 bg-[#004182]/60 backdrop-blur-xs z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-[#004182]/60 dark:bg-slate-950/80 backdrop-blur-sm z-[1000] overflow-y-auto p-4 transition-opacity duration-200 animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-center justify-center p-0 sm:p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 rounded-3xl shadow-2xl border border-slate-100 dark:border-slate-700 max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200 my-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header with gradient banner */}
         <div className="bg-gradient-to-r from-[#004182] via-[#005ba4] to-[#0ea5e9] p-6 text-white relative">
           <button
@@ -111,7 +140,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
         </div>
 
         {/* Footer */}
-        <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
+        <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-100 dark:border-slate-700 flex justify-end shrink-0">
           <button
             type="button"
             onClick={onClose}
@@ -122,5 +151,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ isOpen, onCl
         </div>
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

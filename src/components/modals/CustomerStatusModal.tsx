@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertCircle, CheckCircle2, PauseCircle, ShieldAlert } from 'lucide-react';
 import type { RecordType } from '../../context/types';
 import { STOP_CONTRIBUTION_REASONS, type CustomerStatus } from '../../utils/customerStatus';
@@ -16,6 +17,20 @@ export const CustomerStatusModal: React.FC<CustomerStatusModalProps> = ({
   record,
   onConfirm
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !record) return null;
 
   const currentStatus = (record.status || 'Đang tham gia') as CustomerStatus;
@@ -51,9 +66,23 @@ export const CustomerStatusModal: React.FC<CustomerStatusModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fade-in">
-      <div className="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 overflow-hidden transform transition-all">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[1000] overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-2xl max-w-md w-full shadow-2xl border border-gray-100 dark:border-slate-700 overflow-hidden transform transition-all my-0 sm:my-auto animate-bottom-sheet sm:animate-none"
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-indigo-50/50">
           <div className="flex items-center gap-2.5">
@@ -232,5 +261,12 @@ export const CustomerStatusModal: React.FC<CustomerStatusModalProps> = ({
         </form>
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

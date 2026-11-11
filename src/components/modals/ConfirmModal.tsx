@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, RotateCcw } from 'lucide-react';
 import { Button } from '../ui/Button';
 
@@ -23,6 +24,20 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
   cancelText = "Hủy",
   variant = 'danger'
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
   const getVariantStyles = () => {
@@ -52,14 +67,17 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
 
   const { iconBg, icon, btnVariant } = getVariantStyles();
 
-  return (
+  const modalContent = (
     <div 
-      className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300 animate-fadeIn"
+      className="fixed inset-0 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm z-[1000] flex items-end sm:items-center justify-center p-0 sm:p-4 transition-opacity duration-300 animate-fadeIn"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
     >
-      <div className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all duration-300 border border-slate-100 dark:border-slate-700/80 p-6 text-center animate-bottom-sheet sm:animate-none">
+      <div 
+        className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden transform transition-all duration-300 border border-slate-100 dark:border-slate-700/80 p-6 text-center animate-bottom-sheet sm:animate-none"
+        onClick={(e) => e.stopPropagation()}
+      >
         {/* Mobile Drag Handle */}
         <div className="w-12 h-1.5 bg-slate-300 dark:bg-slate-600 rounded-full mx-auto mb-4 sm:hidden" />
 
@@ -92,6 +110,12 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ConfirmModal;

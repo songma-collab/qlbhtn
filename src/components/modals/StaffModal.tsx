@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 import { formatTitleCase } from '../../utils/helpers';
 import { validateStaffInput, checkZeroAdminRisk } from '../../utils/security';
@@ -38,6 +39,20 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
       }
     }
   }, [isOpen, staffId, staff]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -95,16 +110,30 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-[#004182]/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4 md:p-6 transition-opacity duration-300">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-transform duration-300 flex flex-col max-h-[90vh]">
-        <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] p-5 flex justify-between items-center text-white">
-          <h3 className="font-bold text-xl">{staffId ? 'Cập Nhật Thông Tin Nhân Viên' : 'Thêm Nhân Viên Mới'}</h3>
-          <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors">
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6 md:p-8 overflow-y-auto flex-1 custom-scrollbar">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 bg-[#004182]/70 dark:bg-slate-950/80 backdrop-blur-sm z-[1000] overflow-y-auto p-4 md:p-6 transition-opacity duration-300 animate-in fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-center justify-center p-0"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden transform transition-transform duration-300 flex flex-col max-h-[88vh] sm:max-h-[85vh] my-auto"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="bg-gradient-to-br from-[#004182] to-[#0077c8] dark:from-slate-900 dark:to-slate-800 p-5 flex justify-between items-center text-white shrink-0">
+            <h3 className="font-bold text-xl">{staffId ? 'Cập Nhật Thông Tin Nhân Viên' : 'Thêm Nhân Viên Mới'}</h3>
+            <button type="button" onClick={onClose} className="text-white/80 hover:text-white transition-colors cursor-pointer" title="Đóng">
+              <X size={24} />
+            </button>
+          </div>
+          <div className="p-6 md:p-8 overflow-y-auto flex-1 min-h-0 custom-scrollbar">
           <form onSubmit={handleSave}>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -155,8 +184,8 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
               </div>
             </div>
 
-            <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pt-5 border-t border-gray-200">
-              <button type="button" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 rounded-xl text-gray-600 font-bold hover:bg-gray-100 transition order-2 sm:order-1 disabled:opacity-50">Hủy bỏ</button>
+            <div className="flex flex-col sm:flex-row justify-end gap-3 sm:gap-4 mt-8 pt-5 border-t border-gray-200 dark:border-slate-700 shrink-0">
+              <button type="button" onClick={onClose} disabled={isSubmitting} className="w-full sm:w-auto px-6 py-3 rounded-xl text-gray-600 dark:text-gray-300 font-bold hover:bg-gray-100 dark:hover:bg-slate-700 transition order-2 sm:order-1 disabled:opacity-50">Hủy bỏ</button>
               <button type="submit" disabled={isSubmitting} className="w-full sm:w-auto px-8 py-3 rounded-xl bg-[#004182] text-white font-bold text-lg hover:bg-blue-800 shadow-lg transition transform active:scale-95 flex items-center justify-center order-1 sm:order-2 disabled:opacity-50">
                 <Save size={20} className="mr-2" /> {isSubmitting ? 'Đang lưu...' : 'Lưu Nhân Viên'}
               </button>
@@ -165,7 +194,14 @@ const StaffModal: React.FC<StaffModalProps> = ({ isOpen, onClose, staffId }) => 
         </div>
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default StaffModal;

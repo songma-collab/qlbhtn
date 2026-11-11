@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import {
@@ -516,11 +517,39 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen || !customer) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-fade-in overflow-y-auto">
-      <div className="bg-white rounded-3xl max-w-5xl w-full shadow-2xl border border-gray-100 flex flex-col my-auto max-h-[92vh] overflow-hidden">
+  const modalContent = (
+    <div 
+      className="fixed inset-0 z-[1000] overflow-y-auto bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-sm transition-opacity duration-300 animate-fade-in"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div 
+        className="min-h-full flex items-end sm:items-center justify-center p-0 sm:p-4 md:p-6"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) onClose();
+        }}
+      >
+        <div 
+          className="bg-white dark:bg-slate-800 rounded-t-3xl sm:rounded-3xl max-w-5xl w-full shadow-2xl border border-gray-100 dark:border-slate-700 flex flex-col my-0 sm:my-auto max-h-[88vh] sm:max-h-[85vh] overflow-hidden animate-bottom-sheet sm:animate-none"
+          onClick={(e) => e.stopPropagation()}
+        >
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 sm:p-5 border-b border-gray-100 bg-gradient-to-r from-blue-50 via-sky-50 to-indigo-50 shrink-0">
@@ -896,5 +925,12 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
 
       </div>
     </div>
+  </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
