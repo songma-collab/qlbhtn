@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, QrCode, Copy, Check, Download, Send, ShieldCheck } from 'lucide-react';
 import { formatMoney } from '../../utils/helpers';
 import { useAppContext } from '../../context/AppContext';
@@ -125,8 +126,22 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[400] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] bg-slate-900/70 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-100 max-w-lg w-full p-5 sm:p-6 space-y-4 max-h-[95vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -269,6 +284,12 @@ export const VietQRModal: React.FC<VietQRModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default VietQRModal;

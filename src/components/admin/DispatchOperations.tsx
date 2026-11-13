@@ -220,11 +220,11 @@ const DispatchOperations: React.FC = () => {
       // Search text
       if (searchTxt.trim()) {
         const q = searchTxt.toLowerCase();
-        const matchName = c.name.toLowerCase().includes(q);
-        const matchPhone = c.phone.includes(q);
-        const matchCccd = c.cccd.includes(q);
-        const matchBhxh = c.bhxh.toLowerCase().includes(q);
-        const matchAddress = c.address.toLowerCase().includes(q);
+        const matchName = (c.name || '').toLowerCase().includes(q);
+        const matchPhone = (c.phone || '').includes(q);
+        const matchCccd = (c.cccd || '').includes(q);
+        const matchBhxh = (c.bhxh || '').toLowerCase().includes(q);
+        const matchAddress = (c.address || '').toLowerCase().includes(q);
         if (!matchName && !matchPhone && !matchCccd && !matchBhxh && !matchAddress) {
           return false;
         }

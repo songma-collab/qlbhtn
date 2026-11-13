@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import type { StaffType } from '../../../context/types';
 
 interface AssignStaffModalProps {
@@ -22,11 +23,25 @@ export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
   onConfirm,
   isAssigning
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-slate-200">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[1000] animate-fade-in overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 border border-slate-200">
         <h3 className="text-base font-bold text-slate-900 mb-2">
           Phân Công Nhân Viên Phụ Trách ({selectedCount} khách hàng)
         </h3>
@@ -68,4 +83,10 @@ export const AssignStaffModal: React.FC<AssignStaffModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

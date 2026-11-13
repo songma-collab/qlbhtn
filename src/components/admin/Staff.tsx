@@ -63,12 +63,13 @@ const Staff = () => {
   };
 
   const filteredStaffs = React.useMemo(() => {
+    const q = searchTxt.toLowerCase();
     const filtered = staff.filter(s => {
       const staffCd = s.staff_code || (s as any).staffCode;
-      const matchSearch = s.name.toLowerCase().includes(searchTxt.toLowerCase()) || 
-                          (staffCd && staffCd.toLowerCase().includes(searchTxt.toLowerCase())) ||
-                          (s.username && s.username.toLowerCase().includes(searchTxt.toLowerCase())) ||
-                          (s.id && s.id.toLowerCase().includes(searchTxt.toLowerCase()));
+      const matchSearch = (s.name || '').toLowerCase().includes(q) || 
+                          (staffCd && staffCd.toLowerCase().includes(q)) ||
+                          (s.username && s.username.toLowerCase().includes(q)) ||
+                          (s.id && s.id.toLowerCase().includes(q));
       const matchRole = roleFilter === 'all' || s.role === roleFilter;
       return matchSearch && matchRole;
     });

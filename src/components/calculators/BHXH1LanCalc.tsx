@@ -307,7 +307,12 @@ const BHXH1LanCalc = () => {
             ? getPolicyValueForDate(policies, 'cpi_index', targetDateForCPI, settings?.cpiIndex || DEFAULT_CPI)
             : (settings?.cpiIndex || DEFAULT_CPI);
           
-          const cpiMap = typeof cpiVal === 'string' ? JSON.parse(cpiVal) : cpiVal;
+          let cpiMap: Record<string, number> = DEFAULT_CPI as any;
+          try {
+            cpiMap = typeof cpiVal === 'string' ? JSON.parse(cpiVal) : (cpiVal || DEFAULT_CPI);
+          } catch {
+            cpiMap = DEFAULT_CPI as any;
+          }
           let coef = cpiMap[yrK.toString()] || DEFAULT_CPI[yrK] || 1.0;
 
           if (type === 'nhanuoc') {

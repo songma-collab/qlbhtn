@@ -152,7 +152,7 @@ export const PolicyTimelineVisualizer: React.FC<PolicyTimelineVisualizerProps> =
         const descMatch = (p.description || '').toLowerCase().includes(q);
         const notesMatch = (p.notes || '').toLowerCase().includes(q);
         const categoryMeta = getCategoryMeta(p.parameter_type);
-        const catMatch = categoryMeta.name.toLowerCase().includes(q);
+        const catMatch = (categoryMeta?.name || '').toLowerCase().includes(q);
         return nameMatch || descMatch || notesMatch || catMatch;
       });
     }

@@ -204,7 +204,7 @@ export const exportD03TSStandardExcel = async ({
       { v: formatDateVN(r.dob || r.birth_date), s: cellCenterStyle },
       { v: r.gender || '', s: cellCenterStyle },
       { v: r.address || '', s: cellTextStyle },
-      { v: r.notes?.includes('KCB:') ? r.notes.split('KCB:')[1].trim() : 'Theo tuyến quy định', s: cellTextStyle },
+      { v: r.notes?.includes('KCB:') ? (r.notes.split('KCB:')[1]?.trim() || 'Theo tuyến quy định') : 'Theo tuyến quy định', s: cellTextStyle },
       { v: orderInHousehold, s: cellCenterStyle },
       { v: Math.round(baseStandardRate), s: cellNumberStyle },
       { v: supPct != null ? `${supPct}%` : '100%', s: cellCenterStyle },

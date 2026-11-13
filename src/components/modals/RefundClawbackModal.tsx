@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useAppContext } from '../../context/AppContext';
 import type { RecordType } from '../../context/types';
 import { formatMoney, parseMonthISO, formatMonthVN, formatDateVN } from '../../utils/helpers';
@@ -84,6 +85,20 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
       setToMonth('');
     }
   }, [preselectedRecord, isOpen, records]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isSubmitting) onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose, isSubmitting]);
 
   // Filter eligible records for search (only paid records that are not adjustments themselves)
   const searchResults = useMemo(() => {
@@ -283,8 +298,8 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-2xl border border-slate-200 my-8 relative">
         {/* Header */}
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
@@ -679,5 +694,11 @@ export const RefundClawbackModal: React.FC<RefundClawbackModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 

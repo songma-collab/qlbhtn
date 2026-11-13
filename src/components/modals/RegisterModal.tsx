@@ -1270,7 +1270,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
     : 'bg-tertiary-fixed-dim/90 text-primary-dark font-bold';
 
   return createPortal(
-    <div className="fixed inset-0 bg-primary/70 dark:bg-slate-950/80 backdrop-blur-sm z-[100] overflow-y-auto w-full h-full transition-opacity duration-300">
+    <div className="fixed inset-0 bg-primary/70 dark:bg-slate-950/80 backdrop-blur-sm z-[1000] overflow-y-auto w-full h-full transition-opacity duration-300">
       <div className="min-h-full flex items-end sm:items-start justify-center p-0 sm:p-4 md:p-6 lg:p-8">
         <div className="bg-white dark:bg-slate-800 text-gray-800 dark:text-slate-100 rounded-t-3xl sm:rounded-3xl shadow-2xl w-full max-w-5xl xl:max-w-6xl overflow-hidden transform transition-all duration-300 flex flex-col relative border border-gray-200 dark:border-slate-700 my-0 sm:my-auto animate-bottom-sheet sm:animate-none">
           {/* Mobile Pull Handle */}

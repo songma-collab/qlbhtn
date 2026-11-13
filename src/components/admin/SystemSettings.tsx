@@ -184,7 +184,12 @@ const SystemSettings = () => {
     setEditingPolicy(policy);
     const desc = policy.description || policy.notes || '';
     if (activeTab === 'commission') {
-      const val = typeof policy.value === 'string' ? JSON.parse(policy.value) : policy.value;
+      let val: any = {};
+      try {
+        val = typeof policy.value === 'string' ? JSON.parse(policy.value) : (policy.value || {});
+      } catch {
+        val = {};
+      }
       const isLegacy = val.commBHXHNew1M === undefined && val.commBHXHNew !== undefined;
       const fallbackNew = val.commBHXHNew ?? 20;
       const n12 = val.commBHXHNew12M ?? fallbackNew;
@@ -593,7 +598,12 @@ const SystemSettings = () => {
                         <div className="flex flex-col text-xs text-gray-500 font-medium space-y-1">
                           {/* COMMISSION VIEW */}
                           {activeTab === 'commission' && (() => {
-                            const obj = typeof policy.value === 'string' ? JSON.parse(policy.value) : policy.value;
+                            let obj: any = {};
+                            try {
+                              obj = typeof policy.value === 'string' ? JSON.parse(policy.value) : (policy.value || {});
+                            } catch {
+                              obj = {};
+                            }
                             const new1M = obj.commBHXHNew1M ?? 12;
                             const new3M = obj.commBHXHNew3M ?? 15;
                             const new6M = obj.commBHXHNew6M ?? 17;

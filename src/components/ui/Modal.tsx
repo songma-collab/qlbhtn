@@ -65,7 +65,7 @@ export const Modal: React.FC<ModalProps> = ({
 
   return createPortal(
     <div
-      className={`fixed inset-0 z-[200] flex ${
+      className={`fixed inset-0 z-[1000] flex ${
         asBottomSheetOnMobile ? 'items-end sm:items-center' : 'items-center'
       } justify-center p-0 sm:p-4 bg-slate-900/60 dark:bg-slate-950/80 backdrop-blur-xs transition-opacity duration-200 animate-fadeIn`}
       onClick={(e) => {

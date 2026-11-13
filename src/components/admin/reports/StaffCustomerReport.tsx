@@ -222,10 +222,11 @@ export const StaffCustomerReport: React.FC = () => {
   // Bộ lọc tìm kiếm và phân vùng
   const filteredStaffStats = useMemo(() => {
     return staffStats.filter(s => {
-      const matchSearch = s.staffName.toLowerCase().includes(searchTxt.toLowerCase()) ||
-                          s.staffCode.toLowerCase().includes(searchTxt.toLowerCase()) ||
-                          s.phone.includes(searchTxt) ||
-                          s.area.toLowerCase().includes(searchTxt.toLowerCase());
+      const q = searchTxt.toLowerCase();
+      const matchSearch = (s.staffName || '').toLowerCase().includes(q) ||
+                          (s.staffCode || '').toLowerCase().includes(q) ||
+                          (s.phone || '').includes(searchTxt) ||
+                          (s.area || '').toLowerCase().includes(q);
       const matchArea = areaFilter === 'all' || s.area === areaFilter;
       const matchStatus = statusFilter === 'all' || s.status === statusFilter;
       return matchSearch && matchArea && matchStatus;
@@ -379,7 +380,7 @@ export const StaffCustomerReport: React.FC = () => {
   const filteredModalCustomers = useMemo(() => {
     if (!selectedStaffDetail) return [];
     return selectedStaffDetail.customers.filter(c => {
-      const matchSearch = c.name.toLowerCase().includes(customerSearchTxt.toLowerCase()) ||
+      const matchSearch = (c.name || '').toLowerCase().includes(customerSearchTxt.toLowerCase()) ||
                           (c.cccd && c.cccd.includes(customerSearchTxt)) ||
                           (c.phone && c.phone.includes(customerSearchTxt)) ||
                           (c.bhxh && c.bhxh.includes(customerSearchTxt));

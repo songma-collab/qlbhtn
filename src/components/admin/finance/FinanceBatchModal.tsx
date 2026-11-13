@@ -1,4 +1,5 @@
 import React, { useMemo, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Send, X, CheckSquare, XSquare, FileSpreadsheet, Lock, Calendar, Hash } from 'lucide-react';
 import { dateISOToVN, getLocalYYYYMMDD, formatMoney } from '../../../utils/helpers';
 import { generateBatchCode, getNextBatchSequence } from '../../../utils/batchSubmission';
@@ -92,8 +93,24 @@ export const FinanceBatchModal: React.FC<FinanceBatchModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[300] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl border border-slate-200 max-w-lg w-full p-5 sm:p-6 space-y-5 animate-in zoom-in-95 duration-200">
         {/* Header */}
         <div className="flex items-center justify-between pb-3.5 border-b border-slate-200">
@@ -236,6 +253,12 @@ export const FinanceBatchModal: React.FC<FinanceBatchModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default FinanceBatchModal;

@@ -15,8 +15,16 @@ const LandingView = () => {
   const location = useLocation();
 
   const homepagePolicy = policies?.find(p => p.parameter_type === 'homepage_config' && p.is_active);
-  const homepageConfig = homepagePolicy 
-    ? (typeof homepagePolicy.value === 'string' ? JSON.parse(homepagePolicy.value) : homepagePolicy.value)
+  let parsedHomepageConfig: any = null;
+  if (homepagePolicy) {
+    try {
+      parsedHomepageConfig = typeof homepagePolicy.value === 'string' ? JSON.parse(homepagePolicy.value) : homepagePolicy.value;
+    } catch (err) {
+      console.warn('[LandingView] Failed to parse homepage_config:', err);
+    }
+  }
+  const homepageConfig = (parsedHomepageConfig && typeof parsedHomepageConfig === 'object')
+    ? parsedHomepageConfig
     : {
         heroTagline: "Hệ Thống Chuẩn Nghị Định 159/2025",
         heroTitleWhite: "Tương lai đảm bảo",

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FileUp, AlertCircle } from 'lucide-react';
 
 interface ExcelImportConfirmModalProps {
@@ -20,10 +21,24 @@ export const ExcelImportConfirmModal: React.FC<ExcelImportConfirmModalProps> = (
   onConfirmDirectoryOnly,
   isImporting
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !isImporting) onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose, isImporting]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-fade-in">
+  const modalContent = (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-[1000] animate-fade-in overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-xl p-6 border border-slate-200">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#004182] flex items-center justify-center font-bold">
@@ -99,4 +114,10 @@ export const ExcelImportConfirmModal: React.FC<ExcelImportConfirmModalProps> = (
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

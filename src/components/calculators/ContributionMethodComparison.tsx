@@ -137,7 +137,7 @@ export const ContributionMethodComparison: React.FC<ContributionMethodComparison
       );
 
       const totalSupport = calc.nnSupportAmount + calc.dpSupportAmount;
-      const avgMonthly = Math.round(calc.amount / m.months);
+      const avgMonthly = m.months > 0 ? Math.round(calc.amount / m.months) : 0;
       const isSelected = selectedMethod === m.key;
 
       return {

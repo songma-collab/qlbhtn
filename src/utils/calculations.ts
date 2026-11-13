@@ -157,7 +157,8 @@ export const getCommissionRateForRecord = (
   // Trường hợp đóng trước nhiều năm (>12 tháng) hoặc đóng cho những năm còn thiếu (>12 tháng):
   // 12 tháng đầu hưởng mức Tăng mới 12 tháng (20%), (months - 12) tháng sau hưởng mức gia hạn (9%)
   if (months > 12) {
-    const weightedRate = (12 * config.commBHXHNew12M + (months - 12) * config.commBHXHRenew) / months;
+    const safeMonths = Math.max(1, months);
+    const weightedRate = (12 * config.commBHXHNew12M + (months - 12) * config.commBHXHRenew) / safeMonths;
     return weightedRate / 100;
   }
 
@@ -192,8 +193,9 @@ export const getCommissionBreakdownForRecord = (
 
     const stage1Months = 12;
     const stage2Months = months - 12;
+    const safeMonths = Math.max(1, months);
 
-    const stage1Amount = Math.round((totalAmount / months) * stage1Months);
+    const stage1Amount = Math.round((totalAmount / safeMonths) * stage1Months);
     const stage2Amount = totalAmount - stage1Amount;
 
     const stage1Commission = Math.round(stage1Amount * (stage1RatePct / 100));

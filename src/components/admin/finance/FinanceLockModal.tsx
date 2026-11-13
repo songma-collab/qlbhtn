@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Lock, Unlock, AlertTriangle } from 'lucide-react';
 
 interface FinanceLockModalProps {
@@ -22,10 +23,24 @@ export const FinanceLockModal: React.FC<FinanceLockModalProps> = ({
   executeLockCurrent,
   executeUnlockKeys
 }) => {
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 bg-[#004182]/60 backdrop-blur-sm z-[250] flex items-center justify-center p-4 transition-all">
+  const modalContent = (
+    <div className="fixed inset-0 bg-[#004182]/60 backdrop-blur-sm z-[1000] flex items-center justify-center p-4 transition-all overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all border border-gray-100 animate-in fade-in zoom-in duration-200">
         <div className="p-6 sm:p-8 text-center">
           {lockActionType === 'lock' ? (
@@ -158,6 +173,12 @@ export const FinanceLockModal: React.FC<FinanceLockModalProps> = ({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default FinanceLockModal;

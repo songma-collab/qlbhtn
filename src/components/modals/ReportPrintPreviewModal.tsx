@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Printer, Download, FileSpreadsheet, X, SlidersHorizontal, Check, RotateCcw } from 'lucide-react';
 import { formatMoney } from '../../utils/helpers';
 import { ReportSummaryItem, exportRevenueReportToExcel, exportRevenueReportToPdf } from '../../utils/reportExportHelper';
@@ -109,6 +110,20 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
     window.print();
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
+
   const handleExportExcel = () => {
     exportRevenueReportToExcel({
       periodText,
@@ -188,7 +203,7 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
     }));
   };
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-2 sm:p-4 overflow-y-auto">
       {/* Container Dialog */}
       <div className="bg-white w-full max-w-5xl rounded-3xl shadow-2xl flex flex-col max-h-[96vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200 relative">
@@ -563,6 +578,12 @@ export const ReportPrintPreviewModal: React.FC<ReportPrintPreviewModalProps> = (
       `}</style>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };
 
 export default ReportPrintPreviewModal;

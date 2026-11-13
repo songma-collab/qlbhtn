@@ -20,13 +20,19 @@ const HomepageSettings = () => {
   useEffect(() => {
     const configPolicy = policies?.find(p => p.parameter_type === 'homepage_config' && p.is_active);
     if (configPolicy) {
-      const val = typeof configPolicy.value === 'string' ? JSON.parse(configPolicy.value) : configPolicy.value;
-      setFormData({
-        heroTagline: val.heroTagline || DEFAULT_HOMEPAGE_CONFIG.heroTagline,
-        heroTitleWhite: val.heroTitleWhite || DEFAULT_HOMEPAGE_CONFIG.heroTitleWhite,
-        heroTitleGreen: val.heroTitleGreen || DEFAULT_HOMEPAGE_CONFIG.heroTitleGreen,
-        heroSubtitle: val.heroSubtitle || DEFAULT_HOMEPAGE_CONFIG.heroSubtitle
-      });
+      try {
+        const val = typeof configPolicy.value === 'string' ? JSON.parse(configPolicy.value) : configPolicy.value;
+        if (val && typeof val === 'object') {
+          setFormData({
+            heroTagline: val.heroTagline || DEFAULT_HOMEPAGE_CONFIG.heroTagline,
+            heroTitleWhite: val.heroTitleWhite || DEFAULT_HOMEPAGE_CONFIG.heroTitleWhite,
+            heroTitleGreen: val.heroTitleGreen || DEFAULT_HOMEPAGE_CONFIG.heroTitleGreen,
+            heroSubtitle: val.heroSubtitle || DEFAULT_HOMEPAGE_CONFIG.heroSubtitle
+          });
+        }
+      } catch (err) {
+        console.warn('[HomepageSettings] Không thể parse cấu hình homepage_config:', err);
+      }
     }
   }, [policies]);
 

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
 import { Search, User, CreditCard, Plus, ArrowRight, X, Phone } from 'lucide-react';
@@ -16,11 +17,21 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (isOpen) {
-      setQuery('');
-      setTimeout(() => inputRef.current?.focus(), 50);
-    }
-  }, [isOpen]);
+    if (!isOpen) return;
+    setQuery('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   const filteredRecords = React.useMemo(() => {
     if (!query.trim()) return [];
@@ -39,8 +50,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] flex items-start justify-center pt-16 sm:pt-24 px-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-200 overflow-y-auto">
       <div
         className="bg-white w-full max-w-xl rounded-2xl shadow-2xl border border-gray-100 overflow-hidden"
         onClick={(e) => e.stopPropagation()}
@@ -213,4 +224,10 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') {
+    return modalContent;
+  }
+
+  return createPortal(modalContent, document.body);
 };

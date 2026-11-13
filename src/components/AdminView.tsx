@@ -293,7 +293,11 @@ const AdminView = () => {
     await authService.signOut();
     setCurrentUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('vss_current_user');
+    try {
+      localStorage.removeItem('vss_current_user');
+    } catch {
+      // In private browsing or restricted iframe
+    }
     navigate('/');
   };
 

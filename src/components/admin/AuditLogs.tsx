@@ -106,6 +106,8 @@ export const AuditLogs: React.FC = () => {
         if (res.success && res.deletedCount && res.deletedCount > 0) {
           refreshAdminData?.();
         }
+      }).catch(err => {
+        console.warn('[AuditLogs] Auto cleanup error:', err);
       });
     }
   }, [isAdmin, refreshAdminData]);

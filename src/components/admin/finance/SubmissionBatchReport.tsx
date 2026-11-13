@@ -104,9 +104,10 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
   // Bộ lọc danh sách đợt nộp cho bảng (kết hợp kỳ + tìm kiếm + trạng thái nộp)
   const filteredBatches = useMemo(() => {
     return periodBatches.filter(b => {
+      const q = searchTxt.toLowerCase();
       const matchSearch = !searchTxt.trim() ||
-                          b.batchName.toLowerCase().includes(searchTxt.toLowerCase()) ||
-                          b.submittedDate.includes(searchTxt);
+                          (b.batchName || '').toLowerCase().includes(q) ||
+                          (b.submittedDate || '').includes(searchTxt);
       const matchStatus = statusFilter === 'ALL' ||
                           (statusFilter === 'SUBMITTED' && b.isSubmitted) ||
                           (statusFilter === 'UNSUBMITTED' && !b.isSubmitted);
@@ -221,7 +222,7 @@ export const SubmissionBatchReport: React.FC<SubmissionBatchReportProps> = ({ ty
   const modalFilteredRecords = useMemo(() => {
     if (!selectedBatch) return [];
     return selectedBatch.records.filter(r => {
-      return r.name.toLowerCase().includes(modalSearchTxt.toLowerCase()) ||
+      return (r.name || '').toLowerCase().includes(modalSearchTxt.toLowerCase()) ||
              (r.cccd && r.cccd.includes(modalSearchTxt)) ||
              (r.bhxh && r.bhxh.includes(modalSearchTxt)) ||
              (r.phone && r.phone.includes(modalSearchTxt));
