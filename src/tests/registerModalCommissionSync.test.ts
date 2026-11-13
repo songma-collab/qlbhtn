@@ -259,7 +259,7 @@ describe('Kiểm thử Đồng bộ Tỷ lệ Hoa hồng Đại lý trong Modal 
   });
 
   describe('3. BHXH Đóng trước > 12 tháng & Đóng bù: Hoa hồng phân kỳ đa tầng', () => {
-    it('3.1. Đóng trước 2 năm (pre_24) -> 24 tháng: 12T đầu 20%, 12T sau 9% -> Tỷ lệ bình quân 14.5%', () => {
+    it('3.1. Đóng trước 2 năm (pre_24, thực thu chiết khấu 6.060.801 đ) -> 24 tháng: 12T đầu 20%, 12T sau 9% -> Tỷ lệ 14.63%', () => {
       const bhxhCalc = {
         income: 1500000,
         nnSupport: 20,
@@ -267,7 +267,7 @@ describe('Kiểm thử Đồng bộ Tỷ lệ Hoa hồng Đại lý trong Modal 
         method: 'pre_24',
         fromMonth: '10/2026',
         toMonth: '09/2028',
-        amount: 6336000
+        amount: 6060801
       };
 
       const result = simulateRegisterSummaryCommission({
@@ -275,7 +275,7 @@ describe('Kiểm thử Đồng bộ Tỷ lệ Hoa hồng Đại lý trong Modal 
         bhxhActionType: 'Tăng mới',
         isRenew: false,
         bhxhCalc,
-        totalAmount: 6336000
+        totalAmount: 6060801
       });
 
       expect(result.simMonths).toBe(24);
@@ -283,8 +283,38 @@ describe('Kiểm thử Đồng bộ Tỷ lệ Hoa hồng Đại lý trong Modal 
       expect(result.stage1RatePct).toBe(20);
       expect(result.stage2RatePct).toBe(9);
       expect(result.stage2Months).toBe(12);
-      expect(result.effectiveRate).toBe(14.5); // (12 * 20 + 12 * 9) / 24 = 14.5%
-      expect(result.estimatedComm).toBe(918720); // 6.336.000 * 14.5% = 918.720 đ
+      expect(result.effectiveRate).toBe(14.63);
+      // 12T đầu: 3.101.379 * 20% = 620.276; 12T sau: 2.959.422 * 9% = 266.348 -> Tổng: 886.624 đ
+      expect(result.estimatedComm).toBe(886624);
+    });
+
+    it('3.1b. Chuẩn thực tế người dùng: Đóng trước 5 năm (pre_60, thực thu 14.138.148 đ) -> 12T đầu 20%, 48T sau 9%', () => {
+      const bhxhCalc = {
+        income: 1500000,
+        nnSupport: 20,
+        dpSupport: 0,
+        method: 'pre_60',
+        fromMonth: '11/2026',
+        toMonth: '10/2031',
+        amount: 14138148
+      };
+
+      const result = simulateRegisterSummaryCommission({
+        type: 'BHXH',
+        bhxhActionType: 'Tăng mới',
+        isRenew: false,
+        bhxhCalc,
+        totalAmount: 14138148
+      });
+
+      expect(result.simMonths).toBe(60);
+      expect(result.isMultiStage).toBe(true);
+      expect(result.stage1RatePct).toBe(20);
+      expect(result.stage2RatePct).toBe(9);
+      expect(result.stage2Months).toBe(48);
+      expect(result.effectiveRate).toBe(11.41);
+      // 12T đầu: 3.101.379 * 20% = 620.276; 48T sau: 11.036.769 * 9% = 993.309 -> Tổng: 1.613.585 đ
+      expect(result.estimatedComm).toBe(1613585);
     });
 
     it('3.2. Đóng bù thời gian thiếu (post_custom, customMonths = 36) -> 36 tháng: 12T đầu 20%, 24T sau 9%', () => {

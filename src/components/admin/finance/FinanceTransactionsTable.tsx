@@ -136,7 +136,9 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                 const periodStr = (fromM && toM) ? `${formatMonthVN(fromM)} - ${formatMonthVN(toM)}` : '---';
 
                 const rate = getCommissionRateForRecord(r, policies, settings);
-                const commAmount = Number(r.amount) * rate;
+                const commAmount = (r.commission !== undefined && r.commission !== null && !isNaN(Number(r.commission)))
+                  ? Number(r.commission)
+                  : Math.round(Number(r.amount) * rate);
 
                 return (
                   <tr 
@@ -322,8 +324,10 @@ export const FinanceTransactionsTable: React.FC<FinanceTransactionsTableProps> =
                 </td>
                 <td className="p-4 font-mono tabular-nums text-right text-[15px] text-emerald-700">
                   {formatMoney(paginatedRecords.reduce((acc: number, r: any) => {
-                    const rate = getCommissionRateForRecord(r, policies, settings);
-                    return acc + (Number(r.amount) * rate);
+                    const commVal = (r.commission !== undefined && r.commission !== null && !isNaN(Number(r.commission)))
+                      ? Number(r.commission)
+                      : Math.round(Number(r.amount) * getCommissionRateForRecord(r, policies, settings));
+                    return acc + commVal;
                   }, 0))}
                 </td>
                 <td colSpan={4}></td>

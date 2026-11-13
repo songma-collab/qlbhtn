@@ -122,119 +122,6 @@ export const getEffectiveCommissionConfig = (
   };
 };
 
-/**
- * Tính toán tỷ lệ hoa hồng đại lý áp dụng cho hồ sơ giao dịch.
- * Quy định chuẩn nghiệp vụ:
- * 1. BHXH Tăng mới: 1T: 12%, 3T: 15%, 6T: 17%, 12T: 20%.
- * 2. BHXH Gia hạn (đóng tiếp): 9%.
- * 3. Đóng trước (>12T) hoặc Đóng cho những năm còn thiếu (>12T):
- *    12 tháng đầu hưởng mức 20%, các tháng tiếp theo hưởng mức gia hạn 9%.
- * 4. BHYT: Tăng mới 9%, Gia hạn 5% (hoặc theo chính sách cấu hình).
- */
-export const getCommissionRateForRecord = (
-  r: Partial<RecordType> | null | undefined,
-  policies: Policy[] | undefined,
-  settings: Partial<SettingsType> | null | undefined
-): number => {
-  const dateStr = r?.date || r?.created_at || getLocalYYYYMMDD();
-  const config = getEffectiveCommissionConfig(policies, settings, dateStr);
-
-  const actionStr = String(r?.action_type || (r as any)?.actionType || '').toLowerCase();
-  const isRenew = actionStr.includes('gia hạn') || actionStr.includes('renew') || actionStr.includes('đóng tiếp') || actionStr.includes('tái tục');
-
-  if (r?.type === 'BHYT') {
-    return isRenew ? (config.commBHYTRenew / 100) : (config.commBHYTNew / 100);
-  }
-
-  // BHXH Tự nguyện
-  const months = getRecordMonths(r);
-
-  // Nếu là Gia hạn thông thường (<= 12 tháng): hưởng tỷ lệ gia hạn
-  if (isRenew && months <= 12) {
-    return config.commBHXHRenew / 100;
-  }
-
-  // Trường hợp đóng trước nhiều năm (>12 tháng) hoặc đóng cho những năm còn thiếu (>12 tháng):
-  // 12 tháng đầu hưởng mức Tăng mới 12 tháng (20%), (months - 12) tháng sau hưởng mức gia hạn (9%)
-  if (months > 12) {
-    const safeMonths = Math.max(1, months);
-    const weightedRate = (12 * config.commBHXHNew12M + (months - 12) * config.commBHXHRenew) / safeMonths;
-    return weightedRate / 100;
-  }
-
-  // BHXH Tăng mới theo phương thức đóng (<= 12 tháng)
-  if (months <= 1) return config.commBHXHNew1M / 100;
-  if (months <= 3) return config.commBHXHNew3M / 100;
-  if (months <= 6) return config.commBHXHNew6M / 100;
-  return config.commBHXHNew12M / 100;
-};
-
-/**
- * Trả về chi tiết phân bổ hoa hồng (Breakdown) phục vụ hiển thị giải trình, tooltip và báo cáo
- */
-export const getCommissionBreakdownForRecord = (
-  r: Partial<RecordType> | null | undefined,
-  policies: Policy[] | undefined,
-  settings: Partial<SettingsType> | null | undefined
-): CommissionBreakdown => {
-  const totalAmount = Number(r?.amount) || 0;
-  const rate = getCommissionRateForRecord(r, policies, settings);
-  const effectiveRatePct = Math.round(rate * 10000) / 100;
-  const totalCommission = Math.round(totalAmount * rate);
-
-  const months = getRecordMonths(r);
-  const isBHXH = r?.type === 'BHXH';
-
-  if (isBHXH && months > 12) {
-    const dateStr = r?.date || r?.created_at || getLocalYYYYMMDD();
-    const config = getEffectiveCommissionConfig(policies, settings, dateStr);
-    const stage1RatePct = config.commBHXHNew12M;
-    const stage2RatePct = config.commBHXHRenew;
-
-    const stage1Months = 12;
-    const stage2Months = months - 12;
-    const safeMonths = Math.max(1, months);
-
-    const stage1Amount = Math.round((totalAmount / safeMonths) * stage1Months);
-    const stage2Amount = totalAmount - stage1Amount;
-
-    const stage1Commission = Math.round(stage1Amount * (stage1RatePct / 100));
-    const stage2Commission = Math.round(stage2Amount * (stage2RatePct / 100));
-
-    return {
-      totalAmount,
-      totalCommission: stage1Commission + stage2Commission,
-      effectiveRate: rate,
-      effectiveRatePct,
-      isMultiStage: true,
-      stage1Months,
-      stage1RatePct,
-      stage1Amount,
-      stage1Commission,
-      stage2Months,
-      stage2RatePct,
-      stage2Amount,
-      stage2Commission
-    };
-  }
-
-  return {
-    totalAmount,
-    totalCommission,
-    effectiveRate: rate,
-    effectiveRatePct,
-    isMultiStage: false,
-    stage1Months: months,
-    stage1RatePct: effectiveRatePct,
-    stage1Amount: totalAmount,
-    stage1Commission: totalCommission,
-    stage2Months: 0,
-    stage2RatePct: 0,
-    stage2Amount: 0,
-    stage2Commission: 0
-  };
-};
-
 export const getPolicyValueForDate = <T = any>(
   policies: Policy[] | undefined,
   type: 'base_salary' | 'poverty_standard' | 'pension_cpi' | 'investment_rate' | 'cpi_index' | 'commission' | 'homepage_config' | 'locked_periods' | (string & {}),
@@ -540,6 +427,285 @@ export const calculateBHXH = (
     previousMonths,
     totalAccumulatedMonths: previousMonths + months
   };
+};
+
+/**
+ * Nhận diện phương thức đóng trước cho các năm về sau (2 năm, 3 năm, 4 năm, 5 năm)
+ * theo quy định của Luật BHXH & Nghị định hướng dẫn.
+ */
+export const isPrePaymentForFutureYears = (
+  method?: string | null,
+  months?: number | null
+): boolean => {
+  const m = Number(months) || 0;
+  const mStr = String(method || '').trim().toLowerCase();
+  
+  if (mStr.startsWith('pre_')) return true;
+  if (
+    mStr.includes('đóng trước') || 
+    mStr.includes('dong truoc') || 
+    mStr.includes('năm về sau') || 
+    mStr.includes('nam ve sau')
+  ) {
+    return true;
+  }
+  // Nếu số tháng thuộc các mốc đóng trước nhiều năm (24, 36, 48, 60) và không phải đóng bù / post_custom
+  if (
+    [24, 36, 48, 60].includes(m) && 
+    !mStr.includes('post_') && 
+    !mStr.includes('bù') && 
+    !mStr.includes('bu') && 
+    !mStr.includes('thiếu') && 
+    !mStr.includes('thieu') &&
+    !mStr.includes('nghỉ hưu') &&
+    !mStr.includes('nghi huu')
+  ) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Trả về chi tiết phân bổ hoa hồng (Breakdown) phục vụ hiển thị giải trình, tooltip và báo cáo
+ * Quy định chuẩn nghiệp vụ BHXH Việt Nam:
+ * 1. Với các phương thức Đóng trước cho các năm về sau (2 năm, 3 năm, 4 năm, 5 năm):
+ *    - Tách riêng số tiền thực đóng của 12 tháng đầu (theo công thức chiết khấu PV và trừ hỗ trợ NSNN)
+ *      để tính hoa hồng năm thứ nhất (ví dụ 19% hoặc 20%).
+ *    - Số tiền các tháng còn lại = Tổng thực thu - Tiền 12 tháng đầu để tính hoa hồng các năm sau (ví dụ 8% hoặc 9%).
+ *    - Tổng hoa hồng = Hoa hồng 12T đầu + Hoa hồng các tháng còn lại.
+ * 2. Với trường hợp đóng bù / đóng 1 lần cho những năm còn thiếu:
+ *    - Phân bổ theo tỷ trọng thời gian (12 tháng đầu hưởng mức năm 1, các tháng còn lại hưởng mức gia hạn).
+ * 3. Với các phương thức đóng thông thường (<= 12 tháng):
+ *    - Hưởng theo tỷ lệ tương ứng của phương thức đóng hoặc tỷ lệ gia hạn.
+ */
+export const getCommissionBreakdownForRecord = (
+  r: Partial<RecordType> | null | undefined,
+  policies: Policy[] | undefined,
+  settings: Partial<SettingsType> | null | undefined
+): CommissionBreakdown => {
+  const totalAmount = Number(r?.amount) || 0;
+  const months = getRecordMonths(r);
+  const isBHXH = r?.type === 'BHXH';
+  const dateStr = r?.date || (r as any)?.created_at || (r as any)?.fromMonth || (r as any)?.from_month || getLocalYYYYMMDD();
+  const config = getEffectiveCommissionConfig(policies, settings, dateStr);
+
+  const actionStr = String(r?.action_type || (r as any)?.actionType || '').toLowerCase();
+  const isRenew = actionStr.includes('gia hạn') || actionStr.includes('renew') || actionStr.includes('đóng tiếp') || actionStr.includes('tái tục');
+
+  if (r?.type === 'BHYT') {
+    const rate = isRenew ? (config.commBHYTRenew / 100) : (config.commBHYTNew / 100);
+    const effectiveRatePct = Math.round(rate * 10000) / 100;
+    const totalCommission = Math.round(totalAmount * rate);
+    return {
+      totalAmount,
+      totalCommission,
+      effectiveRate: rate,
+      effectiveRatePct,
+      isMultiStage: false,
+      stage1Months: months,
+      stage1RatePct: effectiveRatePct,
+      stage1Amount: totalAmount,
+      stage1Commission: totalCommission,
+      stage2Months: 0,
+      stage2RatePct: 0,
+      stage2Amount: 0,
+      stage2Commission: 0
+    };
+  }
+
+  // BHXH Gia hạn thông thường (<= 12 tháng): hưởng tỷ lệ gia hạn
+  if (isRenew && months <= 12) {
+    const rate = config.commBHXHRenew / 100;
+    const effectiveRatePct = config.commBHXHRenew;
+    const totalCommission = Math.round(totalAmount * rate);
+    return {
+      totalAmount,
+      totalCommission,
+      effectiveRate: rate,
+      effectiveRatePct,
+      isMultiStage: false,
+      stage1Months: months,
+      stage1RatePct: effectiveRatePct,
+      stage1Amount: totalAmount,
+      stage1Commission: totalCommission,
+      stage2Months: 0,
+      stage2RatePct: 0,
+      stage2Amount: 0,
+      stage2Commission: 0
+    };
+  }
+
+  // BHXH Tăng mới hoặc Gia hạn đóng nhiều năm (> 12 tháng)
+  if (isBHXH && months > 12) {
+    const stage1RatePct = config.commBHXHNew12M;
+    const stage2RatePct = config.commBHXHRenew;
+
+    const stage1Months = 12;
+    const stage2Months = months - 12;
+    const safeMonths = Math.max(1, months);
+
+    let stage1Amount = 0;
+    let stage2Amount = 0;
+
+    const isPrePayment = isPrePaymentForFutureYears(r?.method, months);
+
+    if (isPrePayment && totalAmount > 0) {
+      const povertyStandard = policies && policies.length > 0
+        ? Number(getPolicyValueForDate(policies, 'poverty_standard', dateStr, settings?.povertyStandard || CONSTANTS.POVERTY_LINE))
+        : (settings?.povertyStandard || CONSTANTS.POVERTY_LINE);
+      const rawInv = policies && policies.length > 0
+        ? Number(getPolicyValueForDate(policies, 'investment_rate', dateStr, (settings?.investmentRate ?? (CONSTANTS.INTEREST * 100))))
+        : (settings?.investmentRate ?? (CONSTANTS.INTEREST * 100));
+      let curInvestment = CONSTANTS.INTEREST;
+      if (!isNaN(rawInv) && rawInv > 0) {
+        if (rawInv > 1) curInvestment = (rawInv / 12) / 100;
+        else if (rawInv > 0.01) curInvestment = rawInv / 100;
+        else curInvestment = rawInv;
+      }
+
+      const nnSuppPct = Number(r?.nn_support_pct ?? (r as any)?.nnSupportPct ?? (r as any)?.support_pct ?? 20);
+      const dpSuppPct = Number(r?.dp_support_pct ?? (r as any)?.dpSupportPct ?? 0);
+      const fromMonth = r?.from_month || (r as any)?.fromMonth;
+      const prevMonths = Number((r as any)?.previousMonths || (r as any)?.previous_months || 0);
+
+      const curIncome = Number(r?.income ?? (r as any)?.wage);
+
+      if (curIncome && curIncome > 0) {
+        // Có mức thu nhập: tính chuẩn xác số tiền 12 tháng đầu theo công thức chiết khấu PV của BHXH
+        const calc12 = calculateBHXH(
+          curIncome,
+          nnSuppPct,
+          dpSuppPct,
+          'pre_12',
+          12,
+          fromMonth,
+          curInvestment,
+          povertyStandard,
+          policies,
+          prevMonths
+        );
+        stage1Amount = Math.min(totalAmount, calc12.amount);
+        stage2Amount = Math.max(0, totalAmount - stage1Amount);
+      } else {
+        // Không có trường income: suy diễn số tiền 12 tháng đầu từ dòng tiền chiết khấu PV
+        let sumPVTotal = 0;
+        for (let i = 0; i < months; i++) {
+          sumPVTotal += 1 / Math.pow(1 + curInvestment, i);
+        }
+        let sumPV12 = 0;
+        for (let i = 0; i < 12; i++) {
+          sumPV12 += 1 / Math.pow(1 + curInvestment, i);
+        }
+        const suppM = (povertyStandard * CONSTANTS.BHXH_RATE) * (nnSuppPct / 100);
+        const deducedBaseM = (totalAmount + months * suppM) / sumPVTotal;
+        stage1Amount = Math.round(deducedBaseM * sumPV12 - 12 * suppM);
+        if (stage1Amount > totalAmount || stage1Amount <= 0) {
+          stage1Amount = Math.round((totalAmount / safeMonths) * stage1Months);
+        }
+        stage2Amount = Math.max(0, totalAmount - stage1Amount);
+      }
+    } else {
+      // Trường hợp đóng 1 lần cho những năm còn thiếu (post_custom) hoặc không phải chiết khấu đóng trước
+      stage1Amount = Math.round((totalAmount / safeMonths) * stage1Months);
+      stage2Amount = Math.max(0, totalAmount - stage1Amount);
+    }
+
+    const stage1Commission = Math.round(stage1Amount * (stage1RatePct / 100));
+    const stage2Commission = Math.round(stage2Amount * (stage2RatePct / 100));
+    const totalCommission = stage1Commission + stage2Commission;
+
+    const effectiveRate = totalAmount > 0 
+      ? (totalCommission / totalAmount) 
+      : ((12 * stage1RatePct + (months - 12) * stage2RatePct) / (safeMonths * 100));
+    const effectiveRatePct = Math.round(effectiveRate * 10000) / 100;
+
+    return {
+      totalAmount,
+      totalCommission,
+      effectiveRate,
+      effectiveRatePct,
+      isMultiStage: true,
+      stage1Months,
+      stage1RatePct,
+      stage1Amount,
+      stage1Commission,
+      stage2Months,
+      stage2RatePct,
+      stage2Amount,
+      stage2Commission
+    };
+  }
+
+  // BHXH Tăng mới theo phương thức đóng (<= 12 tháng)
+  let ratePct = config.commBHXHNew12M;
+  if (months <= 1) ratePct = config.commBHXHNew1M;
+  else if (months <= 3) ratePct = config.commBHXHNew3M;
+  else if (months <= 6) ratePct = config.commBHXHNew6M;
+
+  const rate = ratePct / 100;
+  const effectiveRatePct = ratePct;
+  const totalCommission = Math.round(totalAmount * rate);
+
+  return {
+    totalAmount,
+    totalCommission,
+    effectiveRate: rate,
+    effectiveRatePct,
+    isMultiStage: false,
+    stage1Months: months,
+    stage1RatePct: effectiveRatePct,
+    stage1Amount: totalAmount,
+    stage1Commission: totalCommission,
+    stage2Months: 0,
+    stage2RatePct: 0,
+    stage2Amount: 0,
+    stage2Commission: 0
+  };
+};
+
+/**
+ * Tính toán tỷ lệ hoa hồng đại lý áp dụng cho hồ sơ giao dịch.
+ * Đồng bộ với phân bổ hoa hồng đa tầng của getCommissionBreakdownForRecord.
+ */
+export const getCommissionRateForRecord = (
+  r: Partial<RecordType> | null | undefined,
+  policies: Policy[] | undefined,
+  settings: Partial<SettingsType> | null | undefined
+): number => {
+  const months = getRecordMonths(r);
+  const totalAmount = Number(r?.amount) || 0;
+
+  // Nếu là đóng nhiều năm (>12T) và có số tiền, lấy tỷ lệ hiệu dụng từ breakdown chuẩn xác
+  if (r?.type !== 'BHYT' && months > 12 && totalAmount > 0) {
+    const breakdown = getCommissionBreakdownForRecord(r, policies, settings);
+    return breakdown.effectiveRate;
+  }
+
+  const dateStr = r?.date || (r as any)?.created_at || getLocalYYYYMMDD();
+  const config = getEffectiveCommissionConfig(policies, settings, dateStr);
+
+  const actionStr = String(r?.action_type || (r as any)?.actionType || '').toLowerCase();
+  const isRenew = actionStr.includes('gia hạn') || actionStr.includes('renew') || actionStr.includes('đóng tiếp') || actionStr.includes('tái tục');
+
+  if (r?.type === 'BHYT') {
+    return isRenew ? (config.commBHYTRenew / 100) : (config.commBHYTNew / 100);
+  }
+
+  // BHXH Tự nguyện
+  if (isRenew && months <= 12) {
+    return config.commBHXHRenew / 100;
+  }
+
+  if (months > 12) {
+    const safeMonths = Math.max(1, months);
+    const weightedRate = (12 * config.commBHXHNew12M + (months - 12) * config.commBHXHRenew) / safeMonths;
+    return weightedRate / 100;
+  }
+
+  if (months <= 1) return config.commBHXHNew1M / 100;
+  if (months <= 3) return config.commBHXHNew3M / 100;
+  if (months <= 6) return config.commBHXHNew6M / 100;
+  return config.commBHXHNew12M / 100;
 };
 
 /**

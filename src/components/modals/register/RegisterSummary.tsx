@@ -243,7 +243,13 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
             months: simMonths,
             method: type === 'BHXH' ? bhxhCalc?.method : String(simMonths),
             amount: totalAmount,
-            date: simDate
+            date: simDate,
+            income: bhxhCalc?.income,
+            nnSupportPct: bhxhCalc?.nnSupport,
+            dpSupportPct: bhxhCalc?.dpSupport,
+            fromMonth: bhxhCalc?.fromMonth,
+            previousMonths: bhxhCalc?.previousMonths,
+            discountAmount: bhxhCalc?.discountAmount
           };
 
           const breakdown = getCommissionBreakdownForRecord(simRecord, appContext?.policies, appContext?.settings);
@@ -251,7 +257,7 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
           const estimatedComm = breakdown.totalCommission;
 
           return (
-            <div className="flex flex-col gap-1 text-xs text-blue-900 bg-blue-50/90 px-3 py-2 rounded-xl border border-blue-200 shadow-2xs">
+            <div className="flex flex-col gap-1.5 text-xs text-blue-900 bg-blue-50/90 px-3 py-2.5 rounded-xl border border-blue-200 shadow-2xs">
               <div className="flex justify-between items-center">
                 <span className="font-semibold flex items-center gap-1.5">
                   <span>Hoa hồng đại lý</span>
@@ -268,9 +274,23 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
                 </span>
               </div>
               {breakdown.isMultiStage && (
-                <div className="text-[11px] text-blue-700/80 font-medium flex justify-between items-center pt-1 border-t border-blue-200/50">
-                  <span>Phân kỳ hoa hồng ({simMonths} tháng):</span>
-                  <span>12T đầu {breakdown.stage1RatePct}% + {breakdown.stage2Months}T sau {breakdown.stage2RatePct}%</span>
+                <div className="pt-2 border-t border-blue-200/60 space-y-1 text-[11px]">
+                  <div className="text-blue-800 font-semibold flex justify-between items-center">
+                    <span>Phân kỳ hoa hồng ({simMonths} tháng):</span>
+                    <span className="text-[10px] bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded font-bold">
+                      12T đầu {breakdown.stage1RatePct}% + {breakdown.stage2Months}T sau {breakdown.stage2RatePct}%
+                    </span>
+                  </div>
+                  <div className="bg-white/85 rounded-lg p-2 border border-blue-100/80 space-y-1 text-slate-600">
+                    <div className="flex justify-between items-center">
+                      <span>• 12 tháng đầu ({formatMoney(breakdown.stage1Amount)} × {breakdown.stage1RatePct}%):</span>
+                      <span className="font-bold text-slate-900 font-mono">{formatMoney(breakdown.stage1Commission)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span>• {breakdown.stage2Months} tháng sau ({formatMoney(breakdown.stage2Amount)} × {breakdown.stage2RatePct}%):</span>
+                      <span className="font-bold text-slate-900 font-mono">{formatMoney(breakdown.stage2Commission)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

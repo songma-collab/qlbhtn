@@ -388,8 +388,12 @@ export function computeTransactionKPIs(
     const paymentStatus = r.payment_status || r.paymentStatus || 'Chờ thanh toán';
     if (paymentStatus === 'Đã thu tiền') {
       const amt = Number(r.amount) || 0;
-      const rate = getCommissionRateForRecord(r, policies, settings);
-      totalComm += amt * rate;
+      if (r.commission !== undefined && r.commission !== null && !isNaN(Number(r.commission))) {
+        totalComm += Number(r.commission);
+      } else {
+        const rate = getCommissionRateForRecord(r, policies, settings);
+        totalComm += amt * rate;
+      }
     }
   });
 
