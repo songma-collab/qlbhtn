@@ -104,6 +104,7 @@ serve(async (req) => {
 
       const captchaSecret = Deno.env.get("CLOUDFLARE_TURNSTILE_SECRET_KEY");
       if (captchaSecret) {
+        let captchaTimeoutId: number | undefined;
         try {
           const verifyParams = new URLSearchParams();
           verifyParams.append("secret", captchaSecret);
@@ -112,11 +113,18 @@ serve(async (req) => {
             verifyParams.append("remoteip", clientIp);
           }
 
+          const captchaController = new AbortController();
+          captchaTimeoutId = setTimeout(() => captchaController.abort(), 8000); // 8s timeout
+
           const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
-            body: verifyParams.toString()
+            body: verifyParams.toString(),
+            signal: captchaController.signal
           });
+
+          if (captchaTimeoutId) clearTimeout(captchaTimeoutId);
+
           const verifyData = await verifyRes.json();
           if (!verifyRes.ok || !verifyData.success) {
             return new Response(
@@ -129,6 +137,7 @@ serve(async (req) => {
             );
           }
         } catch (err: any) {
+          if (captchaTimeoutId) clearTimeout(captchaTimeoutId);
           console.error("[public-customer-intake] Lỗi kết nối xác minh Cloudflare Turnstile:", err?.message);
           return new Response(
             JSON.stringify({
@@ -138,6 +147,8 @@ serve(async (req) => {
             { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
           );
         }
+      } else {
+        console.warn("[public-customer-intake] CLOUDFLARE_TURNSTILE_SECRET_KEY chưa được cấu hình, bỏ qua siteverify ở môi trường dev.");
       }
     }
 

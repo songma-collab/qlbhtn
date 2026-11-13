@@ -202,8 +202,12 @@ QUY TẮC BÓC TÁCH NGHIỆP VỤ BHXH BẮT BUỘC TUÂN THỦ:
     let usedModel = "";
 
     for (const modelName of candidateModels) {
+      let timeoutId: number | undefined;
       try {
         const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        const controller = new AbortController();
+        timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout per candidate model
+
         const res = await fetch(geminiUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -221,8 +225,11 @@ QUY TẮC BÓC TÁCH NGHIỆP VỤ BHXH BẮT BUỘC TUÂN THỦ:
               topP: 0.95,
               responseMimeType: "application/json"
             }
-          })
+          }),
+          signal: controller.signal
         });
+
+        if (timeoutId) clearTimeout(timeoutId);
 
         if (res.ok) {
           response = res;
@@ -232,7 +239,8 @@ QUY TẮC BÓC TÁCH NGHIỆP VỤ BHXH BẮT BUỘC TUÂN THỦ:
           console.warn(`Model ${modelName} returned status ${res.status}, trying fallback model...`);
         }
       } catch (callErr) {
-        console.warn(`Model ${modelName} fetch failed, trying fallback...`, callErr);
+        if (timeoutId) clearTimeout(timeoutId);
+        console.warn(`Model ${modelName} fetch failed or timed out, trying fallback...`, callErr);
       }
     }
 

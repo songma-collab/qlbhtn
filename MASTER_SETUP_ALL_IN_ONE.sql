@@ -1845,6 +1845,7 @@ CREATE OR REPLACE FUNCTION public.purge_old_public_rpc_logs()
 RETURNS void
 LANGUAGE sql
 SECURITY DEFINER
+SET search_path = public, pg_temp
 AS $$
   DELETE FROM public.public_rpc_call_log
   WHERE called_at < NOW() - INTERVAL '48 hours';
