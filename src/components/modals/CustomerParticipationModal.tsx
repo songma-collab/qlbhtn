@@ -72,24 +72,6 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
         }))
       : [];
 
-    if (existingPeriods.length === 0) {
-      // Nếu chưa có giai đoạn nào, tạo 1 dòng mặc định
-      const currentYear = new Date().getFullYear();
-      existingPeriods.push(normalizePeriod({
-        id: Date.now(),
-        type: 'batbuoc',
-        position: 'Đóng BHXH bắt buộc',
-        workplace: '',
-        fromMonth: `01/${currentYear}`,
-        toMonth: `12/${currentYear}`,
-        sm: 1,
-        sy: currentYear,
-        em: 12,
-        ey: currentYear,
-        salary: ''
-      }));
-    }
-
     setPeriods(existingPeriods);
     setNotes(customer.prior_participation_notes || '');
   }, [isOpen, customer]);
@@ -159,26 +141,14 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
 
   // Xóa giai đoạn
   const handleRemovePeriod = (id: number) => {
-    setPeriods(prev => {
-      const next = prev.filter(p => p.id !== id);
-      if (next.length === 0) {
-        const currentYear = new Date().getFullYear();
-        return [normalizePeriod({
-          id: Date.now(),
-          type: 'batbuoc',
-          position: 'Đóng BHXH bắt buộc',
-          workplace: '',
-          fromMonth: `01/${currentYear}`,
-          toMonth: `12/${currentYear}`,
-          sm: 1,
-          sy: currentYear,
-          em: 12,
-          ey: currentYear,
-          salary: ''
-        })];
-      }
-      return next;
-    });
+    setPeriods(prev => prev.filter(p => p.id !== id));
+  };
+
+  // Xóa toàn bộ các giai đoạn tham gia
+  const handleClearAllPeriods = () => {
+    if (periods.length === 0) return;
+    setPeriods([]);
+    showToast('Đã xóa tất cả giai đoạn tham gia. Bấm "Lưu Hồ Sơ Tham Gia" để hoàn tất cập nhật.', 'info');
   };
 
   // Cập nhật từng trường của giai đoạn
@@ -723,6 +693,19 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
                 <span>Mẫu</span>
               </button>
 
+              {/* Nút Xóa Tất Cả (khi có giai đoạn) */}
+              {periods.length > 0 && (
+                <button
+                  type="button"
+                  onClick={handleClearAllPeriods}
+                  className="px-2.5 py-1.5 rounded-xl font-bold text-xs bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 transition flex items-center gap-1 cursor-pointer"
+                  title="Xóa toàn bộ các giai đoạn tham gia trước đây"
+                >
+                  <Trash2 size={14} className="text-rose-600" />
+                  <span>Xóa tất cả</span>
+                </button>
+              )}
+
               {/* Nút Thêm Giai Đoạn */}
               <button
                 type="button"
@@ -737,7 +720,30 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
 
           {/* Danh sách các dòng giai đoạn */}
           <div className="space-y-3">
-            {periods.map((p, idx) => (
+            {periods.length === 0 ? (
+              <div className="bg-slate-50 border-2 border-dashed border-slate-200/90 rounded-2xl p-6 sm:p-8 text-center space-y-3 animate-fade-in">
+                <div className="w-12 h-12 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                  <History size={24} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-bold text-slate-700">Chưa ghi nhận giai đoạn tham gia trước đây</p>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Khách hàng hiện không có thời gian đóng BHXH bắt buộc hoặc tự nguyện ở nơi khác. Bấm &quot;Lưu Hồ Sơ Tham Gia&quot; bên dưới để lưu hồ sơ trống này, hoặc bấm nút dưới đây để thêm mới.
+                  </p>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => handleAddPeriod()}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold bg-[#004182] text-white hover:bg-[#003166] transition shadow-xs cursor-pointer"
+                  >
+                    <Plus size={14} />
+                    <span>Thêm giai đoạn mới</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              periods.map((p, idx) => (
               <div
                 key={p.id || idx}
                 className="bg-gray-50/80 hover:bg-gray-50 p-3 sm:p-4 rounded-2xl border border-gray-200/90 transition shadow-2xs space-y-3"
@@ -852,7 +858,7 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
                   )}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
 
           {/* Ô nhập Ghi chú tổng quát */}

@@ -295,14 +295,6 @@ describe('Kiểm thử Phân hệ Hồ Sơ Tham Gia BHXH & Quy tắc trần 10 n
         }
       ];
 
-      const existingCustomer: any = {
-        id: 'cust-uuid-1',
-        cccd: '014182000354',
-        name: 'Ngô Thị Thảo',
-        customer_key: '014182000354',
-        type: 'BHXH'
-      };
-
       const res = await customerService.resyncCustomerFromRecords(
         { customerKey: '014182000354', cccd: '014182000354' },
         mockRecords
@@ -314,6 +306,65 @@ describe('Kiểm thử Phân hệ Hồ Sơ Tham Gia BHXH & Quy tắc trần 10 n
       expect(updatedPayload.total_amount_paid).toBe(2904000);
       // Số lần đóng ròng: 1 lần nộp - 1 lần thoái thu = 0
       expect(updatedPayload.total_contributions).toBe(0);
+
+      fromSpy.mockRestore();
+    });
+  });
+
+  describe('6. Xóa toàn bộ quá trình tham gia ngoài (Cho phép xóa sạch về 0 giai đoạn)', () => {
+    it('customerService.updateCustomerParticipation lưu thành công khi mảng prior_periods rỗng []', async () => {
+      let savedPayload: any = null;
+      const mockUpdate = vi.fn().mockImplementation((payload) => {
+        savedPayload = payload;
+        return {
+          eq: vi.fn().mockResolvedValue({ error: null }),
+          or: vi.fn().mockResolvedValue({ error: null })
+        };
+      });
+
+      const originalFrom = supabase.from;
+      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'customers') {
+          return {
+            update: mockUpdate,
+            select: vi.fn().mockReturnValue({
+              eq: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'cust-uuid-empty', customer_key: '014077001741' } })
+                })
+              }),
+              or: vi.fn().mockReturnValue({
+                limit: vi.fn().mockReturnValue({
+                  maybeSingle: vi.fn().mockResolvedValue({ data: { id: 'cust-uuid-empty', customer_key: '014077001741' } })
+                })
+              })
+            })
+          } as any;
+        }
+        if (table === 'customer_participations') {
+          return {
+            delete: vi.fn().mockReturnValue({
+              eq: vi.fn().mockResolvedValue({ error: null })
+            }),
+            insert: vi.fn().mockResolvedValue({ error: null })
+          } as any;
+        }
+        return originalFrom.call(supabase, table);
+      });
+
+      // Tình huống: Người dùng xóa sạch toàn bộ giai đoạn đã lưu trước đó của khách hàng Lò Văn Thương
+      const res = await customerService.updateCustomerParticipation('014077001741', {
+        prior_periods: [],
+        prior_voluntary_months: 0,
+        prior_compulsory_months: 0,
+        prior_participation_notes: ''
+      });
+
+      expect(res.success).toBe(true);
+      expect(savedPayload).not.toBeNull();
+      expect(savedPayload.prior_periods).toEqual([]);
+      expect(savedPayload.prior_voluntary_months).toBe(0);
+      expect(savedPayload.prior_compulsory_months).toBe(0);
 
       fromSpy.mockRestore();
     });

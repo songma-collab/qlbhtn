@@ -182,7 +182,12 @@ export function useCustomersState(options: UseCustomersStateOptions = {}) {
         'Cập nhật hồ sơ tham gia',
         `Cập nhật quá trình tham gia của khách hàng [${targetIdOrKey}]: ${data.prior_compulsory_months} tháng bắt buộc, ${data.prior_voluntary_months} tháng tự nguyện ngoài.`
       );
-      showToast?.('Đã lưu hồ sơ quá trình tham gia thành công!', 'success');
+      showToast?.(
+        data.prior_periods.length === 0
+          ? 'Đã xóa toàn bộ quá trình tham gia ngoài và cập nhật hồ sơ!'
+          : 'Đã lưu hồ sơ quá trình tham gia thành công!',
+        'success'
+      );
       onCustomerChanged?.();
       return true;
     } catch (err: any) {
