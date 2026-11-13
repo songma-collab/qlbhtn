@@ -19,7 +19,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
   useEffect(() => {
     if (!isOpen) return;
     setQuery('');
-    setTimeout(() => inputRef.current?.focus(), 50);
+    const timer = setTimeout(() => inputRef.current?.focus(), 50);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -28,6 +28,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({ isOpen
     document.body.style.overflow = 'hidden';
     window.addEventListener('keydown', handleKeyDown);
     return () => {
+      clearTimeout(timer);
       document.body.style.overflow = prevOverflow;
       window.removeEventListener('keydown', handleKeyDown);
     };

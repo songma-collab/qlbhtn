@@ -28,7 +28,9 @@ const CommissionReport = () => {
       try {
         const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'admin' || currentUser.role === 'Quản lý';
         
-        let filteredRecords = records.filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền');
+        const safeRecords = records || [];
+        const safeStaff = staff || [];
+        let filteredRecords = safeRecords.filter(r => (r.payment_status || (r as any).paymentStatus) === 'Đã thu tiền');
 
         if (!isAdmin) {
           const userStaffCode = (currentUser as any).staff_code || (currentUser as any).staffCode;
@@ -81,10 +83,10 @@ const CommissionReport = () => {
         }
 
         const staffToProcess = !isAdmin 
-          ? (staff.filter(s => s.id === currentUser.id).length > 0 
-              ? staff.filter(s => s.id === currentUser.id) 
+          ? (safeStaff.filter(s => s.id === currentUser.id).length > 0 
+              ? safeStaff.filter(s => s.id === currentUser.id) 
               : [currentUser])
-          : (staffReportFilter === 'all' ? (staff.length > 0 ? staff : [currentUser]) : staff.filter(s => s.id === staffReportFilter));
+          : (staffReportFilter === 'all' ? (safeStaff.length > 0 ? safeStaff : [currentUser]) : safeStaff.filter(s => s.id === staffReportFilter));
 
         const staffPerformance = staffToProcess.map(s => {
           const sStaffCode = (s as any).staff_code || (s as any).staffCode;

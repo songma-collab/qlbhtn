@@ -33,7 +33,7 @@ const Leaderboard: React.FC = () => {
 
   const handleOpenKpiModal = () => {
     const initial: StaffKPI = {};
-    staff.forEach(s => {
+    (staff || []).forEach(s => {
       initial[s.id] = kpiTargets[s.id] || DEFAULT_KPI_TARGET;
     });
     setEditingTargets(initial);
@@ -62,7 +62,8 @@ const Leaderboard: React.FC = () => {
   const leaderboardData = useMemo(() => {
     const staffStatsMap: { [id: string]: any } = {};
 
-    const effectiveStaff = staff.length > 0 ? staff : (currentUser ? [currentUser] : []);
+    const safeStaff = staff || [];
+    const effectiveStaff = safeStaff.length > 0 ? safeStaff : (currentUser ? [currentUser] : []);
 
     // Initialize all active staff
     effectiveStaff.forEach(s => {

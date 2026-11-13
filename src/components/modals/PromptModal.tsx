@@ -10,10 +10,11 @@ const PromptModal: React.FC = () => {
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement>(null);
 
   useEffect(() => {
+    let timer: any = null;
     if (promptModalConfig?.isOpen) {
       setInputValue(promptModalConfig.defaultValue || '');
       setIsSubmitting(false);
-      setTimeout(() => {
+      timer = setTimeout(() => {
         if (inputRef.current) {
           inputRef.current.focus();
           if ('select' in inputRef.current) {
@@ -22,6 +23,9 @@ const PromptModal: React.FC = () => {
         }
       }, 100);
     }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [promptModalConfig]);
 
   if (!promptModalConfig || !promptModalConfig.isOpen) return null;
