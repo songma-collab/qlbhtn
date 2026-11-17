@@ -9,7 +9,7 @@ import {
   VietQRConfig
 } from '../../../utils/vietqr';
 import { getStoredVietQRConfig } from '../../../utils/settingsHelper';
-import { getCommissionRateForRecord, getCommissionBreakdownForRecord } from '../../../utils/calculations';
+import { getCommissionRateForRecord, getCommissionBreakdownForRecord, getPolicyValueForDate } from '../../../utils/calculations';
 
 interface RegisterSummaryProps {
   type: 'BHXH' | 'BHYT';
@@ -98,7 +98,13 @@ const RegisterSummary: React.FC<RegisterSummaryProps> = ({
   // Tính toán các mốc thu tiền BHXH theo Luật BHXH 2024
   const incomeVal = Number(bhxhCalc.income) || 1500000;
   const grossMonthly = Math.round(incomeVal * 0.22);
-  const povertyStd = appSettings?.povertyStandard || 1500000;
+  const rawIso = bhxhCalc?.fromMonth ? parseMonthISO(bhxhCalc.fromMonth) : '';
+  const dateStrForPoverty = (type === 'BHXH' && rawIso && rawIso.length >= 7)
+    ? `${rawIso}-01`
+    : getLocalYYYYMMDD();
+  const povertyStd = appContext?.policies && appContext.policies.length > 0
+    ? Number(getPolicyValueForDate(appContext.policies, 'poverty_standard', dateStrForPoverty, appSettings?.povertyStandard || 1500000))
+    : (appSettings?.povertyStandard || 1500000);
   const totalSuppPct = (Number(bhxhCalc.nnSupport) || 0) + (Number(bhxhCalc.dpSupport) || 0);
   const supportMonthly = Math.round((povertyStd * 0.22) * (totalSuppPct / 100));
   const netMonthly = Math.max(0, grossMonthly - supportMonthly);

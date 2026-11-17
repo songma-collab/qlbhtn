@@ -258,7 +258,10 @@ const CommissionReport = () => {
       }
 
       const data = staffRecords.map(r => {
-        const rate = getCommissionRateForRecord(r, policies, settings);
+        const b = getCommissionBreakdownForRecord(r, policies, settings);
+        const rateLabel = b.isMultiStage
+          ? `${b.effectiveRatePct}% (12T đầu: ${b.stage1RatePct}%, Còn lại: ${b.stage2RatePct}%)`
+          : `${b.effectiveRatePct}%`;
         
         return {
           "Mã GD": r.id,
@@ -268,8 +271,8 @@ const CommissionReport = () => {
           "Loại": r.type,
           "Loại đăng ký": r.action_type || (r as any).actionType,
           "Số tiền": r.amount,
-          "Tỷ lệ hoa hồng": `${(rate * 100).toFixed(1)}%`,
-          "Hoa hồng": r.amount * rate
+          "Tỷ lệ hoa hồng": rateLabel,
+          "Hoa hồng": b.totalCommission
         };
       });
 

@@ -30,22 +30,24 @@ const PensionAssistant = () => {
     : (settings?.baseSalary || 2340000);
   const maxBHXHIncome = baseSalary * 20;
 
-  // Active CPI index policy from system settings
-  const cpiPolicy = policies?.find(p => p.parameter_type === 'cpi_index' && p.is_active);
+  // Active CPI index policy from system settings with date-based fallback
+  const cpiVal = policies && policies.length > 0
+    ? getPolicyValueForDate(policies, 'cpi_index', dateStr, settings?.cpiIndex)
+    : settings?.cpiIndex;
 
   // Parse CPI Index JSON map from active policy
   const cpiMap = useMemo(() => {
-    if (!cpiPolicy || !cpiPolicy.value) return null;
-    if (typeof cpiPolicy.value === 'object') return cpiPolicy.value;
-    if (typeof cpiPolicy.value === 'string') {
+    if (!cpiVal) return null;
+    if (typeof cpiVal === 'object') return cpiVal;
+    if (typeof cpiVal === 'string') {
       try {
-        return JSON.parse(cpiPolicy.value);
+        return JSON.parse(cpiVal);
       } catch (e) {
         return null;
       }
     }
     return null;
-  }, [cpiPolicy]);
+  }, [cpiVal]);
 
   // Helper to compute average CPI multiplier for N years based on active CPI policy table
   const getCpiFactorForYears = (years: number): number => {

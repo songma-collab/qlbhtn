@@ -566,6 +566,9 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
       const currentPovertyStandard = policies && policies.length > 0
         ? Number(getPolicyValueForDate(policies, 'poverty_standard', dateStrForSnapshot, settings?.povertyStandard || CONSTANTS.POVERTY_LINE))
         : (settings?.povertyStandard || CONSTANTS.POVERTY_LINE);
+      const currentInvestmentRate = policies && policies.length > 0
+        ? Number(getPolicyValueForDate(policies, 'investment_rate', dateStrForSnapshot, settings?.investmentRate !== undefined ? settings.investmentRate : (CONSTANTS.INTEREST * 100)))
+        : (settings?.investmentRate !== undefined ? settings.investmentRate : (CONSTANTS.INTEREST * 100));
       const activePolicySalary = policies?.find(p => p.parameter_type === 'base_salary' && p.is_active);
 
       const oldBhxhVal = (formData.oldBhxh || (bhxhVal && bhxhVal.length === 10 ? bhxhVal : '')).trim();
@@ -593,7 +596,7 @@ const RegisterModal: React.FC<RegisterModalProps> = ({ isOpen, onClose, onSucces
         appliedRates: {
           nnSupportPct: bhxhCalc.nnSupport,
           dpSupportPct: bhxhCalc.dpSupport,
-          investmentRate: settings?.investmentRate !== undefined ? settings.investmentRate : (CONSTANTS.INTEREST * 100),
+          investmentRate: currentInvestmentRate,
           bhytRate: CONSTANTS.BHYT_RATE
         }
       };

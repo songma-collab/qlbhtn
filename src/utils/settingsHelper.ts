@@ -792,12 +792,68 @@ export const mergeSettingsWithVietQR = (
     dbSettings?.controllerTitle || 
     DEFAULT_REPORT_PRINT_CONFIG.controllerTitle;
 
+  // Tự động đồng bộ các tham số chính sách đang kích hoạt (active policies) vào Settings
+  let activeBaseSalary: number | undefined;
+  let activePovertyStandard: number | undefined;
+  let activeInvestmentRate: number | undefined;
+  let activeCpiIndex: any = undefined;
+  let activeCommission: any = undefined;
+
+  if (policies && Array.isArray(policies)) {
+    const pSalary = policies.find(p => p.parameter_type === 'base_salary' && p.is_active);
+    if (pSalary && pSalary.value != null && !isNaN(Number(pSalary.value))) {
+      activeBaseSalary = Number(pSalary.value);
+    }
+
+    const pPoverty = policies.find(p => p.parameter_type === 'poverty_standard' && p.is_active);
+    if (pPoverty && pPoverty.value != null && !isNaN(Number(pPoverty.value))) {
+      activePovertyStandard = Number(pPoverty.value);
+    }
+
+    const pInv = policies.find(p => p.parameter_type === 'investment_rate' && p.is_active);
+    if (pInv && pInv.value != null && !isNaN(Number(pInv.value))) {
+      activeInvestmentRate = Number(pInv.value);
+    }
+
+    const pCpi = policies.find(p => p.parameter_type === 'cpi_index' && p.is_active);
+    if (pCpi && pCpi.value != null) {
+      try {
+        activeCpiIndex = typeof pCpi.value === 'string' ? JSON.parse(pCpi.value) : pCpi.value;
+      } catch {
+        activeCpiIndex = pCpi.value;
+      }
+    }
+
+    const pComm = policies.find(p => (p.parameter_type === 'commission' || p.parameter_type === 'commission_rates') && p.is_active);
+    if (pComm && pComm.value != null) {
+      try {
+        activeCommission = typeof pComm.value === 'string' ? JSON.parse(pComm.value) : pComm.value;
+      } catch {
+        activeCommission = pComm.value;
+      }
+    }
+  }
+
   return {
     ...DEFAULT_VIETQR_CONFIG,
     ...effectiveVietQR,
     ...DEFAULT_REPORT_PRINT_CONFIG,
     ...effectivePrint,
     ...(dbSettings || {}),
+    baseSalary: activeBaseSalary ?? dbSettings?.baseSalary ?? 2340000,
+    povertyStandard: activePovertyStandard ?? dbSettings?.povertyStandard ?? 1500000,
+    investmentRate: activeInvestmentRate ?? dbSettings?.investmentRate ?? 0.31,
+    ...(activeCpiIndex ? { cpiIndex: activeCpiIndex } : {}),
+    ...(activeCommission ? {
+      commBHXHNew: activeCommission.commBHXHNew ?? activeCommission.commBHXHNew12M ?? dbSettings?.commBHXHNew ?? 20,
+      commBHXHRenew: activeCommission.commBHXHRenew ?? dbSettings?.commBHXHRenew ?? 9,
+      commBHYTNew: activeCommission.commBHYTNew ?? dbSettings?.commBHYTNew ?? 9,
+      commBHYTRenew: activeCommission.commBHYTRenew ?? dbSettings?.commBHYTRenew ?? 5,
+      commBHXHNew1M: activeCommission.commBHXHNew1M ?? dbSettings?.commBHXHNew1M ?? 12,
+      commBHXHNew3M: activeCommission.commBHXHNew3M ?? dbSettings?.commBHXHNew3M ?? 15,
+      commBHXHNew6M: activeCommission.commBHXHNew6M ?? dbSettings?.commBHXHNew6M ?? 17,
+      commBHXHNew12M: activeCommission.commBHXHNew12M ?? activeCommission.commBHXHNew ?? dbSettings?.commBHXHNew12M ?? 20,
+    } : {}),
     rolePermissions: effectiveRolePermissions,
     userOverrides: effectiveUserOverrides,
     // Đảm bảo tên đại lý và thông tin ngân hàng được bảo toàn

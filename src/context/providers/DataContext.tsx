@@ -202,24 +202,31 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // 6. Quản lý chính sách (Policies CRUD)
   const addPolicy = useCallback(async (newPolicy: Omit<Policy, 'id'>): Promise<boolean> => {
     try {
+      // Optimistic update cho UI mượt mà ngay lập tức
+      const tempId = Date.now();
+      setPoliciesLive(prev => [{ ...(newPolicy as any), id: tempId }, ...prev]);
       const { error } = await policyService.addPolicy(newPolicy);
       if (error) throw error;
       await fetchPolicies();
       return true;
     } catch (error: any) {
       console.error('Error adding policy:', error);
+      await fetchPolicies();
       throw error;
     }
   }, [fetchPolicies]);
 
   const updatePolicy = useCallback(async (id: number, updatedFields: Partial<Policy>): Promise<boolean> => {
     try {
+      // Optimistic update
+      setPoliciesLive(prev => prev.map(p => p.id === id ? { ...p, ...updatedFields } : p));
       const { error } = await policyService.updatePolicy(id, updatedFields);
       if (error) throw error;
       await fetchPolicies();
       return true;
     } catch (error: any) {
       console.error('Error updating policy:', error);
+      await fetchPolicies();
       throw error;
     }
   }, [fetchPolicies]);
