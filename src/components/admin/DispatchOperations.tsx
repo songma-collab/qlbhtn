@@ -27,7 +27,8 @@ import {
   ClipboardList,
   Zap,
   X,
-  QrCode
+  QrCode,
+  IdCard
 } from 'lucide-react';
 import RegisterModal from '../modals/RegisterModal';
 import { VietQRModal } from '../modals/VietQRModal';
@@ -905,7 +906,7 @@ const DispatchOperations: React.FC = () => {
             <thead className="bg-slate-50 text-slate-600 font-semibold uppercase tracking-wider border-b border-slate-200">
               <tr>
                 <th className="py-3.5 px-3 text-center w-10">Chọn</th>
-                <th className="py-3.5 px-3">Khách Hàng</th>
+                <th className="py-3.5 px-3 min-w-[140px]">Khách Hàng</th>
                 <th className="py-3.5 px-3">Loại Hình</th>
                 <th className="py-3.5 px-3">Tuyến Thu / Địa Chỉ</th>
                 <th className="py-3.5 px-3 text-center">Phương Thức Đóng</th>
@@ -913,8 +914,8 @@ const DispatchOperations: React.FC = () => {
                 <th className="py-3.5 px-3">Dự Kiến Thu</th>
                 <th className="py-3.5 px-3 text-center">Tình Trạng SLA</th>
                 <th className="py-3.5 px-3">Cán Bộ Thu</th>
-                <th className="py-3.5 px-3">Nhật Ký Tác Nghiệp</th>
-                <th className="py-3.5 px-3 text-right">Thao Tác</th>
+                <th className="py-3.5 px-3 min-w-[170px] max-w-[210px]">Nhật Ký Tác Nghiệp</th>
+                <th className="py-3.5 px-3 text-right whitespace-nowrap min-w-[170px]">Thao Tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium text-slate-800">
@@ -942,7 +943,7 @@ const DispatchOperations: React.FC = () => {
                       </td>
 
                       {/* Customer Info */}
-                      <td className="py-3.5 px-3">
+                      <td className="py-3.5 px-3 min-w-[140px]">
                         <div className="font-extrabold text-slate-900">{c.name}</div>
                         <div className="flex items-center gap-2 mt-0.5 text-[11px] text-slate-500">
                           {c.phone ? (
@@ -953,9 +954,15 @@ const DispatchOperations: React.FC = () => {
                             <span>Chưa có SĐT</span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-500 font-mono font-medium mt-0.5">
-                          {c.cccd || c.bhxh ? `ĐDCN/CCCD: ${c.cccd || c.bhxh}` : ''}
-                        </div>
+                        {(c.cccd || c.bhxh) && (
+                          <div 
+                            className="flex items-center gap-1.5 text-[10px] text-slate-500 font-mono font-medium mt-0.5 whitespace-nowrap"
+                            title="Số ĐDCN / CCCD"
+                          >
+                            <IdCard className="w-3 h-3 text-slate-400 shrink-0" />
+                            <span>{c.cccd || c.bhxh}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Type Badge */}
@@ -1020,7 +1027,7 @@ const DispatchOperations: React.FC = () => {
                       </td>
 
                       {/* Interaction Status */}
-                      <td className="py-3.5 px-3">
+                      <td className="py-3.5 px-3 min-w-[170px] max-w-[210px]">
                         {(() => {
                           let currentSelectVal = 'Chưa liên hệ';
                           const noteHeader = c.notes?.split(' (')[0] || '';
@@ -1030,28 +1037,43 @@ const DispatchOperations: React.FC = () => {
                           else if (noteHeader.includes('dừng') || noteHeader.includes('chối') || noteHeader.includes('từ chối')) currentSelectVal = 'Khách tạm dừng/từ chối';
                           else if (noteHeader && noteHeader !== 'Chưa liên hệ') currentSelectVal = noteHeader;
 
+                          const isPredefined = ['Chưa liên hệ', 'Đã gọi điện/nhắn tin', 'Khách hẹn nộp tiền', 'Đã thu tiền thành công', 'Khách tạm dừng/từ chối'].includes(currentSelectVal);
+
                           return (
-                            <select
-                              value={currentSelectVal || 'Chưa liên hệ'}
-                              onChange={e => handleUpdateNotes(c, e.target.value)}
-                              className="px-2.5 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm transition"
-                              title={c.notes || 'Nhật ký tác nghiệp'}
-                            >
-                              <option value="Chưa liên hệ">📞 Chưa liên hệ</option>
-                              <option value="Đã gọi điện/nhắn tin">💬 Đã gọi điện/nhắn</option>
-                              <option value="Khách hẹn nộp tiền">📅 Khách hẹn nộp</option>
-                              <option value="Đã thu tiền thành công">✅ Đã thu tiền</option>
-                              <option value="Khách tạm dừng/từ chối">❌ Tạm dừng/Từ chối</option>
-                              {!['Chưa liên hệ', 'Đã gọi điện/nhắn tin', 'Khách hẹn nộp tiền', 'Đã thu tiền thành công', 'Khách tạm dừng/từ chối'].includes(currentSelectVal) && (
-                                <option value={currentSelectVal}>📝 {currentSelectVal}</option>
+                            <div className="w-full max-w-[190px]">
+                              <select
+                                value={currentSelectVal || 'Chưa liên hệ'}
+                                onChange={e => handleUpdateNotes(c, e.target.value)}
+                                className="w-full max-w-[190px] px-2 py-1.5 bg-white border border-slate-200 hover:border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-sm transition truncate block"
+                                title={c.notes || 'Nhật ký tác nghiệp'}
+                              >
+                                <option value="Chưa liên hệ">📞 Chưa liên hệ</option>
+                                <option value="Đã gọi điện/nhắn tin">💬 Đã gọi điện/nhắn</option>
+                                <option value="Khách hẹn nộp tiền">📅 Khách hẹn nộp</option>
+                                <option value="Đã thu tiền thành công">✅ Đã thu tiền</option>
+                                <option value="Khách tạm dừng/từ chối">❌ Tạm dừng/Từ chối</option>
+                                {!isPredefined && (
+                                  <option value={currentSelectVal} title={currentSelectVal}>
+                                    📝 {currentSelectVal.length > 22 ? currentSelectVal.slice(0, 20) + '...' : currentSelectVal}
+                                  </option>
+                                )}
+                              </select>
+                              {/* Lý do diễn giải / Ghi chú chi tiết nếu có */}
+                              {c.notes && !isPredefined && (
+                                <div 
+                                  className="text-[10px] text-slate-500 italic mt-0.5 truncate max-w-[190px] cursor-help font-medium"
+                                  title={c.notes}
+                                >
+                                  {c.notes}
+                                </div>
                               )}
-                            </select>
+                            </div>
                           );
                         })()}
                       </td>
 
                       {/* Action Buttons */}
-                      <td className="py-3.5 px-3 text-right">
+                      <td className="py-3.5 px-3 text-right whitespace-nowrap min-w-[170px]">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* VietQR nộp tiền */}
                           <button

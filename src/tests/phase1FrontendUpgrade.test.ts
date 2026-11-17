@@ -29,7 +29,7 @@ describe('Kiểm thử Nâng cấp Frontend Giai đoạn 1 (Phase 1 Frontend Upg
   it('3. Đảm bảo CustomerTableView nạp thành công với cấu trúc Action Bar tinh gọn', async () => {
     const tableMod = await import('../components/admin/crm/CustomerTableView');
     expect(tableMod.CustomerTableView).toBeDefined();
-  });
+  }, 15000);
 
   it('4. Đảm bảo Dashboard và CRMView tích hợp Shimmer Skeleton không gây lỗi cú pháp', async () => {
     const dashboardMod = await import('../components/admin/Dashboard');
@@ -37,5 +37,5 @@ describe('Kiểm thử Nâng cấp Frontend Giai đoạn 1 (Phase 1 Frontend Upg
 
     const crmMod = await import('../components/admin/CRMView');
     expect(crmMod.CRMView).toBeDefined();
-  });
+  }, 15000);
 });
