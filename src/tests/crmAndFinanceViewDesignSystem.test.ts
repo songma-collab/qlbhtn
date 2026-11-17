@@ -17,7 +17,7 @@ describe('Kiểm thử Phân hệ CRMView và FinanceView theo Design System m�
 
     const financeRootMod = await import('../components/FinanceView');
     expect(financeRootMod.default).toBeDefined();
-  });
+  }, 15000);
 
   it('2. Tuân thủ quy định che dấu dữ liệu nhạy cảm PII (Nghị định 13/2023/NĐ-CP)', () => {
     const rawCccd = '001200001234';

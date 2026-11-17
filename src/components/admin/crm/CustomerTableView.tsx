@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Phone, Eye, EyeOff, UserCheck, History, QrCode, 
   UserPlus, Copy, Zap, Edit, Trash2, MoreHorizontal 
@@ -59,37 +60,48 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
   const safeSelectedIds = Array.isArray(selectedIds) ? selectedIds : [];
   const safeCustomers = Array.isArray(customers) ? customers.filter(Boolean) : [];
 
-  // Trạng thái mở menu thao tác phụ cho từng dòng
-  const [activeActionMenuId, setActiveActionMenuId] = useState<any>(null);
+  // Trạng thái neo vị trí và dữ liệu mở popup menu thao tác bổ trợ
+  const [activeMenuState, setActiveMenuState] = useState<{
+    id: any;
+    record: any;
+    rect: DOMRect;
+  } | null>(null);
 
-  // Lắng nghe sự kiện click bên ngoài để tự động đóng dropdown menu
+  // Lắng nghe sự kiện click bên ngoài, phím Escape, scroll hoặc resize để tự động đóng dropdown menu
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       const target = e.target as HTMLElement;
-      if (!target.closest('.action-menu-container')) {
-        setActiveActionMenuId(null);
+      if (!target.closest('.action-menu-container') && !target.closest('.action-menu-portal')) {
+        setActiveMenuState(null);
       }
     };
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setActiveActionMenuId(null);
+        setActiveMenuState(null);
       }
     };
+    const handleScrollOrResize = () => {
+      setActiveMenuState(null);
+    };
 
-    if (activeActionMenuId) {
+    if (activeMenuState) {
       document.addEventListener('pointerdown', handleOutsideClick);
       document.addEventListener('keydown', handleKeyDown);
+      window.addEventListener('resize', handleScrollOrResize);
+      window.addEventListener('scroll', handleScrollOrResize, true);
     }
     return () => {
       document.removeEventListener('pointerdown', handleOutsideClick);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', handleScrollOrResize);
+      window.removeEventListener('scroll', handleScrollOrResize, true);
     };
-  }, [activeActionMenuId]);
+  }, [activeMenuState]);
 
   return (
     <>
       {/* Desktop Table View */}
-      <div className="hidden md:block overflow-x-auto custom-scrollbar">
+      <div className="hidden md:block overflow-x-auto custom-scrollbar min-h-[300px]">
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-100/90 text-slate-700 font-bold border-b border-slate-300 text-xs uppercase tracking-wider">
             <tr>
@@ -254,8 +266,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   </td>
                   <td className="p-4">
                     {(() => {
-                      const isActionMenuOpen = Boolean(rowId && activeActionMenuId === rowId);
-                      const isNearBottom = index >= safeCustomers.length - 2 && safeCustomers.length >= 3;
+                      const isActionMenuOpen = Boolean(rowId && activeMenuState?.id === rowId);
 
                       return (
                         <div className="flex items-center justify-center gap-1.5 relative action-menu-container">
@@ -283,12 +294,17 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                           </button>
 
                           {/* 3. Menu Thao Tác Bổ Trợ [...] */}
-                          <div className="relative">
+                          <div className="relative action-menu-container">
                             <button
                               type="button"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setActiveActionMenuId(isActionMenuOpen ? null : rowId);
+                                if (activeMenuState?.id === rowId) {
+                                  setActiveMenuState(null);
+                                } else {
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  setActiveMenuState({ id: rowId, record: r, rect });
+                                }
                               }}
                               className={`p-1.5 rounded-lg transition-all cursor-pointer active:scale-95 border ${
                                 isActionMenuOpen 
@@ -299,96 +315,6 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                             >
                               <MoreHorizontal size={16} />
                             </button>
-
-                            {isActionMenuOpen && (
-                              <div 
-                                className={`absolute right-0 ${
-                                  isNearBottom ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-                                } w-56 bg-white rounded-xl shadow-xl border border-slate-200/90 py-1.5 z-50 text-left animate-tab-fade text-xs`}
-                                role="menu"
-                              >
-                                <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                  Thao tác bổ trợ
-                                </div>
-                                
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); onVietQrClick(r); }}
-                                  disabled={!r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition text-left cursor-pointer"
-                                >
-                                  <QrCode size={15} className="text-sky-600 shrink-0" />
-                                  <span>Tạo mã VietQR nộp tiền</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); onCopyZalo(r); }}
-                                  disabled={!r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition text-left cursor-pointer"
-                                >
-                                  <Copy size={15} className="text-emerald-600 shrink-0" />
-                                  <span>Sao chép tin nhắn Zalo</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); onParticipationClick(r); }}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition text-left cursor-pointer"
-                                >
-                                  <History size={15} className="text-indigo-600 shrink-0" />
-                                  <span>Hồ sơ tham gia trước đây</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); onStatusClick(r); }}
-                                  disabled={!r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition text-left cursor-pointer"
-                                >
-                                  <UserCheck size={15} className="text-amber-600 shrink-0" />
-                                  <span>Đổi trạng thái tham gia</span>
-                                </button>
-
-                                {currentUser?.role !== 'Nhân viên' && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveActionMenuId(null); r.id && onAssignClick(r.id); }}
-                                    disabled={!r.id}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition text-left cursor-pointer"
-                                  >
-                                    <UserPlus size={15} className="text-purple-600 shrink-0" />
-                                    <span>Phân công cán bộ quản lý</span>
-                                  </button>
-                                )}
-
-                                {canEditCustomer && (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveActionMenuId(null); r.id && onEditClick(r); }}
-                                    disabled={!r.id}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-[#004182] transition text-left cursor-pointer"
-                                  >
-                                    <Edit size={15} className="text-[#004182] shrink-0" />
-                                    <span>Chỉnh sửa thông tin</span>
-                                  </button>
-                                )}
-
-                                {canDeleteCustomer && (
-                                  <div className="pt-1 mt-1 border-t border-slate-100">
-                                    <button
-                                      type="button"
-                                      onClick={() => { setActiveActionMenuId(null); r.id && onDeleteClick(r.id); }}
-                                      disabled={!r.id}
-                                      className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer font-medium"
-                                    >
-                                      <Trash2 size={15} className="text-rose-500 shrink-0" />
-                                      <span>Xóa khách hàng</span>
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            )}
                           </div>
                         </div>
                       );
@@ -546,7 +472,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                   />
                   {(() => {
                     const mobMenuId = `mob-${rowId}`;
-                    const isMobMenuOpen = Boolean(rowId && activeActionMenuId === mobMenuId);
+                    const isMobMenuOpen = Boolean(rowId && activeMenuState?.id === mobMenuId);
 
                     return (
                       <div className="flex items-center gap-1.5 relative action-menu-container">
@@ -574,110 +500,28 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
                         </button>
 
                         {/* 3. Nút Menu thao tác khác [...] */}
-                        <div className="relative">
+                        <div className="relative action-menu-container">
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setActiveActionMenuId(isMobMenuOpen ? null : mobMenuId);
+                              const mobMenuId = `mob-${rowId}`;
+                              if (activeMenuState?.id === mobMenuId) {
+                                setActiveMenuState(null);
+                              } else {
+                                const rect = e.currentTarget.getBoundingClientRect();
+                                setActiveMenuState({ id: mobMenuId, record: r, rect });
+                              }
                             }}
                             className={`p-1.5 rounded-lg transition active:scale-95 border ${
                               isMobMenuOpen
-                                ? 'bg-slate-200 text-slate-900 border-slate-300'
+                                ? 'bg-slate-200 text-slate-900 border-slate-300 shadow-inner'
                                 : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-slate-200 shadow-2xs'
                             }`}
                             title="Thao tác khác"
                           >
                             <MoreHorizontal size={15} />
                           </button>
-
-                          {isMobMenuOpen && (
-                            <div 
-                              className="absolute right-0 bottom-full mb-1.5 w-52 bg-white rounded-xl shadow-xl border border-slate-200/90 py-1.5 z-50 text-left animate-tab-fade text-xs"
-                              role="menu"
-                            >
-                              <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-                                Thao tác bổ trợ
-                              </div>
-
-                              <button
-                                type="button"
-                                onClick={() => { setActiveActionMenuId(null); onVietQrClick(r); }}
-                                disabled={!r.id}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-sky-50 transition text-left cursor-pointer"
-                              >
-                                <QrCode size={14} className="text-sky-600 shrink-0" />
-                                <span>Mã VietQR nộp tiền</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => { setActiveActionMenuId(null); onCopyZalo(r); }}
-                                disabled={!r.id}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-emerald-50 transition text-left cursor-pointer"
-                              >
-                                <Copy size={14} className="text-emerald-600 shrink-0" />
-                                <span>Sao chép tin Zalo</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => { setActiveActionMenuId(null); onParticipationClick(r); }}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-indigo-50 transition text-left cursor-pointer"
-                              >
-                                <History size={14} className="text-indigo-600 shrink-0" />
-                                <span>Hồ sơ tham gia trước đây</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => { setActiveActionMenuId(null); onStatusClick(r); }}
-                                disabled={!r.id}
-                                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-amber-50 transition text-left cursor-pointer"
-                              >
-                                <UserCheck size={14} className="text-amber-600 shrink-0" />
-                                <span>Đổi trạng thái tham gia</span>
-                              </button>
-
-                              {currentUser?.role !== 'Nhân viên' && (
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); r.id && onAssignClick(r.id); }}
-                                  disabled={!r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-purple-50 transition text-left cursor-pointer"
-                                >
-                                  <UserPlus size={14} className="text-purple-600 shrink-0" />
-                                  <span>Phân công cán bộ</span>
-                                </button>
-                              )}
-
-                              {canEditCustomer && (
-                                <button
-                                  type="button"
-                                  onClick={() => { setActiveActionMenuId(null); r.id && onEditClick(r); }}
-                                  disabled={!r.id}
-                                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-blue-50 transition text-left cursor-pointer"
-                                >
-                                  <Edit size={14} className="text-[#004182] shrink-0" />
-                                  <span>Chỉnh sửa thông tin</span>
-                                </button>
-                              )}
-
-                              {canDeleteCustomer && (
-                                <div className="pt-1 mt-1 border-t border-slate-100">
-                                  <button
-                                    type="button"
-                                    onClick={() => { setActiveActionMenuId(null); r.id && onDeleteClick(r.id); }}
-                                    disabled={!r.id}
-                                    className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer font-medium"
-                                  >
-                                    <Trash2 size={14} className="text-rose-500 shrink-0" />
-                                    <span>Xóa khách hàng</span>
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
                         </div>
                       </div>
                     );
@@ -688,6 +532,117 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
           })
         )}
       </div>
-    </>
+    
+      {/* Portal Popup Menu Thao Tác Bổ Trợ: Nổi lên trên cùng (z-[99999]), không bao giờ bị chìm/che khuất bởi table overflow */}
+      {activeMenuState && typeof document !== 'undefined' && createPortal(
+        (() => {
+          const r = activeMenuState.record;
+          const rect = activeMenuState.rect;
+          const spaceBelow = window.innerHeight - rect.bottom;
+          const openUpwards = spaceBelow < 300 && rect.top > 300;
+          
+          const menuWidth = 224; // w-56 = 14rem = 224px
+          let rightPos = window.innerWidth - rect.right;
+          if (rightPos < 10) rightPos = 10;
+          if (rect.right - menuWidth < 10) {
+            rightPos = Math.max(10, window.innerWidth - menuWidth - 10);
+          }
+
+          return (
+            <div 
+              className="fixed z-[99999] w-56 bg-white rounded-xl shadow-2xl border border-slate-200/95 py-1.5 text-left animate-tab-fade text-xs action-menu-portal"
+              style={{
+                top: openUpwards ? undefined : `${rect.bottom + 6}px`,
+                bottom: openUpwards ? `${window.innerHeight - rect.top + 6}px` : undefined,
+                right: `${rightPos}px`
+              }}
+              role="menu"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-3 py-1 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                Thao tác bổ trợ
+              </div>
+              
+              <button
+                type="button"
+                onClick={() => { setActiveMenuState(null); onVietQrClick(r); }}
+                disabled={!r.id}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-sky-50 hover:text-sky-700 transition text-left cursor-pointer"
+              >
+                <QrCode size={15} className="text-sky-600 shrink-0" />
+                <span>Tạo mã VietQR nộp tiền</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveMenuState(null); onCopyZalo(r); }}
+                disabled={!r.id}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-emerald-50 hover:text-emerald-700 transition text-left cursor-pointer"
+              >
+                <Copy size={15} className="text-emerald-600 shrink-0" />
+                <span>Sao chép tin nhắn Zalo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveMenuState(null); onParticipationClick(r); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-indigo-50 hover:text-indigo-700 transition text-left cursor-pointer"
+              >
+                <History size={15} className="text-indigo-600 shrink-0" />
+                <span>Hồ sơ tham gia trước đây</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => { setActiveMenuState(null); onStatusClick(r); }}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-amber-50 hover:text-amber-700 transition text-left cursor-pointer"
+              >
+                <UserCheck size={15} className="text-amber-600 shrink-0" />
+                <span>Đổi trạng thái tham gia</span>
+              </button>
+
+              {currentUser?.role !== 'Nhân viên' && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveMenuState(null); r.id && onAssignClick(r.id); }}
+                  disabled={!r.id}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-purple-50 hover:text-purple-700 transition text-left cursor-pointer"
+                >
+                  <UserPlus size={15} className="text-purple-600 shrink-0" />
+                  <span>Phân công cán bộ quản lý</span>
+                </button>
+              )}
+
+              {canEditCustomer && (
+                <button
+                  type="button"
+                  onClick={() => { setActiveMenuState(null); r.id && onEditClick(r); }}
+                  disabled={!r.id}
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-slate-700 hover:bg-blue-50 hover:text-[#004182] transition text-left cursor-pointer"
+                >
+                  <Edit size={15} className="text-[#004182] shrink-0" />
+                  <span>Chỉnh sửa thông tin</span>
+                </button>
+              )}
+
+              {canDeleteCustomer && (
+                <div className="pt-1 mt-1 border-t border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => { setActiveMenuState(null); r.id && onDeleteClick(r.id); }}
+                    disabled={!r.id}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-rose-600 hover:bg-rose-50 transition text-left cursor-pointer font-medium"
+                  >
+                    <Trash2 size={15} className="text-rose-500 shrink-0" />
+                    <span>Xóa khách hàng</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })(),
+        document.body
+      )}
+</>
   );
 };
