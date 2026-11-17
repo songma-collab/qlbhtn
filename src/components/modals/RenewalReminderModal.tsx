@@ -415,7 +415,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                 <thead className="bg-gray-50 sticky top-0 z-10 text-gray-600 uppercase text-[11px] font-bold">
                   <tr>
                     <th className="px-3 py-3 text-left">Khách Hàng</th>
-                    <th className="px-3 py-3 text-left">SĐT & Mã Số</th>
+                    <th className="px-3 py-3 text-center">SĐT & Số tiền</th>
                     <th className="px-3 py-3 text-left">Hạn Đóng Tiếp Theo</th>
                     <th className="px-3 py-3 text-left">Kỳ Đóng Gần Nhất</th>
                     <th className="px-3 py-3 text-left">Nhân Viên</th>
@@ -438,11 +438,12 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
 
                     return (
                       <tr key={r.id || idx} className="hover:bg-blue-50/40 transition">
-                        {/* 1. Khách Hàng (Tên, CCCD, Ghi chú) */}
+                        {/* 1. Khách Hàng (Tên, CCCD, Mã nếu có, Ghi chú) */}
                         <td className="px-3 py-3">
                           <div className="font-bold text-gray-800">{r.name || r.fullName || 'Khách hàng'}</div>
                           <div className="text-gray-500 text-xs mt-0.5 font-mono">
                             CCCD: {r.citizenId || r.cccd || '---'}
+                            {code && <span className="ml-2 text-gray-400">| Mã: <span className="text-gray-600">{code}</span></span>}
                           </div>
                           {r.notes && (
                             <div className="text-[11px] text-gray-500 italic mt-0.5 max-w-[220px] truncate" title={r.notes}>
@@ -451,26 +452,27 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                           )}
                         </td>
 
-                        {/* 2. SĐT & Mã Số (Dòng SĐT thay cho dòng Loại hình BHXH, Mã số, Số tiền) */}
-                        <td className="px-3 py-3">
-                          {r.phone ? (
-                            <a 
-                              href={`tel:${r.phone}`}
-                              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline mb-1"
-                              title="Gọi điện thoại"
-                            >
-                              <Phone size={11.5} className="shrink-0 text-blue-600" />
-                              <span className="font-mono">{r.phone}</span>
-                            </a>
-                          ) : (
-                            <div className="text-xs text-gray-400 italic mb-1 flex items-center gap-1">
-                              <Phone size={11} className="shrink-0 opacity-50" />
-                              <span>Chưa có SĐT</span>
-                            </div>
-                          )}
-                          <div className="font-mono text-xs text-gray-600">{code || '---'}</div>
+                        {/* 2. SĐT & Số tiền (Căn giữa, SĐT dòng trên, Số tiền dòng dưới, bỏ dấu gạch ---) */}
+                        <td className="px-3 py-3 text-center">
+                          <div>
+                            {r.phone ? (
+                              <a 
+                                href={`tel:${r.phone}`}
+                                className="inline-flex items-center justify-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline"
+                                title="Gọi điện thoại"
+                              >
+                                <Phone size={11.5} className="shrink-0 text-blue-600" />
+                                <span className="font-mono">{r.phone}</span>
+                              </a>
+                            ) : (
+                              <div className="text-xs text-gray-400 italic inline-flex items-center justify-center gap-1">
+                                <Phone size={11} className="shrink-0 opacity-50" />
+                                <span>Chưa có SĐT</span>
+                              </div>
+                            )}
+                          </div>
                           {Number(r.amount !== undefined ? r.amount : (r.latest_amount || 0)) > 0 && (
-                            <div className="font-extrabold text-emerald-700 text-xs mt-1">
+                            <div className="font-extrabold text-emerald-700 text-xs mt-0.5 font-mono">
                               {formatMoney(r.amount !== undefined ? r.amount : r.latest_amount)}
                             </div>
                           )}
