@@ -18,8 +18,9 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import { toUIMonth, toUIDate, calculateNextRenewalMonth } from '../../utils/dateStandardHelper';
-import { prepareRenewalRecord, formatDateVN, calculateNextPaymentFromToMonth, formatMoney } from '../../utils/helpers';
+import { prepareRenewalRecord, formatDateVN, calculateNextPaymentFromToMonth, formatMoney, formatMonthVN } from '../../utils/helpers';
 import { formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
+import { addMonthsToPeriod } from '../../utils/dateUtils';
 import { 
   classifyRenewalRecords, 
   generateRenewalMessage, 
@@ -67,6 +68,46 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
     if (!staffId) return record?.staffName || record?.staff || 'Chưa phân công';
     const s = staff?.find((st: any) => st.id === staffId || st.username === staffId || st.staffCode === staffId || st.code === staffId);
     return s?.name || record?.staffName || record?.staff || staffId;
+  };
+
+  // Helper tính toán và định dạng Kỳ đóng gần nhất của khách hàng
+  const getPeriodAndMethodDisplay = (r: any) => {
+    const fromM = r.from_month || r.fromMonth;
+    const toM = r.to_month || r.toMonth;
+    const fromMStr = fromM ? formatMonthVN(fromM) : '';
+    const toMStr = toM ? formatMonthVN(toM) : '';
+
+    let periodDisplay = '';
+    if (fromMStr && toMStr) {
+      periodDisplay = fromMStr === toMStr ? `Tháng ${fromMStr}` : `${fromMStr} - ${toMStr}`;
+    } else if (toMStr) {
+      const mCount = typeof r.months === 'number' ? r.months : (parseInt(String(r.months || r.method), 10) || 0);
+      if (mCount > 1) {
+        const fromCal = addMonthsToPeriod(toMStr, -(mCount - 1));
+        periodDisplay = `${formatMonthVN(fromCal)} - ${toMStr}`;
+      } else {
+        periodDisplay = `Đến tháng ${toMStr}`;
+      }
+    } else if (fromMStr) {
+      const mCount = typeof r.months === 'number' ? r.months : (parseInt(String(r.months || r.method), 10) || 0);
+      if (mCount > 1) {
+        const toCal = addMonthsToPeriod(fromMStr, mCount - 1);
+        periodDisplay = `${fromMStr} - ${formatMonthVN(toCal)}`;
+      } else {
+        periodDisplay = `Từ tháng ${fromMStr}`;
+      }
+    } else if (r.date || r.created_at) {
+      periodDisplay = `Tháng ${formatMonthVN(r.date || r.created_at)}`;
+    } else {
+      periodDisplay = '---';
+    }
+
+    let methodDisplay = r.method || '';
+    if (!methodDisplay && r.months) {
+      methodDisplay = `Đóng ${r.months} tháng`;
+    }
+
+    return { periodDisplay, methodDisplay };
   };
 
   // Mở popup soạn tin nhắn đôn đốc
@@ -374,9 +415,9 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                 <thead className="bg-gray-50 sticky top-0 z-10 text-gray-600 uppercase text-[11px] font-bold">
                   <tr>
                     <th className="px-3 py-3 text-left">Khách Hàng</th>
-                    <th className="px-3 py-3 text-left">Loại & Mã Số</th>
+                    <th className="px-3 py-3 text-left">SĐT & Mã Số</th>
                     <th className="px-3 py-3 text-left">Hạn Đóng Tiếp Theo</th>
-                    <th className="px-3 py-3 text-left">Mức Độ Đôn Đốc</th>
+                    <th className="px-3 py-3 text-left">Kỳ Đóng Gần Nhất</th>
                     <th className="px-3 py-3 text-left">Nhân Viên</th>
                     <th className="px-3 py-3 text-right">Thao Tác</th>
                   </tr>
@@ -393,22 +434,15 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                       ? calculateNextPaymentFromToMonth(toM || fromM, r.months || r.method, r.type)
                       : null);
                     const nextPayStr = formatDateVN(rawNext) || 'Chưa xác định';
+                    const { periodDisplay, methodDisplay } = getPeriodAndMethodDisplay(r);
 
                     return (
                       <tr key={r.id || idx} className="hover:bg-blue-50/40 transition">
+                        {/* 1. Khách Hàng (Tên, CCCD, Ghi chú) */}
                         <td className="px-3 py-3">
                           <div className="font-bold text-gray-800">{r.name || r.fullName || 'Khách hàng'}</div>
-                          <div className="text-gray-500 text-xs flex items-center gap-2 mt-0.5">
-                            <span>CCCD: {r.citizenId || r.cccd || '---'}</span>
-                            {r.phone && (
-                              <a 
-                                href={`tel:${r.phone}`}
-                                className="text-blue-600 hover:underline flex items-center gap-0.5"
-                                title="Gọi điện thoại"
-                              >
-                                <Phone size={11} /> {r.phone}
-                              </a>
-                            )}
+                          <div className="text-gray-500 text-xs mt-0.5 font-mono">
+                            CCCD: {r.citizenId || r.cccd || '---'}
                           </div>
                           {r.notes && (
                             <div className="text-[11px] text-gray-500 italic mt-0.5 max-w-[220px] truncate" title={r.notes}>
@@ -417,12 +451,23 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                           )}
                         </td>
 
+                        {/* 2. SĐT & Mã Số (Dòng SĐT thay cho dòng Loại hình BHXH, Mã số, Số tiền) */}
                         <td className="px-3 py-3">
-                          <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-bold mb-1 ${
-                            isBHYT ? 'bg-cyan-100 text-cyan-800' : 'bg-blue-100 text-[#004182]'
-                          }`}>
-                            {isBHYT ? 'BHYT Hộ gia đình' : 'BHXH Tự nguyện'}
-                          </span>
+                          {r.phone ? (
+                            <a 
+                              href={`tel:${r.phone}`}
+                              className="inline-flex items-center gap-1 text-xs font-bold text-blue-600 hover:text-blue-800 hover:underline mb-1"
+                              title="Gọi điện thoại"
+                            >
+                              <Phone size={11.5} className="shrink-0 text-blue-600" />
+                              <span className="font-mono">{r.phone}</span>
+                            </a>
+                          ) : (
+                            <div className="text-xs text-gray-400 italic mb-1 flex items-center gap-1">
+                              <Phone size={11} className="shrink-0 opacity-50" />
+                              <span>Chưa có SĐT</span>
+                            </div>
+                          )}
                           <div className="font-mono text-xs text-gray-600">{code || '---'}</div>
                           {Number(r.amount !== undefined ? r.amount : (r.latest_amount || 0)) > 0 && (
                             <div className="font-extrabold text-emerald-700 text-xs mt-1">
@@ -431,6 +476,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                           )}
                         </td>
 
+                        {/* 3. Hạn Đóng Tiếp Theo */}
                         <td className="px-3 py-3">
                           <div className="font-semibold text-gray-800 flex items-center gap-1.5">
                             <Calendar size={13} className="text-gray-400" />
@@ -445,15 +491,20 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
                           </div>
                         </td>
 
+                        {/* 4. Kỳ Đóng Gần Nhất (Hiển thị kỳ đóng mới nhất của khách hàng) */}
                         <td className="px-3 py-3">
-                          <span 
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold text-white shadow-xs"
-                            style={{ backgroundColor: item.urgencyColor }}
-                          >
-                            <Clock size={12} /> {item.urgencyLabel}
-                          </span>
+                          <div className="font-bold text-gray-800 text-xs font-mono flex items-center gap-1.5">
+                            <Calendar size={13} className="text-blue-700 shrink-0" />
+                            <span>{periodDisplay}</span>
+                          </div>
+                          {methodDisplay && (
+                            <div className="text-[11px] text-gray-500 font-medium mt-0.5">
+                              {methodDisplay}
+                            </div>
+                          )}
                         </td>
 
+                        {/* 5. Nhân Viên Phụ Trách */}
                         <td className="px-3 py-3">
                           <div className="font-medium text-gray-700 text-xs">
                             {getStaffNameForRecord(r)}

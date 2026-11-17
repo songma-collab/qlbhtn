@@ -4,7 +4,7 @@
  */
 
 import { calculateNextPaymentFromToMonth, parseMonthAndYear } from './dateUtils';
-import { formatDateVN } from './helpers';
+import { formatDateVN, formatMonthVN } from './helpers';
 import { ReminderMessageTemplates } from '../context/types';
 import { DEFAULT_REMINDER_MESSAGE_TEMPLATES, getStoredReminderMessageTemplates, renderReminderMessageTemplate } from './settingsHelper';
 
@@ -274,6 +274,7 @@ export const exportRenewalListToExcel = async (
     'Số điện thoại',
     'Địa chỉ',
     'Loại hình',
+    'Kỳ đóng gần nhất',
     'Ngày đến hạn',
     'Tình trạng hạn',
     'Mức độ',
@@ -317,6 +318,10 @@ export const exportRenewalListToExcel = async (
 
     const noteText = r.notes || r.note || r.contactNote || '';
 
+    const fromMStr = fromM ? formatMonthVN(fromM) : '';
+    const toMStr = toM ? formatMonthVN(toM) : '';
+    const periodDisplay = fromMStr && toMStr ? `${fromMStr} - ${toMStr}` : (fromMStr || toMStr || '---');
+
     return [
       index + 1,
       r.name || r.fullName || '',
@@ -325,6 +330,7 @@ export const exportRenewalListToExcel = async (
       r.phone || '',
       r.address || '',
       r.type || 'BHXH',
+      periodDisplay,
       nextPayStr,
       item.urgencyLabel,
       urgencyMap[item.urgency],
@@ -346,6 +352,7 @@ export const exportRenewalListToExcel = async (
     { wch: 14 }, // SĐT
     { wch: 30 }, // Địa chỉ
     { wch: 10 }, // Loại hình
+    { wch: 18 }, // Kỳ đóng gần nhất
     { wch: 14 }, // Ngày đến hạn
     { wch: 22 }, // Tình trạng hạn
     { wch: 20 }, // Mức độ
@@ -360,8 +367,8 @@ export const exportRenewalListToExcel = async (
     { s: { r: 1, c: 0 }, e: { r: 1, c: 2 } },
     { s: { r: 0, c: 4 }, e: { r: 0, c: 9 } },
     { s: { r: 1, c: 4 }, e: { r: 1, c: 9 } },
-    { s: { r: 3, c: 0 }, e: { r: 3, c: 12 } },
-    { s: { r: 4, c: 0 }, e: { r: 4, c: 12 } }
+    { s: { r: 3, c: 0 }, e: { r: 3, c: 13 } },
+    { s: { r: 4, c: 0 }, e: { r: 4, c: 13 } }
   ];
 
   // Áp dụng style
@@ -417,17 +424,17 @@ export const exportRenewalListToExcel = async (
       const cellRef = XLSX.utils.encode_cell({ r: rIdx, c });
       if (ws[cellRef]) {
         let align: any = 'left';
-        if (c === 0 || c === 6 || c === 7) align = 'center';
+        if (c === 0 || c === 6 || c === 7 || c === 8) align = 'center';
         if (c === 2 || c === 3 || c === 4) align = 'center';
-        if (c === 10) align = 'right';
+        if (c === 11) align = 'right';
 
         let fontColor = '333333';
-        if (isOverdue && (c === 8 || c === 9)) fontColor = 'DC2626';
-        if (isUrgent && (c === 8 || c === 9)) fontColor = 'EA580C';
-        if (isNewPeriod && (c === 8 || c === 9)) fontColor = '4F46E5';
+        if (isOverdue && (c === 9 || c === 10)) fontColor = 'DC2626';
+        if (isUrgent && (c === 9 || c === 10)) fontColor = 'EA580C';
+        if (isNewPeriod && (c === 9 || c === 10)) fontColor = '4F46E5';
 
         ws[cellRef].s = {
-          font: { name: fontName, sz: 10, bold: c === 1 || c === 8 || c === 9, color: { rgb: fontColor } },
+          font: { name: fontName, sz: 10, bold: c === 1 || c === 9 || c === 10, color: { rgb: fontColor } },
           alignment: { horizontal: align, vertical: 'center' },
           fill: rowOffset % 2 === 1 ? { fgColor: { rgb: 'F8FAFC' } } : undefined,
           border: {
