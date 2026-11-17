@@ -164,6 +164,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
     else if (activeUrgency === 'urgent') list = classification.urgent;
     else if (activeUrgency === 'warning') list = classification.warning;
     else if (activeUrgency === 'upcoming') list = classification.upcoming;
+    else if (activeUrgency === 'new_period_law') list = classification.newPeriodLaw || [];
 
     // Lọc theo loại hình
     if (typeFilter !== 'all') {
@@ -193,7 +194,8 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
       overdue: 'Hồ sơ đã quá hạn đóng',
       urgent: 'Hồ sơ khẩn cấp (≤ 7 ngày)',
       warning: 'Hồ sơ cận hạn (8 - 15 ngày)',
-      upcoming: 'Hồ sơ sắp đến hạn (16 - 30 ngày)'
+      upcoming: 'Hồ sơ sắp đến hạn (16 - 30 ngày)',
+      new_period_law: 'Hồ sơ đến kỳ đóng mới theo Luật BHXH 2024'
     };
     exportRenewalListToExcel(displayedItems, titles[activeUrgency], staff);
   };
@@ -245,7 +247,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
         </div>
 
         {/* Cấp độ khẩn cấp (KPI Tabs) */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 p-3 sm:p-4 bg-gray-50 border-b border-gray-200">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 p-3 sm:p-4 bg-gray-50 border-b border-gray-200">
           <button
             onClick={() => setActiveUrgency('all')}
             className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
@@ -299,7 +301,7 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
 
           <button
             onClick={() => setActiveUrgency('upcoming')}
-            className={`p-2.5 rounded-xl text-left border transition cursor-pointer col-span-2 sm:col-span-1 ${
+            className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
               activeUrgency === 'upcoming' 
                 ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                 : 'bg-white text-blue-700 border-blue-200 hover:border-blue-300'
@@ -307,6 +309,18 @@ const RenewalReminderModal: React.FC<RenewalReminderModalProps> = ({
           >
             <span className="text-[11px] block font-medium opacity-90">Sắp Đến (16-30 ngày)</span>
             <span className="text-lg font-bold">{classification.upcoming.length}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveUrgency('new_period_law')}
+            className={`p-2.5 rounded-xl text-left border transition cursor-pointer ${
+              activeUrgency === 'new_period_law' 
+                ? 'bg-indigo-600 text-white border-indigo-600 shadow-sm' 
+                : 'bg-white text-indigo-700 border-indigo-200 hover:border-indigo-300'
+            }`}
+          >
+            <span className="text-[11px] block font-medium opacity-90">Kỳ Đóng Mới (Luật 2024)</span>
+            <span className="text-lg font-bold">{classification.newPeriodLaw?.length || 0}</span>
           </button>
         </div>
 

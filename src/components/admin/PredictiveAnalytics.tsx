@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { formatMoney, formatDateVN, formatMonthVN, getLocalYYYYMMDD, getHistoryForCustomer, groupRecordsByCustomer, compareRecordsByContractLatest, prepareRenewalRecord, calculateNextPaymentFromToMonth } from '../../utils/helpers';
+import { checkIsNewPeriodLaw } from '../../utils/renewalDispatchHelper';
 import { TrendingUp, Calendar, AlertTriangle, Zap, Phone, Copy, Search, Flame, BarChart3 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -128,9 +129,11 @@ const PredictiveAnalytics: React.FC = () => {
       const nextTs = new Date(nextPay).getTime();
       const diffDays = Math.ceil((nextTs - todayTs) / (1000 * 60 * 60 * 24));
 
-      // Consider upcoming renewals within 60 days or already overdue up to 15 days
-      if (diffDays >= -15 && diffDays <= 60) {
-        let riskLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'EXPIRED' = 'LOW';
+      const isNewPeriod = checkIsNewPeriodLaw(r, diffDays, today);
+
+      // Consider upcoming renewals within 60 days, overdue up to 15 days, or new period under Law 2024
+      if ((diffDays >= -15 && diffDays <= 60) || isNewPeriod) {
+        let riskLevel: 'HIGH' | 'MEDIUM' | 'LOW' | 'EXPIRED' | 'NEW_PERIOD_LAW' = 'LOW';
         let riskLabel = '🟢 Thấp (>30 ngày)';
         let riskClass = 'bg-emerald-50 text-emerald-700 border-emerald-200';
 
@@ -150,6 +153,10 @@ const PredictiveAnalytics: React.FC = () => {
           riskLevel = 'LOW';
           riskLabel = '🟡 Cần Nhắc (16-30 ngày)';
           riskClass = 'bg-amber-50 text-amber-700 border-amber-200';
+        } else if (isNewPeriod) {
+          riskLevel = 'NEW_PERIOD_LAW';
+          riskLabel = '🟣 Kỳ Đóng Mới (Luật 2024)';
+          riskClass = 'bg-indigo-50 text-indigo-700 border-indigo-200';
         }
 
         list.push({
@@ -389,14 +396,14 @@ const PredictiveAnalytics: React.FC = () => {
           <p className="text-xs text-slate-500 mt-1">Nhấp chọn phân vùng nhiệt để lọc ngay danh sách khách hàng cần xử lý</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           {/* Zone 1: EXPIRED & HIGH */}
           <div
             onClick={() => setSelectedRiskFilter('HIGH')}
             className={`p-5 rounded-2xl border-2 transition cursor-pointer hover:shadow-lg ${selectedRiskFilter === 'HIGH' ? 'border-red-500 bg-red-50/80 shadow-md' : 'border-red-200 bg-red-50/30'}`}
           >
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-black text-red-700 uppercase tracking-wider">🔴 HỎA TỐC (≤ 7 NÀY)</span>
+              <span className="text-xs font-black text-red-700 uppercase tracking-wider">🔴 HỎA TỐC (≤ 7 NGÀY)</span>
               <span className="w-3 h-3 rounded-full bg-red-500 animate-ping" />
             </div>
             <p className="text-2xl font-black text-red-700">{expiringCustomers.filter(c => c.riskLevel === 'HIGH' || c.riskLevel === 'EXPIRED').length} HS</p>
@@ -409,7 +416,7 @@ const PredictiveAnalytics: React.FC = () => {
             className={`p-5 rounded-2xl border-2 transition cursor-pointer hover:shadow-lg ${selectedRiskFilter === 'MEDIUM' ? 'border-orange-500 bg-orange-50/80 shadow-md' : 'border-orange-200 bg-orange-50/30'}`}
           >
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-black text-orange-700 uppercase tracking-wider">🟠 ƯU TIÊN CAO (8-15 NÀY)</span>
+              <span className="text-xs font-black text-orange-700 uppercase tracking-wider">🟠 ƯU TIÊN CAO (8-15 NGÀY)</span>
               <span className="w-3 h-3 rounded-full bg-orange-500" />
             </div>
             <p className="text-2xl font-black text-orange-700">{expiringCustomers.filter(c => c.riskLevel === 'MEDIUM').length} HS</p>
@@ -422,14 +429,27 @@ const PredictiveAnalytics: React.FC = () => {
             className={`p-5 rounded-2xl border-2 transition cursor-pointer hover:shadow-lg ${selectedRiskFilter === 'LOW' ? 'border-amber-500 bg-amber-50/80 shadow-md' : 'border-amber-200 bg-amber-50/30'}`}
           >
             <div className="flex justify-between items-center mb-2">
-              <span className="text-xs font-black text-amber-700 uppercase tracking-wider">🟡 CẦN LƯU Ý (16-30 NÀY)</span>
+              <span className="text-xs font-black text-amber-700 uppercase tracking-wider">🟡 CẦN LƯU Ý (16-30 NGÀY)</span>
               <span className="w-3 h-3 rounded-full bg-amber-400" />
             </div>
             <p className="text-2xl font-black text-amber-700">{expiringCustomers.filter(c => c.riskLevel === 'LOW').length} HS</p>
             <p className="text-xs text-amber-600 font-semibold mt-1">Theo dõi tiến độ gia hạn định kỳ</p>
           </div>
 
-          {/* Zone 4: ALL */}
+          {/* Zone 4: NEW_PERIOD_LAW */}
+          <div
+            onClick={() => setSelectedRiskFilter('NEW_PERIOD_LAW')}
+            className={`p-5 rounded-2xl border-2 transition cursor-pointer hover:shadow-lg ${selectedRiskFilter === 'NEW_PERIOD_LAW' ? 'border-indigo-600 bg-indigo-50/80 shadow-md' : 'border-indigo-200 bg-indigo-50/30'}`}
+          >
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-xs font-black text-indigo-700 uppercase tracking-wider">🟣 KỲ ĐÓNG MỚI (LUẬT 2024)</span>
+              <span className="w-3 h-3 rounded-full bg-indigo-600" />
+            </div>
+            <p className="text-2xl font-black text-indigo-700">{expiringCustomers.filter(c => c.riskLevel === 'NEW_PERIOD_LAW').length} HS</p>
+            <p className="text-xs text-indigo-600 font-semibold mt-1">Đã vào kỳ đóng theo Luật BHXH 2024</p>
+          </div>
+
+          {/* Zone 5: ALL */}
           <div
             onClick={() => setSelectedRiskFilter('all')}
             className={`p-5 rounded-2xl border-2 transition cursor-pointer hover:shadow-lg ${selectedRiskFilter === 'all' ? 'border-[#004182] bg-blue-50/80 shadow-md' : 'border-slate-200 bg-slate-50/40'}`}
@@ -456,6 +476,18 @@ const PredictiveAnalytics: React.FC = () => {
 
           {/* Filters */}
           <div className="flex flex-wrap items-center gap-3">
+            <select
+              value={selectedRiskFilter || 'all'}
+              onChange={e => setSelectedRiskFilter(e.target.value)}
+              className="bg-white border border-slate-200 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 outline-none focus:border-[#004182] transition"
+            >
+              <option value="all">Tất cả mức độ</option>
+              <option value="HIGH">🔴 Hỏa tốc (≤ 7 ngày)</option>
+              <option value="MEDIUM">🟠 Ưu tiên cao (8-15 ngày)</option>
+              <option value="LOW">🟡 Cần lưu ý (16-30 ngày)</option>
+              <option value="NEW_PERIOD_LAW">🟣 Kỳ đóng mới (Luật 2024)</option>
+            </select>
+
             <select
               value={selectedTypeFilter || 'all'}
               onChange={e => setSelectedTypeFilter(e.target.value)}

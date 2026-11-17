@@ -661,8 +661,8 @@ const AdminView = () => {
                     )}
                   </div>
 
-                  {/* 4 Mini Urgency Badges */}
-                  <div className="grid grid-cols-4 gap-1 p-2 bg-gray-50 border-b border-gray-100 text-center text-[10px]">
+                  {/* 5 Mini Urgency Badges */}
+                  <div className="grid grid-cols-5 gap-1 p-2 bg-gray-50 border-b border-gray-100 text-center text-[10px]">
                     <div 
                       onClick={() => {
                         setRenewalInitialFilter('overdue');
@@ -706,6 +706,17 @@ const AdminView = () => {
                     >
                       <span className="block text-gray-500 font-normal text-[9px]">16-30 ngày</span>
                       {renewalClassification.upcoming.length}
+                    </div>
+                    <div 
+                      onClick={() => {
+                        setRenewalInitialFilter('new_period_law');
+                        setIsRenewalReminderOpen(true);
+                        setIsNotificationOpen(false);
+                      }}
+                      className="p-1.5 rounded-lg bg-indigo-50 text-indigo-700 font-bold hover:bg-indigo-100 transition cursor-pointer"
+                    >
+                      <span className="block text-gray-500 font-normal text-[9px]">Kỳ mới</span>
+                      {renewalClassification.newPeriodLaw?.length || 0}
                     </div>
                   </div>
 

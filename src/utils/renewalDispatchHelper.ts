@@ -3,11 +3,12 @@
  * Phân loại mức độ khẩn cấp, sinh tin nhắn Zalo/SMS chuẩn nghiệp vụ và xuất Excel đôn đốc
  */
 
-import { calculateNextPaymentFromToMonth } from './dateUtils';
+import { calculateNextPaymentFromToMonth, parseMonthAndYear } from './dateUtils';
+import { formatDateVN } from './helpers';
 import { ReminderMessageTemplates } from '../context/types';
 import { DEFAULT_REMINDER_MESSAGE_TEMPLATES, getStoredReminderMessageTemplates, renderReminderMessageTemplate } from './settingsHelper';
 
-export type RenewalUrgency = 'overdue' | 'urgent' | 'warning' | 'upcoming';
+export type RenewalUrgency = 'overdue' | 'urgent' | 'warning' | 'upcoming' | 'new_period_law';
 
 export interface RenewalRecordItem {
   record: any;
@@ -24,8 +25,46 @@ export interface RenewalClassification {
   urgent: RenewalRecordItem[];
   warning: RenewalRecordItem[];
   upcoming: RenewalRecordItem[];
+  newPeriodLaw: RenewalRecordItem[];
   totalActionable: number;
 }
+
+/**
+ * Kiểm tra hồ sơ BHXH có thuộc diện Đã đến Kỳ Đóng Mới theo Khoản 3 Điều 36 Luật BHXH 2024 hay không:
+ * - Áp dụng cho BHXH tự nguyện
+ * - diffDays > 30 (chưa rơi vào các mức khẩn cấp cận kề ngày hết hạn)
+ * - Tháng hiện tại >= Tháng bắt đầu kỳ đóng mới (tức là người tham gia đã bước vào kỳ đóng mới của chu kỳ nộp)
+ */
+export const checkIsNewPeriodLaw = (record: any, diffDays: number, today: Date = new Date()): boolean => {
+  const isBHXH = (record?.type || 'BHXH') === 'BHXH';
+  if (!isBHXH || diffDays <= 30) return false;
+
+  const toM = record.to_month || record.toMonth;
+  const fromM = record.from_month || record.fromMonth;
+  if (!toM && !fromM) return false;
+
+  let startOfNewPeriodMonthIdx = -1;
+  if (toM) {
+    const { month: toMonthNum, year: toYearNum } = parseMonthAndYear(toM);
+    if (toMonthNum && toYearNum) {
+      // Kỳ đóng mới bắt đầu từ tháng liền kề sau toMonth (toMonth + 1)
+      startOfNewPeriodMonthIdx = toYearNum * 12 + toMonthNum + 1;
+    }
+  } else if (fromM) {
+    const { month: fromMonthNum, year: fromYearNum } = parseMonthAndYear(fromM);
+    if (fromMonthNum && fromYearNum) {
+      const mCount = typeof record.months === 'number' ? record.months : (parseInt(String(record.months || record.method), 10) || 1);
+      startOfNewPeriodMonthIdx = (fromYearNum * 12 + fromMonthNum) + mCount;
+    }
+  }
+
+  if (startOfNewPeriodMonthIdx > 0) {
+    const currentMonthIdx = today.getFullYear() * 12 + (today.getMonth() + 1);
+    return currentMonthIdx >= startOfNewPeriodMonthIdx;
+  }
+
+  return false;
+};
 
 /**
  * Phân loại các hồ sơ cần đôn đốc theo 4 cấp độ
@@ -111,6 +150,10 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
       urgency = 'upcoming';
       urgencyLabel = `Còn ${diffDays} ngày (Sắp đến)`;
       urgencyColor = '#3b82f6'; // Blue
+    } else if (checkIsNewPeriodLaw(record, diffDays, today)) {
+      urgency = 'new_period_law';
+      urgencyLabel = `Đến kỳ đóng mới (Hạn Luật: ${formatDateVN(nextPayStr)} - còn ${diffDays} ngày)`;
+      urgencyColor = '#6366f1'; // Indigo/Purple
     }
 
     if (urgency) {
@@ -132,6 +175,7 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
   const urgent = classifiedList.filter(item => item.urgency === 'urgent');
   const warning = classifiedList.filter(item => item.urgency === 'warning');
   const upcoming = classifiedList.filter(item => item.urgency === 'upcoming');
+  const newPeriodLaw = classifiedList.filter(item => item.urgency === 'new_period_law');
 
   return {
     all: classifiedList,
@@ -139,6 +183,7 @@ export const classifyRenewalRecords = (records: any[]): RenewalClassification =>
     urgent,
     warning,
     upcoming,
+    newPeriodLaw,
     totalActionable: classifiedList.length
   };
 };
@@ -257,7 +302,8 @@ export const exportRenewalListToExcel = async (
       overdue: 'ĐÃ QUÁ HẠN',
       urgent: 'KHẨN CẤP (≤7 ngày)',
       warning: 'CẬN HẠN (8-15 ngày)',
-      upcoming: 'SẮP ĐẾN (16-30 ngày)'
+      upcoming: 'SẮP ĐẾN (16-30 ngày)',
+      new_period_law: 'KỲ ĐÓNG MỚI (Luật 2024)'
     };
 
     const amt = Number(r.amount !== undefined ? r.amount : (r.latest_amount !== undefined ? r.latest_amount : 0)) || 0;
@@ -365,6 +411,7 @@ export const exportRenewalListToExcel = async (
     const item = items[rowOffset];
     const isOverdue = item?.urgency === 'overdue';
     const isUrgent = item?.urgency === 'urgent';
+    const isNewPeriod = item?.urgency === 'new_period_law';
 
     for (let c = 0; c < tableHeaders.length; c++) {
       const cellRef = XLSX.utils.encode_cell({ r: rIdx, c });
@@ -377,6 +424,7 @@ export const exportRenewalListToExcel = async (
         let fontColor = '333333';
         if (isOverdue && (c === 8 || c === 9)) fontColor = 'DC2626';
         if (isUrgent && (c === 8 || c === 9)) fontColor = 'EA580C';
+        if (isNewPeriod && (c === 8 || c === 9)) fontColor = '4F46E5';
 
         ws[cellRef].s = {
           font: { name: fontName, sz: 10, bold: c === 1 || c === 8 || c === 9, color: { rgb: fontColor } },

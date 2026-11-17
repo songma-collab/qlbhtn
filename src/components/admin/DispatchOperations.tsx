@@ -34,6 +34,7 @@ import { VietQRModal } from '../modals/VietQRModal';
 import { buildZaloReminderMessage } from '../../utils/vietqr';
 import { CustomerStatusBadge } from '../common/CustomerStatusBadge';
 import { filterRenewalDispatchCustomers } from '../../utils/customerStatus';
+import { checkIsNewPeriodLaw } from '../../utils/renewalDispatchHelper';
 import { 
   DEFAULT_REMINDER_MESSAGE_TEMPLATES, 
   getStoredReminderMessageTemplates, 
@@ -63,7 +64,7 @@ interface CustomerItem {
   paymentStatus: string;
   status?: string;
   daysRemaining: number;
-  slaStatus: 'overdue' | 'urgent' | 'warning' | 'safe' | 'renewed';
+  slaStatus: 'overdue' | 'urgent' | 'warning' | 'safe' | 'renewed' | 'new_period_law';
 }
 
 const DispatchOperations: React.FC = () => {
@@ -71,7 +72,7 @@ const DispatchOperations: React.FC = () => {
 
   // Filters
   const [searchTxt, setSearchTxt] = useState('');
-  const [slaFilter, setSlaFilter] = useState<'all' | 'overdue' | 'urgent' | 'warning' | 'safe' | 'renewed'>('all');
+  const [slaFilter, setSlaFilter] = useState<'all' | 'overdue' | 'urgent' | 'warning' | 'safe' | 'renewed' | 'new_period_law'>('all');
   const [typeFilter, setTypeFilter] = useState<'ALL' | 'BHXH' | 'BHYT'>('ALL');
   const [staffFilter, setStaffFilter] = useState<string>('all');
 
@@ -159,6 +160,8 @@ const DispatchOperations: React.FC = () => {
           slaStatus = 'urgent';
         } else if (daysRemaining <= 30) {
           slaStatus = 'warning';
+        } else if (checkIsNewPeriodLaw(r, daysRemaining, today)) {
+          slaStatus = 'new_period_law';
         } else {
           slaStatus = 'safe';
         }
@@ -243,17 +246,19 @@ const DispatchOperations: React.FC = () => {
     const overdueCount = scopeList.filter(c => c.slaStatus === 'overdue').length;
     const urgentCount = scopeList.filter(c => c.slaStatus === 'urgent').length;
     const warningCount = scopeList.filter(c => c.slaStatus === 'warning').length;
+    const newPeriodLawCount = scopeList.filter(c => c.slaStatus === 'new_period_law').length;
     const safeCount = scopeList.filter(c => c.slaStatus === 'safe').length;
     const totalCount = scopeList.length;
 
     const retentionRate = totalCount > 0 
-      ? (((safeCount) / totalCount) * 100).toFixed(1)
+      ? (((safeCount + newPeriodLawCount) / totalCount) * 100).toFixed(1)
       : '0.0';
 
     return {
       overdueCount,
       urgentCount,
       warningCount,
+      newPeriodLawCount,
       safeCount,
       totalCount,
       retentionRate
@@ -448,6 +453,7 @@ const DispatchOperations: React.FC = () => {
         if (c.slaStatus === 'overdue') slaText = `Quá hạn ${Math.abs(c.daysRemaining)} ngày`;
         else if (c.slaStatus === 'urgent') slaText = `Khẩn cấp (còn ${c.daysRemaining} ngày)`;
         else if (c.slaStatus === 'warning') slaText = `Sắp đến hạn (còn ${c.daysRemaining} ngày)`;
+        else if (c.slaStatus === 'new_period_law') slaText = `Kỳ đóng mới Luật 2024 (còn ${c.daysRemaining} ngày)`;
 
         const periodStr = (c.fromMonth && c.toMonth)
           ? `${formatMonthVN(c.fromMonth)} - ${formatMonthVN(c.toMonth)}`
@@ -619,12 +625,12 @@ const DispatchOperations: React.FC = () => {
         </div>
       </div>
 
-      {/* SLA Metrics Counters (4 Cards) */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* SLA Metrics Counters (5 Cards) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
         {/* 1. Quá Hạn */}
         <div 
           onClick={() => setSlaFilter(slaFilter === 'overdue' ? 'all' : 'overdue')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
             slaFilter === 'overdue' 
               ? 'bg-rose-600 text-white border-rose-600 shadow-md shadow-rose-500/30' 
               : 'bg-white border-slate-200 hover:border-rose-300 shadow-xs'
@@ -650,7 +656,7 @@ const DispatchOperations: React.FC = () => {
         {/* 2. Khẩn Cấp (1 - 7 Ngày) */}
         <div 
           onClick={() => setSlaFilter(slaFilter === 'urgent' ? 'all' : 'urgent')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
             slaFilter === 'urgent' 
               ? 'bg-amber-500 text-white border-amber-500 shadow-md shadow-amber-500/30' 
               : 'bg-white border-slate-200 hover:border-amber-300 shadow-xs'
@@ -676,7 +682,7 @@ const DispatchOperations: React.FC = () => {
         {/* 3. Cảnh Báo (8 - 30 Ngày) */}
         <div 
           onClick={() => setSlaFilter(slaFilter === 'warning' ? 'all' : 'warning')}
-          className={`p-5 rounded-2xl border transition-all cursor-pointer ${
+          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
             slaFilter === 'warning' 
               ? 'bg-[#004182] text-white border-[#004182] shadow-md shadow-blue-900/30' 
               : 'bg-white border-slate-200 hover:border-blue-300 shadow-xs'
@@ -699,8 +705,34 @@ const DispatchOperations: React.FC = () => {
           </div>
         </div>
 
-        {/* 4. Tỷ Lệ Tái Tục & Giữ Chân */}
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
+        {/* 4. Kỳ Đóng Mới (Luật 2024) */}
+        <div 
+          onClick={() => setSlaFilter(slaFilter === 'new_period_law' ? 'all' : 'new_period_law')}
+          className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer ${
+            slaFilter === 'new_period_law' 
+              ? 'bg-indigo-600 text-white border-indigo-600 shadow-md shadow-indigo-500/30' 
+              : 'bg-white border-slate-200 hover:border-indigo-300 shadow-xs'
+          }`}
+        >
+          <div className="flex items-center justify-between">
+            <span className={`text-xs font-bold uppercase tracking-wider ${slaFilter === 'new_period_law' ? 'text-indigo-100' : 'text-slate-500'}`}>
+              🟣 Kỳ Đóng Mới (Luật 2024)
+            </span>
+            <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${slaFilter === 'new_period_law' ? 'bg-white/20 text-white' : 'bg-indigo-100 text-indigo-700'}`}>
+              <Clock className="w-4 h-4" />
+            </div>
+          </div>
+          <div className="mt-2.5 flex items-baseline gap-2">
+            <span className="text-3xl font-black tracking-tight">{kpiStats.newPeriodLawCount}</span>
+            <span className={`text-xs font-medium ${slaFilter === 'new_period_law' ? 'text-indigo-100' : 'text-slate-400'}`}>hồ sơ kỳ mới</span>
+          </div>
+          <div className={`mt-2 text-[11px] font-medium pt-2 border-t ${slaFilter === 'new_period_law' ? 'border-white/20 text-indigo-100' : 'border-slate-100 text-indigo-600'}`}>
+            Đã đến kỳ đóng theo Luật BHXH 2024
+          </div>
+        </div>
+
+        {/* 5. Tỷ Lệ Tái Tục & Giữ Chân */}
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-xs">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
               📊 Tỷ Lệ Duy Trì (% Retention)
@@ -766,6 +798,7 @@ const DispatchOperations: React.FC = () => {
               <option value="overdue">🔴 Quá hạn (Cần đôn đốc)</option>
               <option value="urgent">🟠 Khẩn cấp (1 - 7 ngày)</option>
               <option value="warning">🟡 Sắp đến hạn (8 - 30 ngày)</option>
+              <option value="new_period_law">🟣 Kỳ đóng mới (Luật 2024)</option>
               <option value="safe">🟢 An toàn (&gt; 30 ngày)</option>
             </select>
           </div>
