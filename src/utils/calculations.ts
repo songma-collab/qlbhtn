@@ -1153,6 +1153,131 @@ export const calculatePensionEffortRating = (
   };
 };
 
+/**
+ * Kết quả phân rã thời gian và tính hệ số mức hưởng BHXH 1 lần
+ * tuân thủ theo Khoản 4 Điều 19 Thông tư 59/2015/TT-BLĐTBXH.
+ */
+export interface BHXH1LanBenefitYearsResult {
+  totalMonths: number;
+  monthsPre: number;
+  monthsPost: number;
+  preOddMonthsTransferred: number; // Số tháng lẻ trước 2014 được chuyển sang sau 2014
+  yearsPre: number;                // Số năm trước 2014 (năm tròn, nhân hệ số 1.5)
+  monthsPostEffective: number;     // Số tháng sau 2014 tính hưởng (đã cộng tháng lẻ chuyển sang)
+  yearsPost: number;               // Số năm sau 2014 (đã làm tròn theo quy tắc nửa năm/1 năm, nhân hệ số 2.0)
+  totalCoeffMonths: number;        // Tổng số tháng hưởng = (yearsPre * 1.5) + (yearsPost * 2.0)
+  explanation: {
+    preText: string;
+    transferNote?: string;
+    postText: string;
+    totalText: string;
+  };
+}
+
+/**
+ * Tính số năm và hệ số tháng hưởng BHXH 1 lần theo Khoản 4 Điều 19 Thông tư 59/2015/TT-BLĐTBXH:
+ * 1. Quy tắc làm tròn chung: từ 1 đến 6 tháng = 0.5 năm; từ 7 đến 11 tháng = 1.0 năm.
+ * 2. Quy tắc chuyển tiếp: Nếu thời gian đóng trước 01/01/2014 có tháng lẻ thì các tháng lẻ đó
+ *    được chuyển sang giai đoạn từ ngày 01/01/2014 trở đi để làm căn cứ tính hưởng.
+ * 
+ * @param monthsPre Số tháng đóng trước ngày 01/01/2014
+ * @param monthsPost Số tháng đóng từ ngày 01/01/2014 trở đi
+ */
+export const calculateBHXH1LanBenefitYears = (
+  monthsPre: number,
+  monthsPost: number
+): BHXH1LanBenefitYearsResult => {
+  const safePre = Math.max(0, Math.floor(monthsPre || 0));
+  const safePost = Math.max(0, Math.floor(monthsPost || 0));
+  const totalMonths = safePre + safePost;
+
+  // Trường hợp dưới 12 tháng: quy định tính theo mức đóng (22% hoặc theo tiền nộp)
+  if (totalMonths < 12) {
+    return {
+      totalMonths,
+      monthsPre: safePre,
+      monthsPost: safePost,
+      preOddMonthsTransferred: 0,
+      yearsPre: 0,
+      monthsPostEffective: totalMonths,
+      yearsPost: 0,
+      totalCoeffMonths: 0,
+      explanation: {
+        preText: `Trước 2014: ${safePre} tháng`,
+        postText: `Từ 2014: ${safePost} tháng`,
+        totalText: `Tổng thời gian đóng dưới 12 tháng (${totalMonths} tháng): Tính theo 22% tổng tiền lương/thu nhập đóng.`
+      }
+    };
+  }
+
+  // 1. Phân rã thời gian trước 2014
+  const preYearsRaw = Math.floor(safePre / 12);
+  const preOddMonths = safePre % 12;
+
+  // 2. Chuyển tháng lẻ trước 2014 sang giai đoạn từ 2014 trở đi
+  const yearsPre = preYearsRaw;
+  let preOddMonthsTransferred = 0;
+  let monthsPostEffective = safePost;
+
+  if (preOddMonths > 0) {
+    preOddMonthsTransferred = preOddMonths;
+    monthsPostEffective = safePost + preOddMonths;
+  }
+
+  // 3. Làm tròn thời gian giai đoạn từ 2014 trở đi theo quy tắc:
+  // - 1 đến 6 tháng: tính 0.5 năm
+  // - 7 đến 11 tháng: tính 1.0 năm
+  const postYearsRaw = Math.floor(monthsPostEffective / 12);
+  const postOddMonths = monthsPostEffective % 12;
+  let yearsPost = postYearsRaw;
+
+  if (postOddMonths >= 7) {
+    yearsPost += 1.0;
+  } else if (postOddMonths >= 1) {
+    yearsPost += 0.5;
+  }
+
+  // 4. Tổng hệ số tháng hưởng
+  const totalCoeffMonths = (yearsPre * 1.5) + (yearsPost * 2.0);
+
+  // 5. Chuỗi giải trình chi tiết
+  let preText = `- Trước 2014: ${yearsPre} năm × 1.5 = ${yearsPre * 1.5} tháng`;
+  let transferNote: string | undefined;
+
+  if (preOddMonthsTransferred > 0) {
+    transferNote = `Áp dụng Khoản 4 Điều 19 TT 59/2015: ${preOddMonthsTransferred} tháng lẻ trước 2014 được chuyển sang giai đoạn từ 2014 trở đi.`;
+    preText += ` (${preYearsRaw} năm ${preOddMonths} tháng, đã chuyển ${preOddMonthsTransferred} tháng lẻ)`;
+  }
+
+  const postYearPart = Math.floor(monthsPostEffective / 12);
+  const postMonthPart = monthsPostEffective % 12;
+  let postText = `- Từ 2014: ${yearsPost} năm × 2.0 = ${yearsPost * 2.0} tháng`;
+  if (preOddMonthsTransferred > 0) {
+    postText += ` (gồm ${safePost}T sau 2014 + ${preOddMonthsTransferred}T lẻ trước 2014 chuyển sang = ${postYearPart > 0 ? `${postYearPart} năm ` : ''}${postMonthPart} tháng quy đổi thành ${yearsPost} năm)`;
+  } else if (postOddMonths > 0) {
+    postText += ` (${postYearPart > 0 ? `${postYearPart} năm ` : ''}${postMonthPart} tháng quy đổi thành ${yearsPost} năm)`;
+  }
+
+  const totalText = `Tổng hệ số: ${yearsPre * 1.5} + ${yearsPost * 2.0} = ${totalCoeffMonths} tháng lương bình quân (Mbq)`;
+
+  return {
+    totalMonths,
+    monthsPre: safePre,
+    monthsPost: safePost,
+    preOddMonthsTransferred,
+    yearsPre,
+    monthsPostEffective,
+    yearsPost,
+    totalCoeffMonths,
+    explanation: {
+      preText,
+      transferNote,
+      postText,
+      totalText
+    }
+  };
+};
+
 export {
   calculateVoluntaryBHXHRoadmap,
   type VoluntaryBHXHRoadmapParams,

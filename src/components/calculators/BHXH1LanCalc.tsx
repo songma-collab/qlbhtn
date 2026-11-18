@@ -3,7 +3,7 @@ import { useAppContext } from '../../context/AppContext';
 import { CONSTANTS } from '../../utils/constants';
 import { formatMoney, getInt, getLocalYYYYMMDD, formatDateVN } from '../../utils/helpers';
 import { formatMonthInputMask, formatDateInputMask, formatDateToVN, formatMonthToVN } from '../../utils/dateFormatter';
-import { getPolicyValueForDate } from '../../utils/calculations';
+import { getPolicyValueForDate, calculateBHXH1LanBenefitYears } from '../../utils/calculations';
 import { SlidersHorizontal, Calendar, Info, ChevronDown, ChevronUp, FileDown, Download, AlertTriangle, History, Plus, Zap, FileSpreadsheet, FileText, Receipt, Trash2, Camera, Lock, UserCheck } from 'lucide-react';
 import { protectWorksheetFormulas, validateExcelFile } from '../../utils/excelSecurity';
 import { callGeminiOcrClientSide } from '../../utils/geminiFallback';
@@ -373,7 +373,14 @@ const BHXH1LanCalc = () => {
       }
 
       const rY = (m: number) => { let y = Math.floor(m / 12), r = m % 12; return r >= 7 ? y + 1.0 : (r >= 1 ? y + 0.5 : y); };
-      let yTot = rY(tM), yPre = rY(mPreCount), yPost = Math.max(0, rY(tM) - yPre);
+      const benefitYears = calculateBHXH1LanBenefitYears(mPreCount, mPostCount);
+      let yTot = rY(tM);
+      let yPre = benefitYears.yearsPre;
+      let yPost = benefitYears.yearsPost;
+      let preOddMonthsTransferred = benefitYears.preOddMonthsTransferred;
+      let monthsPostEffective = benefitYears.monthsPostEffective;
+      let totalCoeffMonths = benefitYears.totalCoeffMonths;
+      let benefitExplanation = benefitYears.explanation;
 
       let bSal = 0, bM = 0, bMbqActual = 0;
       if (bhtnCheck.length >= 12) {
@@ -386,7 +393,7 @@ const BHXH1LanCalc = () => {
       let pr = (yTot >= 15) ? ((gender === 'female') ? 45 + (yTot - 15) * 2 : (yTot <= 20 ? 40 + (yTot - 15) * 1 : 45 + (yTot - 20) * 2)) : 0;
       let pRate = Math.min(75, pr);
 
-      const res1Time = Math.round(tM < 12 ? (mbq * tM * 0.22) : (mbq * (yPre * 1.5 + yPost * 2.0)) - tD);
+      const res1Time = Math.round(tM < 12 ? (mbq * tM * 0.22) : (mbq * totalCoeffMonths) - tD);
 
       // Tính chế độ tử tuất
       let lcsAtDeath = 0;
@@ -405,7 +412,7 @@ const BHXH1LanCalc = () => {
         if (tM < 12) {
           survivorAmount = Math.min(3 * mbq, Math.round(tAdj * 0.22));
         } else {
-          const survivorBase = mbq * (yPre * 1.5 + yPost * 2.0);
+          const survivorBase = mbq * totalCoeffMonths;
           survivorAmount = survivorBase;
           if (compulsoryMonths >= 12) {
             const minTuat = 3 * mbq;
@@ -421,6 +428,10 @@ const BHXH1LanCalc = () => {
       setSystemCore({
         ready: true, mCount: tM, adjMoney: tAdj, mbq, bhtnSal: bSal, bhtnM: bM, bhtnMbq: bMbqActual,
         details: bd.sort((a, b) => a.year - b.year), mPre: mPreCount, mPost: mPostCount, yTot, yPre, yPost, pRate,
+        preOddMonthsTransferred,
+        monthsPostEffective,
+        totalCoeffMonths,
+        benefitExplanation,
         res1Time,
         tD,
         calcTuat,
@@ -558,7 +569,8 @@ const BHXH1LanCalc = () => {
             { text: '• Tổng thời gian đóng BHXH: ' + systemCore.yTot + ' năm (' + Math.floor(systemCore.mCount / 12) + ' năm ' + (systemCore.mCount % 12) + ' tháng).', fontSize: 10 },
             { text: '• Mức bình quân tiền lương (Mbq): ' + Math.round(systemCore.mbq).toLocaleString() + ' đồng.', fontSize: 10 },
             { text: '• Mbq hưởng Thất nghiệp (06 tháng cuối): ' + Math.round(systemCore.bhtnMbq).toLocaleString() + ' đồng.', fontSize: 10 },
-            { text: '• Công thức hưởng: Mbq x [ (Năm trước 2014 x 1.5) + (Năm từ 2014 x 2.0) ]', fontSize: 10, italics: true }
+            { text: '• Công thức hưởng: Mbq x [ (Năm trước 2014 x 1.5) + (Năm từ 2014 x 2.0) ] (Khoản 4 Điều 19 Thông tư 59/2015/TT-BLĐTBXH)', fontSize: 10, italics: true },
+            ...(systemCore.preOddMonthsTransferred > 0 ? [{ text: `• Chuyển tháng lẻ chuyển tiếp: Đã chuyển ${systemCore.preOddMonthsTransferred} tháng lẻ trước 2014 sang giai đoạn từ 2014 trở đi để tính hệ số 2.0.`, fontSize: 9, italics: true }] : [])
           ]
         },
         { columns: [{ stack: [{ text: '\n\nNGƯỜI LẬP BIỂU', fontSize: 10, bold: true, alignment: 'center' }, { text: '(Ký, ghi rõ họ tên)', fontSize: 8, italics: true, alignment: 'center' }], width: '*' }, { stack: [{ text: '\n\nXÁC NHẬN CƠ QUAN', fontSize: 10, bold: true, alignment: 'center' }, { text: '(Ký tên, đóng dấu)', fontSize: 8, italics: true, alignment: 'center' }], width: '*' }], margin: [0, 40, 0, 0] },
@@ -988,18 +1000,37 @@ const BHXH1LanCalc = () => {
                         <span>= 22% tổng đóng</span>
                       </div>
                     ) : (
-                      <div className="space-y-1 font-semibold">
+                      <div className="space-y-1.5 font-semibold">
+                        {systemCore.preOddMonthsTransferred > 0 && (
+                          <div className="text-[10px] bg-amber-400/20 text-amber-200 border border-amber-400/30 px-2 py-1 rounded-lg font-normal mb-1">
+                            ℹ Khoản 4 Điều 19 TT 59/2015: {systemCore.preOddMonthsTransferred} tháng lẻ trước 2014 được chuyển sang giai đoạn từ 2014 (hưởng hệ số 2.0).
+                          </div>
+                        )}
                         <div className="flex justify-between">
-                          <span>- Trước 2014: {systemCore.yPre} năm × 1.5</span>
+                          <span>
+                            - Trước 2014: {systemCore.yPre} năm × 1.5
+                            {systemCore.preOddMonthsTransferred > 0 && (
+                              <span className="text-[10px] text-white/70 block font-normal">
+                                (Đã chuyển {systemCore.preOddMonthsTransferred} tháng lẻ sang sau 2014)
+                              </span>
+                            )}
+                          </span>
                           <span>= {systemCore.yPre * 1.5} tháng</span>
                         </div>
                         <div className="flex justify-between">
-                          <span>- Từ 2014: {systemCore.yPost} năm × 2.0</span>
+                          <span>
+                            - Từ 2014: {systemCore.yPost} năm × 2.0
+                            {systemCore.preOddMonthsTransferred > 0 && (
+                              <span className="text-[10px] text-white/70 block font-normal">
+                                ({systemCore.mPost}T sau 2014 + {systemCore.preOddMonthsTransferred}T lẻ trước 2014 = {systemCore.monthsPostEffective}T quy đổi)
+                              </span>
+                            )}
+                          </span>
                           <span>= {systemCore.yPost * 2.0} tháng</span>
                         </div>
                         <div className="flex justify-between border-t border-white/10 pt-1 text-[#FDB913]">
                           <span>=&gt; Tổng tháng hưởng:</span>
-                          <span>{systemCore.yPre * 1.5 + systemCore.yPost * 2.0} tháng</span>
+                          <span>{systemCore.totalCoeffMonths} tháng</span>
                         </div>
                       </div>
                     )}
@@ -1016,7 +1047,7 @@ const BHXH1LanCalc = () => {
                       <div className="space-y-1 font-semibold">
                         <div className="flex justify-between">
                           <span>(Mbq × Tổng tháng hưởng)</span>
-                          <span>{formatMoney(Math.round(systemCore.mbq * (systemCore.yPre * 1.5 + systemCore.yPost * 2.0)))}</span>
+                          <span>{formatMoney(Math.round(systemCore.mbq * systemCore.totalCoeffMonths))}</span>
                         </div>
                         {systemCore.tD > 0 && (
                           <div className="flex justify-between text-red-200">
@@ -1166,11 +1197,16 @@ const BHXH1LanCalc = () => {
                         </div>
                       ) : (
                         <div className="space-y-0.5">
+                          {systemCore.preOddMonthsTransferred > 0 && (
+                            <div className="text-[9px] text-amber-300 font-normal">
+                              Chuyển {systemCore.preOddMonthsTransferred}T lẻ trước 2014 sang sau 2014 (K4 Đ19 TT 59/2015)
+                            </div>
+                          )}
                           <div>Trước 2014: {systemCore.yPre}n x 1.5 = {systemCore.yPre * 1.5} tháng</div>
                           <div>Sau 2014: {systemCore.yPost}n x 2.0 = {systemCore.yPost * 2.0} tháng</div>
-                          <div className="text-yellow-400 font-semibold">Tổng hệ số: {systemCore.yPre * 1.5 + systemCore.yPost * 2.0} tháng x Mbq</div>
+                          <div className="text-yellow-400 font-semibold">Tổng hệ số: {systemCore.totalCoeffMonths} tháng x Mbq</div>
                           <div className="text-[9px] text-slate-400 font-normal">
-                            Diễn giải: {systemCore.yPre * 1.5 + systemCore.yPost * 2.0} x {formatMoney(systemCore.mbq)} = {formatMoney(Math.round(systemCore.mbq * (systemCore.yPre * 1.5 + systemCore.yPost * 2.0)))}
+                            Diễn giải: {systemCore.totalCoeffMonths} x {formatMoney(systemCore.mbq)} = {formatMoney(Math.round(systemCore.mbq * systemCore.totalCoeffMonths))}
                           </div>
                         </div>
                       )}
