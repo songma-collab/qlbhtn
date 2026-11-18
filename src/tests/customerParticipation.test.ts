@@ -221,9 +221,22 @@ describe('Kiểm thử Phân hệ Hồ Sơ Tham Gia BHXH & Quy tắc trần 10 n
       });
 
       const originalFrom = supabase.from;
+      const mockSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+          })
+        }),
+        or: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null })
+          })
+        })
+      });
+
       const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
         if (table === 'customers') {
-          return { update: mockUpdate } as any;
+          return { update: mockUpdate, select: mockSelect } as any;
         }
         if (table === 'records') {
           throw new Error('VI PHẠM AN TOÀN: Bảng records không được phép ghi khi cập nhật hồ sơ tham gia!');
