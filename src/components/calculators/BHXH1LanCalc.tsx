@@ -502,7 +502,9 @@ const BHXH1LanCalc = () => {
       ["BÁO CÁO DỰ TOÁN BHXH"],
       ["Tháng năm hưởng chế độ:", systemCore.benefitMonth || "Chưa chọn"],
       ["Mức bình quân tiền lương (Mbq):", Math.round(systemCore.mbq)],
-      ["Thời gian đóng:", `${systemCore.yTot} năm (${systemCore.mCount} tháng)`]
+      ["Thời gian đóng:", `${systemCore.yTot} năm (${systemCore.mCount} tháng)`],
+      ["Mức hưởng BHXH 1 lần:", systemCore.res1Time],
+      ["Tổng hệ số tháng hưởng:", `${systemCore.totalCoeffMonths || (systemCore.yPre * 1.5 + systemCore.yPost * 2.0)} tháng (K4 Đ19 TT 59/2015)`]
     ];
     
     if (systemCore.calcTuat && systemCore.deathDate) {
