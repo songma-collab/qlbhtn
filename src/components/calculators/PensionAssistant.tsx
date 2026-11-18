@@ -31,6 +31,7 @@ const PensionAssistant = () => {
   const maxBHXHIncome = baseSalary * 20;
 
   // Active CPI index policy from system settings with date-based fallback
+  const cpiPolicy = policies?.find(p => p.parameter_type === 'cpi_index' && p.is_active);
   const cpiVal = policies && policies.length > 0
     ? getPolicyValueForDate(policies, 'cpi_index', dateStr, settings?.cpiIndex)
     : settings?.cpiIndex;

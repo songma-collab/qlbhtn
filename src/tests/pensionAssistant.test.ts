@@ -77,4 +77,12 @@ describe('PensionAssistant - calculatePensionEffortRating Unit Tests', () => {
     expect(rHigh.ratingText).toBe('Rất nhẹ nhàng');
     expect(rHigh.effortLevel).toBe('very_light');
   });
+
+  it('ensures PensionAssistant and PensionAssistantView modules load without ReferenceError', async () => {
+    const viewMod = await import('../components/PensionAssistantView');
+    expect(viewMod.default).toBeDefined();
+
+    const assistantMod = await import('../components/calculators/PensionAssistant');
+    expect(assistantMod.default).toBeDefined();
+  });
 });

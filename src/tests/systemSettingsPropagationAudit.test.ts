@@ -199,9 +199,9 @@ describe('Kiểm thử Audit Toàn Diện: Nghiệp vụ Thay đổi Thông số
         months: 60,
         amount: 14138148,
         income: 1500000,
-        nnSupportPct: 20,
+        nn_support_pct: 20,
         date: '2026-07-01',
-        fromMonth: '2026-07'
+        from_month: '2026-07'
       };
 
       const breakdown = getCommissionBreakdownForRecord(rec5Y, policies, null);

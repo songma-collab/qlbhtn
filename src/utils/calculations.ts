@@ -1168,7 +1168,7 @@ export interface BHXH1LanBenefitYearsResult {
   totalCoeffMonths: number;        // Tổng số tháng hưởng = (yearsPre * 1.5) + (yearsPost * 2.0)
   explanation: {
     preText: string;
-    transferNote?: string;
+    transferNote?: string | undefined;
     postText: string;
     totalText: string;
   };
