@@ -29,17 +29,19 @@ const SupportView = lazyWithRetry(() => import('./components/SupportView'));
 const BHXH1LanView = lazyWithRetry(() => import('./components/BHXH1LanView'));
 
 const DeferredRoute = ({ children }: { children: React.ReactNode }) => (
-  <React.Suspense
-    fallback={
-      <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 gap-3">
-        <div className="w-10 h-10 border-3 border-[#004182] border-t-transparent rounded-full animate-spin"></div>
-        <p className="text-sm font-semibold text-gray-700">Đang khởi tạo chức năng...</p>
-        <p className="text-xs text-gray-400">Vui lòng đợi trong giây lát</p>
-      </div>
-    }
-  >
-    {children}
-  </React.Suspense>
+  <ErrorBoundary>
+    <React.Suspense
+      fallback={
+        <div className="flex-1 min-h-[60vh] flex flex-col items-center justify-center p-8 gap-3">
+          <div className="w-10 h-10 border-3 border-[#004182] border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-sm font-semibold text-gray-700">Đang khởi tạo chức năng...</p>
+          <p className="text-xs text-gray-400">Vui lòng đợi trong giây lát</p>
+        </div>
+      }
+    >
+      {children}
+    </React.Suspense>
+  </ErrorBoundary>
 );
 
 const GlobalRegisterModalContainer = () => {

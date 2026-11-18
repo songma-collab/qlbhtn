@@ -538,6 +538,7 @@ export const CustomerTableView: React.FC<CustomerTableViewProps> = ({
         (() => {
           const r = activeMenuState.record;
           const rect = activeMenuState.rect;
+          if (!r || !rect) return null;
           const spaceBelow = window.innerHeight - rect.bottom;
           const openUpwards = spaceBelow < 300 && rect.top > 300;
           

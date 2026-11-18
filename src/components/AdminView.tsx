@@ -12,6 +12,7 @@ import { formatMoney, formatDateVN, formatMonthVN, getInitials, prepareRenewalRe
 import { hasPermission } from '../utils/permissions';
 import { getTabFromPathname, getPathFromTab } from '../utils/adminRoutes';
 import { ModuleLoadingSkeleton } from './common/Skeleton';
+import { ErrorBoundary } from './common/ErrorBoundary';
 import { ThemeToggle } from './ui';
 
 import { lazyWithRetry } from '../utils/lazyWithRetry';
@@ -1144,52 +1145,58 @@ const AdminView = () => {
           <React.Suspense
             fallback={<ModuleLoadingSkeleton tab={adminTab} />}
           >
-            <div key={adminTab} className="animate-tab-fade">
-              {adminTab === 'dashboard' && <Dashboard />}
-              {adminTab === 'crm-bhxh' && <CRM key="crm-bhxh" type="BHXH" />}
-              {adminTab === 'crm-bhyt' && <CRM key="crm-bhyt" type="BHYT" />}
-              {adminTab === 'crm-participation' && <CustomerParticipationManagement />}
-              {adminTab === 'crm-dispatch' && (canAccessDispatch ? <DispatchOperations /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền truy cập chức năng Điều Phối & Đôn Đốc.
-                </div>
-              ))}
-              {adminTab === 'predictive-analytics' && <PredictiveAnalytics />}
-              {adminTab === 'finance-bhxh' && <Finance key="finance-bhxh" type="BHXH" />}
-              {adminTab === 'finance-bhyt' && <Finance key="finance-bhyt" type="BHYT" />}
-              {adminTab === 'financial-settlement' && (canAccessSettlement ? <FinancialSettlement /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền truy cập chức năng Báo Cáo & Chốt Sổ Tài Chính.
-                </div>
-              ))}
-              {adminTab === 'staff' && (canAccessStaff ? <Staff /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền quản lý danh sách và phân quyền nhân viên.
-                </div>
-              ))}
-              {adminTab === 'system-settings' && (canAccessSystemSettings ? <SystemSettings /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền cấu hình hệ thống.
-                </div>
-              ))}
-              {adminTab === 'homepage-settings' && (canAccessSystemSettings ? <HomepageSettings /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền chỉnh sửa trang chủ.
-                </div>
-              ))}
-              {adminTab === 'audit' && (canAccessAudit ? <AuditLogs /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền xem nhật ký hoạt động hệ thống.
-                </div>
-              ))}
-              {adminTab === 'reports' && <Reports />}
-              {adminTab === 'commission-reports' && <CommissionReport />}
-              {adminTab === 'leaderboard' && (canAccessLeaderboard ? <Leaderboard /> : (
-                <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
-                  Bạn không có quyền xem bảng xếp hạng & thi đua KPI.
-                </div>
-              ))}
-            </div>
+            <ErrorBoundary
+              key={adminTab}
+              fallbackTitle="Đã xảy ra sự cố trong phân hệ này"
+              fallbackMessage="Hệ thống đã tự động cô lập sự cố để bảo vệ dữ liệu. Bạn có thể bấm thử lại hoặc chọn một chức năng khác từ thanh điều hướng."
+            >
+              <div key={adminTab} className="animate-tab-fade">
+                {adminTab === 'dashboard' && <Dashboard />}
+                {adminTab === 'crm-bhxh' && <CRM key="crm-bhxh" type="BHXH" />}
+                {adminTab === 'crm-bhyt' && <CRM key="crm-bhyt" type="BHYT" />}
+                {adminTab === 'crm-participation' && <CustomerParticipationManagement />}
+                {adminTab === 'crm-dispatch' && (canAccessDispatch ? <DispatchOperations /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền truy cập chức năng Điều Phối & Đôn Đốc.
+                  </div>
+                ))}
+                {adminTab === 'predictive-analytics' && <PredictiveAnalytics />}
+                {adminTab === 'finance-bhxh' && <Finance key="finance-bhxh" type="BHXH" />}
+                {adminTab === 'finance-bhyt' && <Finance key="finance-bhyt" type="BHYT" />}
+                {adminTab === 'financial-settlement' && (canAccessSettlement ? <FinancialSettlement /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền truy cập chức năng Báo Cáo & Chốt Sổ Tài Chính.
+                  </div>
+                ))}
+                {adminTab === 'staff' && (canAccessStaff ? <Staff /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền quản lý danh sách và phân quyền nhân viên.
+                  </div>
+                ))}
+                {adminTab === 'system-settings' && (canAccessSystemSettings ? <SystemSettings /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền cấu hình hệ thống.
+                  </div>
+                ))}
+                {adminTab === 'homepage-settings' && (canAccessSystemSettings ? <HomepageSettings /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền chỉnh sửa trang chủ.
+                  </div>
+                ))}
+                {adminTab === 'audit' && (canAccessAudit ? <AuditLogs /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền xem nhật ký hoạt động hệ thống.
+                  </div>
+                ))}
+                {adminTab === 'reports' && <Reports />}
+                {adminTab === 'commission-reports' && <CommissionReport />}
+                {adminTab === 'leaderboard' && (canAccessLeaderboard ? <Leaderboard /> : (
+                  <div className="p-8 bg-white rounded-2xl border border-rose-100 text-center text-rose-600 font-medium">
+                    Bạn không có quyền xem bảng xếp hạng & thi đua KPI.
+                  </div>
+                ))}
+              </div>
+            </ErrorBoundary>
           </React.Suspense>
         </div>
       </div>
