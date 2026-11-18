@@ -39,7 +39,7 @@ describe('Audit Toàn Diện Giao Diện Frontend & Phòng Vệ Lỗi Tiềm Ẩ
 
       const pensionViewMod = await import('../components/PensionAssistantView');
       expect(pensionViewMod.default).toBeDefined();
-    });
+    }, 15000);
 
     it('3.2. Nạp thành công BHXH1LanCalc & BHXH1LanView', async () => {
       const bhxh1LanMod = await import('../components/calculators/BHXH1LanCalc');

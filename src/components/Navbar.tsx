@@ -22,6 +22,25 @@ const Navbar = () => {
     { label: 'Trợ lý hưu trí', path: '/tro-ly-huu-tri', icon: Sparkles },
   ];
 
+  const preloadPublicRoute = (targetPath: string) => {
+    switch (targetPath) {
+      case '/tinh-muc-dong':
+        import('./ContributionCalculationView');
+        break;
+      case '/bhxh1lan':
+        import('./BHXH1LanView');
+        break;
+      case '/tro-ly-huu-tri':
+        import('./PensionAssistantView');
+        break;
+      case '/admin':
+        import('./AdminView');
+        break;
+      default:
+        break;
+    }
+  };
+
   const handleNavClick = (targetPath: string) => {
     navigate(targetPath);
     setIsMobileMenuOpen(false);
@@ -50,6 +69,7 @@ const Navbar = () => {
               <button 
                 key={item.path}
                 onClick={() => handleNavClick(item.path)} 
+                onMouseEnter={() => preloadPublicRoute(item.path)}
                 className={`font-semibold transition-all text-sm cursor-pointer whitespace-nowrap ${
                   isActive 
                     ? 'text-[#004182] font-extrabold relative after:content-[\'\'] after:absolute after:-bottom-2 after:left-0 after:w-full after:h-[3px] after:bg-[#004182] after:rounded-full' 
@@ -76,6 +96,7 @@ const Navbar = () => {
 
           <button 
             onClick={() => handleNavClick('/admin')} 
+            onMouseEnter={() => preloadPublicRoute('/admin')}
             className="bg-[#004182] hover:bg-blue-900 text-white px-3 sm:px-6 lg:px-8 py-2 sm:py-2.5 rounded-xl font-bold active:scale-[0.98] transition-all shadow-sm text-xs sm:text-sm whitespace-nowrap cursor-pointer flex items-center gap-1.5 touch-manipulation"
           >
             {currentUser ? <Shield size={15} /> : <LogIn size={15} />}
