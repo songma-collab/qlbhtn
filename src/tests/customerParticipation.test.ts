@@ -259,6 +259,63 @@ describe('Kiểm thử Phân hệ Hồ Sơ Tham Gia BHXH & Quy tắc trần 10 n
 
       fromSpy.mockRestore();
     });
+
+    it('bảo toàn hệ số lương dạng số thực (2.34) khi ghi vào customer_participations, không bị strip thành 234', async () => {
+      let insertedRows: any[] = [];
+      const mockInsert = vi.fn().mockImplementation((rows) => {
+        insertedRows = rows;
+        return Promise.resolve({ error: null });
+      });
+
+      const mockDelete = vi.fn().mockReturnValue({
+        eq: vi.fn().mockResolvedValue({ error: null })
+      });
+
+      const mockSelect = vi.fn().mockReturnValue({
+        eq: vi.fn().mockReturnValue({
+          limit: vi.fn().mockReturnValue({
+            maybeSingle: vi.fn().mockResolvedValue({
+              data: { id: 'cust-uuid-nn', customer_key: 'KEY-NN', cccd: '014075000149', bhxh: '1420951267' },
+              error: null
+            })
+          })
+        })
+      });
+
+      const originalFrom = supabase.from;
+      const fromSpy = vi.spyOn(supabase, 'from').mockImplementation((table: string) => {
+        if (table === 'customers') {
+          return {
+            update: vi.fn().mockReturnValue({ eq: vi.fn().mockResolvedValue({ error: null }) }),
+            select: mockSelect
+          } as any;
+        }
+        if (table === 'customer_participations') {
+          return {
+            delete: mockDelete,
+            insert: mockInsert
+          } as any;
+        }
+        return originalFrom.call(supabase, table);
+      });
+
+      const res = await customerService.updateCustomerParticipation('cust-12345678-0000-0000-0000-000000000000', {
+        prior_periods: [
+          { id: 1, type: 'nhanuoc', sm: 11, sy: 2011, em: 12, ey: 2011, salary: '2.34', position: 'Chuyên viên' },
+          { id: 2, type: 'nhanuoc', sm: 1, sy: 2012, em: 4, ey: 2012, salary: '2,34', position: 'Chuyên viên' }
+        ],
+        prior_voluntary_months: 0,
+        prior_compulsory_months: 6,
+        prior_participation_notes: 'Giai đoạn nhà nước hệ số'
+      });
+
+      expect(res.success).toBe(true);
+      expect(insertedRows.length).toBe(2);
+      expect(insertedRows[0].salary).toBe(2.34);
+      expect(insertedRows[1].salary).toBe(2.34);
+
+      fromSpy.mockRestore();
+    });
   });
 
   describe('5. Đồng bộ Master Data: customerService.resyncCustomerFromRecords với nghiệp vụ thoái thu', () => {

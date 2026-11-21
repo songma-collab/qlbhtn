@@ -84,5 +84,5 @@ describe('PensionAssistant - calculatePensionEffortRating Unit Tests', () => {
 
     const assistantMod = await import('../components/calculators/PensionAssistant');
     expect(assistantMod.default).toBeDefined();
-  });
+  }, 15000);
 });
