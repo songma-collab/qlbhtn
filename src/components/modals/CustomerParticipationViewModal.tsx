@@ -421,7 +421,15 @@ export const CustomerParticipationViewModal: React.FC<CustomerParticipationViewM
                           )}
                         </td>
                         <td className="p-3 text-right font-mono font-bold text-slate-800">
-                          {p.salary ? `${typeof p.salary === 'number' ? new Intl.NumberFormat('vi-VN').format(p.salary) : p.salary} đ` : <span className="text-gray-400 italic">Chưa nhập</span>}
+                          {p.salary ? (
+                            p.type === 'nhanuoc' ? (
+                              <span className="text-blue-700 bg-blue-50 px-2 py-0.5 rounded font-bold">HS: {String(p.salary).trim()}</span>
+                            ) : (
+                              `${typeof p.salary === 'number' ? new Intl.NumberFormat('vi-VN').format(p.salary) : p.salary} đ`
+                            )
+                          ) : (
+                            <span className="text-gray-400 italic">Chưa nhập</span>
+                          )}
                         </td>
                         <td className="p-3 text-gray-500 text-[11px] max-w-[150px] truncate" title={p.notes || ''}>
                           {p.notes || (!isBatBuoc && suppInfo.unsupportedBefore2018Months > 0 ? `Đóng trước 01/2018 (${suppInfo.unsupportedBefore2018Months}th)` : '-')}

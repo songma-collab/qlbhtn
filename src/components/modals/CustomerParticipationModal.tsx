@@ -157,18 +157,37 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
       if (p.id !== id) return p;
 
       let newVal = value;
-      if (field === 'salary' && p.type !== 'nhanuoc') {
-        const v = String(value).replace(/\D/g, '');
-        newVal = v ? new Intl.NumberFormat('vi-VN').format(Number(v)) : '';
+      if (field === 'salary') {
+        if (p.type !== 'nhanuoc') {
+          const v = String(value).replace(/\D/g, '');
+          newVal = v ? new Intl.NumberFormat('vi-VN').format(Number(v)) : '';
+        } else {
+          // Cho phép nhập hệ số có số thập phân (ví dụ 2.34 hoặc 2,34)
+          newVal = String(value).replace(/[^0-9.,]/g, '');
+        }
       }
 
-      // Tự động điền chức danh gợi ý khi đổi loại hình nếu người dùng chưa nhập
+      // Tự động điền chức danh gợi ý và điều chỉnh định dạng lương khi đổi loại hình
       if (field === 'type') {
         let suggestedPos = p.position || '';
-        if (!suggestedPos || suggestedPos === 'Đóng BHXH bắt buộc' || suggestedPos === 'Tham gia BHXH tự nguyện') {
-          suggestedPos = value === 'tunguyen' ? 'Tham gia BHXH tự nguyện' : 'Đóng BHXH bắt buộc';
+        if (!suggestedPos || suggestedPos === 'Đóng BHXH bắt buộc' || suggestedPos === 'Tham gia BHXH tự nguyện' || suggestedPos === 'Công chức / Viên chức nhà nước') {
+          suggestedPos = value === 'tunguyen'
+            ? 'Tham gia BHXH tự nguyện'
+            : (value === 'nhanuoc' ? 'Công chức / Viên chức nhà nước' : 'Đóng BHXH bắt buộc');
         }
-        return { ...p, type: value, position: suggestedPos };
+        let adjustedSalary = p.salary;
+        if (value === 'nhanuoc') {
+          const rawNum = Number(String(p.salary || '').replace(/\D/g, ''));
+          if (rawNum > 100 || !p.salary) {
+            adjustedSalary = '2.34';
+          }
+        } else if (value === 'batbuoc' || value === 'tunguyen') {
+          const parsed = parseFloat(String(p.salary || '').replace(',', '.'));
+          if (!isNaN(parsed) && parsed > 0 && parsed <= 25) {
+            adjustedSalary = value === 'batbuoc' ? '2.340.000' : '1.500.000';
+          }
+        }
+        return { ...p, type: value, position: suggestedPos, salary: adjustedSalary };
       }
 
       // Cập nhật trường Từ tháng (MM/YYYY)
@@ -277,6 +296,24 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
             const salary = r[6] ? String(r[6]).trim() : '';
             const workplace = r[7] ? String(r[7]).trim() : '';
 
+            let cleanSalary = '';
+            if (t === 'nhanuoc') {
+              if (salary) {
+                const rawStr = String(salary).trim();
+                let parsed = parseFloat(rawStr.replace(',', '.'));
+                if (!isNaN(parsed) && parsed > 0) {
+                  if (parsed >= 100 && parsed < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+                    parsed = parsed / 100;
+                  }
+                  cleanSalary = String(parsed);
+                } else {
+                  cleanSalary = rawStr;
+                }
+              }
+            } else {
+              cleanSalary = salary ? parseInt(salary.replace(/\D/g, '') || '0').toLocaleString('vi-VN') : '';
+            }
+
             newPeriods.push(normalizePeriod({
               id: Date.now() + Math.random() + j,
               type: t,
@@ -286,7 +323,7 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
               sy,
               em,
               ey,
-              salary: t === 'nhanuoc' ? salary : (salary ? parseInt(salary.replace(/\D/g, '') || '0').toLocaleString('vi-VN') : '')
+              salary: cleanSalary
             }));
           }
 
@@ -405,8 +442,20 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
       const enrichedPeriods = periods.map(p => {
         const fromM = p.fromMonth || `${String(p.sm || 1).padStart(2, '0')}/${p.sy || new Date().getFullYear()}`;
         const toM = p.toMonth || `${String(p.em || 12).padStart(2, '0')}/${p.ey || p.sy || new Date().getFullYear()}`;
+        let cleanSal = p.salary;
+        if (p.type === 'nhanuoc' && p.salary) {
+          const rawStr = String(p.salary).trim();
+          let parsed = parseFloat(rawStr.replace(',', '.'));
+          if (!isNaN(parsed) && parsed > 0) {
+            if (parsed >= 100 && parsed < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+              parsed = parsed / 100;
+            }
+            cleanSal = String(parsed);
+          }
+        }
         return {
           ...p,
+          salary: cleanSal,
           fromMonth: fromM,
           toMonth: toM,
           from_month_date: parseToIsoMonthDate(fromM),
@@ -437,17 +486,42 @@ export const CustomerParticipationModal: React.FC<CustomerParticipationModalProp
   // Chuyển dữ liệu sang tab Tính BHXH 1 lần
   const handleTransferTo1Lan = () => {
     // 1. Format PeriodItem của modal (giai đoạn trước đây)
-    const formattedPrior: PeriodItem[] = (periods || []).map(p => ({
-      id: p.id || (Date.now() + Math.random()),
-      type: p.type || 'batbuoc',
-      position: p.position || '',
-      workplace: p.workplace || '',
-      sm: Number(p.sm) || 1,
-      sy: Number(p.sy) || new Date().getFullYear(),
-      em: Number(p.em) || 12,
-      ey: Number(p.ey) || new Date().getFullYear(),
-      salary: p.salary ? (typeof p.salary === 'number' ? new Intl.NumberFormat('vi-VN').format(p.salary) : String(p.salary).trim()) : ''
-    }));
+    const formattedPrior: PeriodItem[] = (periods || []).map(p => {
+      const isNhaNuoc = p.type === 'nhanuoc';
+      let salDisplay = '';
+      if (p.salary !== undefined && p.salary !== null && p.salary !== '') {
+        if (isNhaNuoc) {
+          const rawStr = String(p.salary).trim();
+          const cleanHs = rawStr.replace(',', '.');
+          let parsed = parseFloat(cleanHs);
+          if (!isNaN(parsed) && parsed > 0) {
+            if (parsed >= 100 && parsed < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+              parsed = parsed / 100;
+            } else if (parsed >= 1000000) {
+              parsed = Number((parsed / 1000000).toFixed(2));
+            }
+            salDisplay = String(parsed);
+          } else {
+            salDisplay = rawStr;
+          }
+        } else if (typeof p.salary === 'number') {
+          salDisplay = new Intl.NumberFormat('vi-VN').format(p.salary);
+        } else {
+          salDisplay = String(p.salary).trim();
+        }
+      }
+      return {
+        id: p.id || (Date.now() + Math.random()),
+        type: p.type || 'batbuoc',
+        position: p.position || '',
+        workplace: p.workplace || '',
+        sm: Number(p.sm) || 1,
+        sy: Number(p.sy) || new Date().getFullYear(),
+        em: Number(p.em) || 12,
+        ey: Number(p.ey) || new Date().getFullYear(),
+        salary: salDisplay
+      };
+    });
 
     // 2. Gộp thêm các giai đoạn đã phát sinh tại đại lý này
     const agencyPeriods = extractAgencyPeriods(customer, records || []);

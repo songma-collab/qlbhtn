@@ -43,6 +43,9 @@ export const formatOcrSalary = (
     (pType === 'nhanuoc' || (!isNaN(parsedCoef) && parsedCoef >= 0.8 && parsedCoef <= 12.0 && totalDigits <= 4))
   ) {
     let coefVal = isNaN(parsedCoef) ? 2.34 : parsedCoef;
+    if (coefVal >= 100 && coefVal <= 999 && !clean.includes('.') && !clean.includes(',')) {
+      coefVal = coefVal / 100;
+    }
     return {
       salary: coefVal.toFixed(2),
       realType: 'nhanuoc'

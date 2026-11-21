@@ -110,7 +110,22 @@ const BHXH1LanCalc = () => {
       if (savedTransfer) {
         const parsed = JSON.parse(savedTransfer);
         if (parsed?.periods && Array.isArray(parsed.periods) && parsed.periods.length > 0) {
-          const normalized = parsed.periods.map(normalizePeriod);
+          const sanitizedPeriods = parsed.periods.map((p: any) => {
+            if (p.type === 'nhanuoc' && p.salary) {
+              const rawStr = String(p.salary).trim();
+              let parsedHs = parseFloat(rawStr.replace(',', '.'));
+              if (!isNaN(parsedHs) && parsedHs > 0) {
+                if (parsedHs >= 100 && parsedHs < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+                  parsedHs = parsedHs / 100;
+                } else if (parsedHs >= 1000000) {
+                  parsedHs = Number((parsedHs / 1000000).toFixed(2));
+                }
+                return { ...p, salary: String(parsedHs) };
+              }
+            }
+            return p;
+          });
+          const normalized = sanitizedPeriods.map(normalizePeriod);
           setPeriods(normalized);
           if (parsed.gender) setGender(parsed.gender);
           if (parsed.customerName || parsed.customerCccd || parsed.customerBhxh) {
@@ -178,9 +193,30 @@ const BHXH1LanCalc = () => {
     setPeriods(periods.map(p => {
       if (p.id === id) {
         let newVal = value;
-        if (field === 'salary' && p.type !== 'nhanuoc') {
-          let v = value.replace(/\D/g, "");
-          newVal = v ? new Intl.NumberFormat('vi-VN').format(Number(v)) : "";
+        if (field === 'salary') {
+          if (p.type !== 'nhanuoc') {
+            let v = value.replace(/\D/g, "");
+            newVal = v ? new Intl.NumberFormat('vi-VN').format(Number(v)) : "";
+          } else {
+            // Cho phép nhập hệ số thập phân ví dụ 2.34 hoặc 2,34
+            newVal = String(value).replace(/[^0-9.,]/g, '');
+          }
+        }
+
+        if (field === 'type') {
+          let newSal = p.salary;
+          if (value === 'nhanuoc') {
+            const rawNum = Number(String(p.salary || '').replace(/\D/g, ''));
+            if (rawNum > 100 || !p.salary) {
+              newSal = '2.34';
+            }
+          } else if (value === 'batbuoc' || value === 'tunguyen') {
+            const parsed = parseFloat(String(p.salary || '').replace(',', '.'));
+            if (!isNaN(parsed) && parsed > 0 && parsed <= 25) {
+              newSal = value === 'batbuoc' ? '2.340.000' : '1.500.000';
+            }
+          }
+          return { ...p, type: value, salary: newSal };
         }
 
         if (field === 'fromMonth') {
@@ -291,7 +327,21 @@ const BHXH1LanCalc = () => {
       activePeriods.forEach(r => { if (r.sy < startY) startY = r.sy; });
       activePeriods.forEach(r => {
         const type = r.type, sm = Number(r.sm), sy = Number(r.sy), em = Number(r.em), ey = Number(r.ey);
-        let vStr = r.salary, v = (type === 'nhanuoc' ? parseFloat(String(vStr).replace(',', '.')) : getInt(vStr));
+        let vStr = r.salary;
+        let v = 0;
+        if (type === 'nhanuoc') {
+          let parsedHs = parseFloat(String(vStr || '').trim().replace(',', '.'));
+          if (!isNaN(parsedHs) && parsedHs > 0) {
+            if (parsedHs >= 100 && parsedHs < 1000 && !String(vStr).includes('.') && !String(vStr).includes(',')) {
+              parsedHs = parsedHs / 100;
+            } else if (parsedHs >= 1000000) {
+              parsedHs = Number((parsedHs / 1000000).toFixed(2));
+            }
+            v = parsedHs;
+          }
+        } else {
+          v = getInt(vStr);
+        }
 
         if (!v || v <= 0) return;
         let absS = sy * 12 + sm, absE = ey * 12 + em;
@@ -476,7 +526,21 @@ const BHXH1LanCalc = () => {
         if (!r || r[0] === undefined) continue;
         let typeT = String(r[0]).toLowerCase().trim();
         let t: 'batbuoc' | 'nhanuoc' | 'tunguyen' = (typeT.includes('nha') || typeT.includes('heso')) ? 'nhanuoc' : (typeT.includes('tu') ? 'tunguyen' : 'batbuoc');
-        if (r[5] > 0) {
+        if (r[5] !== undefined && r[5] !== null && r[5] !== '') {
+          let parsedSal = '';
+          if (t === 'nhanuoc') {
+            let hsVal = parseFloat(String(r[5]).trim().replace(',', '.'));
+            if (!isNaN(hsVal) && hsVal > 0) {
+              if (hsVal >= 100 && hsVal < 1000 && !String(r[5]).includes('.') && !String(r[5]).includes(',')) {
+                hsVal = hsVal / 100;
+              }
+              parsedSal = String(hsVal);
+            } else {
+              parsedSal = String(r[5]);
+            }
+          } else {
+            parsedSal = parseInt(String(r[5]).replace(/\D/g, '') || '0').toLocaleString('vi-VN');
+          }
           newPeriods.push({
             id: Date.now() + Math.random(),
             type: t,
@@ -484,7 +548,7 @@ const BHXH1LanCalc = () => {
             sy: getInt(r[2]),
             em: getInt(r[3]),
             ey: getInt(r[4]),
-            salary: t === 'nhanuoc' ? r[5] : parseInt(r[5]).toLocaleString('vi-VN')
+            salary: parsedSal
           });
         }
       }
@@ -943,7 +1007,14 @@ const BHXH1LanCalc = () => {
                 </div>
                 <div className="min-w-0">
                   <label className="block text-xs font-semibold text-slate-600 mb-1 truncate">Mức lương/HS</label>
-                  <input type="text" inputMode="numeric" value={p.salary} onChange={e => updatePeriod(p.id, 'salary', e.target.value)} className="w-full p-3 rounded-xl border border-slate-200 text-sm h-[45px] font-bold text-[#004182] focus:border-[#004182] outline-none" placeholder="Nhập..." />
+                  <input
+                    type="text"
+                    inputMode={p.type === 'nhanuoc' ? 'decimal' : 'numeric'}
+                    value={p.salary}
+                    onChange={e => updatePeriod(p.id, 'salary', e.target.value)}
+                    className="w-full p-3 rounded-xl border border-slate-200 text-sm h-[45px] font-bold text-[#004182] focus:border-[#004182] outline-none"
+                    placeholder={p.type === 'nhanuoc' ? 'VD: 2.34' : 'Nhập...'}
+                  />
                 </div>
                 <button type="button" onClick={() => removePeriod(p.id)} className="bg-red-50 text-red-600 hover:bg-red-500 hover:text-white w-full md:w-11 h-[45px] rounded-xl flex items-center justify-center transition shadow-xs mt-2 md:mt-0 shrink-0 border border-red-200">
                   <Trash2 size={16} className="md:mr-0 mr-2" /> <span className="md:hidden">Xóa giai đoạn</span>

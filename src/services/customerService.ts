@@ -513,6 +513,22 @@ export const customerService = {
                 const sy = Number(p.sy) || 2020;
                 const em = Number(p.em) || 12;
                 const ey = Number(p.ey) || 2020;
+                const isNhaNuoc = p.type === 'nhanuoc';
+                let parsedSalary: number | null = null;
+                if (p.salary !== undefined && p.salary !== null && p.salary !== '') {
+                  if (isNhaNuoc) {
+                    const rawStr = String(p.salary).trim();
+                    let num = parseFloat(rawStr.replace(',', '.'));
+                    if (!isNaN(num) && num > 0) {
+                      if (num >= 100 && num < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+                        num = num / 100;
+                      }
+                      parsedSalary = num;
+                    }
+                  } else {
+                    parsedSalary = Number(String(p.salary).replace(/\D/g, '')) || null;
+                  }
+                }
                 return {
                   customer_id: custRec.id,
                   customer_key: custRec.customer_key,
@@ -528,7 +544,7 @@ export const customerService = {
                   from_month_date: `${sy}-${String(sm).padStart(2, '0')}-01`,
                   to_month_date: `${ey}-${String(em).padStart(2, '0')}-01`,
                   months: Number(p.months) || 0,
-                  salary: p.salary ? Number(String(p.salary).replace(/\D/g, '')) || null : null,
+                  salary: parsedSalary,
                   notes: p.notes || ''
                 };
               });

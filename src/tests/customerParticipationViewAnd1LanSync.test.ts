@@ -353,6 +353,112 @@ describe('customerParticipationHelper & 1-Lan Sync Suite', () => {
       expect(parsed.periods.length).toBe(1);
     });
 
+    it('giữ nguyên chính xác hệ số lương nhà nước (2.34, 2,34) khi chuyển sang BHXH 1 lần', () => {
+      const customer: CustomerType = {
+        id: 'cust-nhanuoc-1',
+        customer_key: 'KEY-NN-1',
+        type: 'BHXH',
+        name: 'Dương Hữu Thiện',
+        cccd: '014075000149',
+        bhxh: '1420951267',
+        payment_status: 'paid',
+        total_contributions: 1,
+        total_amount_paid: 1000000,
+        prior_periods: [
+          {
+            id: 1,
+            type: 'nhanuoc',
+            position: 'HĐLĐ ngạch chuyên viên',
+            workplace: 'BHXH tỉnh Sơn La',
+            sm: 11,
+            sy: 2011,
+            em: 12,
+            ey: 2011,
+            salary: '2.34'
+          },
+          {
+            id: 2,
+            type: 'nhanuoc',
+            position: 'HĐLĐ ngạch chuyên viên',
+            workplace: 'BHXH tỉnh Sơn La',
+            sm: 1,
+            sy: 2012,
+            em: 4,
+            ey: 2012,
+            salary: '2,34'
+          }
+        ],
+        status: 'active'
+      };
+
+      const navigateMock = vi.fn();
+      const toastMock = vi.fn();
+
+      const ok = transferCustomerTo1Lan(customer, [], navigateMock, toastMock);
+      expect(ok).toBe(true);
+      expect(navigateMock).toHaveBeenCalledWith('/bhxh1lan');
+
+      const storedJson = sessionStorage.getItem('TRANSFER_TO_BHXH1LAN');
+      expect(storedJson).toBeTruthy();
+      const parsed = JSON.parse(storedJson!);
+      expect(parsed.customerName).toBe('Dương Hữu Thiện');
+      expect(parsed.periods.length).toBe(2);
+      expect(parsed.periods[0].salary).toBe('2.34');
+      expect(parsed.periods[1].salary).toBe('2.34');
+    });
+
+    it('tự động phục hồi hệ số 2.34 nếu trước đó bị lỗi strip dấu chấm thành 234 hoặc lưu nhầm 2340000', () => {
+      const customer: CustomerType = {
+        id: 'cust-nhanuoc-corrupted',
+        customer_key: 'KEY-NN-2',
+        type: 'BHXH',
+        name: 'Nguyễn Văn Công Chức',
+        cccd: '014075000999',
+        payment_status: 'paid',
+        total_contributions: 1,
+        total_amount_paid: 1000000,
+        prior_periods: [
+          {
+            id: 1,
+            type: 'nhanuoc',
+            sm: 1,
+            sy: 2015,
+            em: 12,
+            ey: 2015,
+            salary: '234' // Bị strip dấu chấm trước đây
+          },
+          {
+            id: 2,
+            type: 'nhanuoc',
+            sm: 1,
+            sy: 2016,
+            em: 12,
+            ey: 2016,
+            salary: '2340000' // Bị nhầm thành mức lương VND
+          },
+          {
+            id: 3,
+            type: 'nhanuoc',
+            sm: 1,
+            sy: 2017,
+            em: 12,
+            ey: 2017,
+            salary: '' // Chưa nhập mức lương
+          }
+        ],
+        status: 'active'
+      };
+
+      const navigateMock = vi.fn();
+      transferCustomerTo1Lan(customer, [], navigateMock);
+
+      const storedJson = sessionStorage.getItem('TRANSFER_TO_BHXH1LAN');
+      const parsed = JSON.parse(storedJson!);
+      expect(parsed.periods[0].salary).toBe('2.34');
+      expect(parsed.periods[1].salary).toBe('2.34');
+      expect(parsed.periods[2].salary).toBe('2.34');
+    });
+
     it('từ chối chuyển và hiển thị cảnh báo nếu không có giai đoạn nào', () => {
       const customer: CustomerType = {
         id: 'cust-105',

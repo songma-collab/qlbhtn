@@ -141,8 +141,24 @@ export const buildCompleteParticipationPeriods = (
     for (const p of customer.prior_periods) {
       if (!p) continue;
       let salStr = '';
+      const isNhaNuoc = p.type === 'nhanuoc';
+
       if (p.salary !== undefined && p.salary !== null && p.salary !== '') {
-        if (typeof p.salary === 'number') {
+        if (isNhaNuoc) {
+          const rawStr = String(p.salary).trim();
+          let parsed = parseFloat(rawStr.replace(',', '.'));
+          if (isNaN(parsed) || parsed <= 0) {
+            salStr = '2.34';
+          } else {
+            // Tự động khôi phục nếu trước đó bị strip dấu chấm thành 234 hoặc lưu nhầm mức lương VND 2.340.000
+            if (parsed >= 100 && parsed < 1000 && !rawStr.includes('.') && !rawStr.includes(',')) {
+              parsed = parsed / 100;
+            } else if (parsed >= 1000000) {
+              parsed = Number((parsed / 1000000).toFixed(2));
+            }
+            salStr = String(parsed);
+          }
+        } else if (typeof p.salary === 'number') {
           salStr = new Intl.NumberFormat('vi-VN').format(p.salary);
         } else {
           const rawNum = Number(String(p.salary).replace(/\D/g, ''));
@@ -152,8 +168,12 @@ export const buildCompleteParticipationPeriods = (
 
       // Nếu chưa nhập mức lương, mặc định mức sàn hợp lệ để phân hệ BHXH 1 lần tính ra kết quả ngay
       if (!salStr || salStr === '0') {
-        const defaultSal = (p.type === 'batbuoc' || p.type === 'nhanuoc') ? 2340000 : 1500000;
-        salStr = new Intl.NumberFormat('vi-VN').format(defaultSal);
+        if (isNhaNuoc) {
+          salStr = '2.34'; // Hệ số lương khởi điểm công chức / viên chức ngạch chuyên viên
+        } else {
+          const defaultSal = p.type === 'batbuoc' ? 2340000 : 1500000;
+          salStr = new Intl.NumberFormat('vi-VN').format(defaultSal);
+        }
       }
 
       completeList.push(normalizePeriod({
